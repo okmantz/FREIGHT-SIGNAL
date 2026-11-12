@@ -41,20 +41,39 @@ test('matrix: 3x3 grid order (origin outer loop, destination inner loop)', () =>
     assert.equal(rows[k].originCity, o[i].city); assert.equal(rows[k].destCity, d[j].city); k++;
   }
 });
-test('matrix: alternates come from the ZIP Map and respect the 20-60 mile first tier', () => {
+test('matrix: alternates are real, distinct markets from the ZIP Map within the lane-class reach', () => {
   const zm = realZipMap(); const src = load();
   const plan = planMatrix({ source: src, zipMap: zm, inquiries: [], settings: DEFAULT_SETTINGS });
-  for (const a of [...plan.origins.slice(1), ...plan.dests.slice(1)]) {
-    assert.ok(a.miles >= 20 && a.miles <= 60, `${a.city} ${a.miles}`);
-    const z = zm.findZip(a.zip); assert.ok(z, 'ZIP exists in map'); assert.equal(z.city, a.city); assert.equal(z.state, a.state);
-  }
-});
-test('matrix: distance tiers are configurable', () => {
-  const zm = realZipMap();
-  const settings = { ...DEFAULT_SETTINGS, distanceTiers: [[40, 80]] };
-  const plan = planMatrix({ source: load(), zipMap: zm, inquiries: [], settings });
   assert.equal(plan.ok, true);
-  for (const a of [...plan.origins.slice(1), ...plan.dests.slice(1)]) assert.ok(a.miles >= 40 && a.miles <= 80, String(a.miles));
+  for (const side of [plan.origins, plan.dests]) {
+    assert.equal(new Set(side.map(a => a.city + '|' + a.state)).size, 3, 'three distinct markets per side');
+    for (const a of side.slice(1)) {
+      assert.ok(a.miles > 1 && a.miles <= 100, `${a.city} ${a.miles}`);
+      const z = zm.findZip(a.zip); assert.ok(z, 'ZIP exists in map'); assert.equal(z.city, a.city); assert.equal(z.state, a.state);
+    }
+  }
+  assert.ok(['local', 'regional', 'long'].includes(plan.lane.cls)); assert.equal(typeof plan.quality.weird, 'boolean');
+});
+test('matrix: the posting strategy (ideal alternate distance) is configurable', () => {
+  const zm = realZipMap();
+  const avg = (settings) => { const p = planMatrix({ source: load(), zipMap: zm, inquiries: [], settings }); assert.equal(p.ok, true); const a = [...p.origins.slice(1), ...p.dests.slice(1)]; return a.reduce((n, x) => n + x.miles, 0) / a.length; };
+  const mkS = (ideal, max) => ({ ...DEFAULT_SETTINGS, strategies: Object.fromEntries(['local', 'regional', 'long'].map(c => [c, { altIdeal: ideal, altMax: max, altMin: 2 }])) });
+  assert.ok(avg(mkS(45, 90)) > avg(mkS(8, 30)), 'a larger ideal distance picks farther alternates');
+});
+test('matrix: excluded markets are never picked again (try different cities)', () => {
+  const zm = realZipMap();
+  const first = planMatrix({ source: load(), zipMap: zm, inquiries: [], settings: DEFAULT_SETTINGS });
+  const ex = [...first.origins.slice(1), ...first.dests.slice(1)].map(a => (a.city + '|' + a.state).toLowerCase());
+  const second = planMatrix({ source: load(), zipMap: zm, inquiries: [], settings: DEFAULT_SETTINGS, exclude: ex });
+  assert.equal(second.ok, true);
+  for (const a of [...second.origins.slice(1), ...second.dests.slice(1)]) assert.ok(!ex.includes((a.city + '|' + a.state).toLowerCase()), a.city);
+});
+test('matrix: a San Leandro pickup prefers dense neighbouring markets (adaptive)', () => {
+  const zm = realZipMap();
+  const p = planMatrix({ source: load({ originCity: 'San Leandro', originState: 'CA', originZip: '94577', destCity: 'Reno', destState: 'NV' }), zipMap: zm, inquiries: [], settings: DEFAULT_SETTINGS });
+  assert.equal(p.ok, true);
+  const o = p.origins.slice(1).map(a => a.city);
+  assert.ok(o.every(c => ['Oakland', 'Hayward', 'Fremont', 'San Francisco', 'Alameda', 'Berkeley', 'Union City', 'Pleasanton', 'Livermore', 'Richmond', 'Concord', 'Walnut Creek', 'San Jose', 'Antioch', 'Daly City'].includes(c)), o.join(','));
 });
 test('matrix: unknown city never invents geography', () => {
   const plan = planMatrix({ source: load({ originCity: 'Zzzzville', originState: 'IL', originZip: '' }), zipMap: realZipMap(), inquiries: [], settings: DEFAULT_SETTINGS });

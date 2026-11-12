@@ -10,19 +10,18 @@ const b = await chromium.launch(process.env.PW_CHROME ? { executablePath: proces
 const pg = await b.newPage({ viewport: { width: 1400, height: 850 } });
 const errs = []; const ext = [];
 pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); pg.on('pageerror', (e) => errs.push(e.message));
-pg.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) ext.push(r.url()); });
+pg.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && !r.url().startsWith('https://api.weather.gov')) ext.push(r.url()); });
 try {
   await pg.goto('file://' + file); await pg.waitForSelector('.metrics', { timeout: 30000 });
   check('single file boots from file://', true);
   check('embedded ZIP Map decompressed (33,782 rows)', (await pg.textContent('#zipstat')).includes('33,782'), await pg.textContent('#zipstat'));
   await pg.goto('file://' + file + '#/board');
-  await pg.fill('textarea', fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8'));
-  await pg.click('text=Parse pasted loads'); await pg.waitForSelector('.modal'); await pg.click('.modal >> text=Add to board');
-  await pg.waitForSelector('tbody .rowact'); await pg.click('button:has-text("Matrix")'); await pg.waitForSelector('.modal'); await pg.click('.modal >> text=Create 9 postings');
-  await pg.waitForFunction(() => document.querySelectorAll('tbody tr').length === 9);
+  await pg.fill('textarea.pastebox', fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8'));
+  await pg.waitForSelector('.pastetable'); await pg.locator('.pastetable input[aria-label="originCity"]').press('Enter');
+  await pg.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9, null, { timeout: 20000 });
   check('parse + matrix work in the single-file build', true);
-  await pg.reload(); await pg.waitForSelector('tbody tr');
-  check('IndexedDB persists on file:// across reload', (await pg.locator('tbody tr').count()) === 9);
+  await pg.reload(); await pg.waitForSelector('.lanebox tbody tr');
+  check('IndexedDB persists on file:// across reload', (await pg.locator('.lanebox tbody tr').count()) === 9);
   check('logo embedded', await pg.evaluate(() => document.querySelector('header img').naturalWidth > 0));
   check('no console errors / CSP violations', errs.length === 0, errs.join(' | '));
   check('no network requests', ext.length === 0, ext.join(' | '));

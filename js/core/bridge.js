@@ -12,15 +12,19 @@
 // All files are ASCII only (VBA's native file I/O is ANSI, so anything else would be corrupted).
 // Tabs / newlines inside a field are escaped as \t and \n, backslash as \\ (the macro reverses this).
 
+import { templatesOf } from './ladder.js';
+
 export const BRIDGE_VERSION = 'v1';
 export const FILES = {
   postings: 'freight-signal-postings.tsv',
   config: 'freight-signal-config.tsv',
   inquiries: 'freight-signal-inquiries.tsv',
   status: 'freight-signal-outlook-status.txt',
+  outbox: 'freight-signal-outbox.tsv',            // app -> Outlook: drafts to create in the Outlook Drafts folder
+  draftsDone: 'freight-signal-drafts-done.tsv',    // Outlook -> app: which of those drafts were created (or failed)
 };
 export const POSTING_COLS = ['PostingId', 'Row', 'GroupId', 'Variant', 'OriginCity', 'OriginState', 'OriginZip', 'DestCity', 'DestState', 'DestZip',
-  'Equipment', 'PickupDate', 'Weight', 'DatRate', 'TargetRate', 'Priority', 'Status', 'Outreach', 'InquiryCount', 'Details', 'Notes'];
+  'Equipment', 'PickupDate', 'Weight', 'DatRate', 'TargetRate', 'Priority', 'Status', 'Outreach', 'InquiryCount', 'Details', 'Notes', 'Broker', 'Contact'];
 export const INQUIRY_COLS = ['ConversationId', 'Timestamp', 'SenderEmail', 'Subject', 'PostingId', 'PostingRow', 'Stage', 'CarrierRate', 'TargetRate', 'Action', 'Flag', 'EventCount'];
 
 /** ASCII-safe single field: accents folded, other non-ASCII dropped, control chars escaped. */
@@ -48,7 +52,7 @@ export function postingsFile(postings, now = new Date()) {
   const rows = postings
     .filter(p => String(p.status ?? 'Active').toLowerCase() !== 'covered')
     .map((p) => line([p.id, postings.indexOf(p) + 2, p.groupId, p.variant, p.originCity, p.originState, p.originZip, p.destCity, p.destState, p.destZip,
-      p.equip, p.pickupEarliest, p.weight, p.datRate, p.targetRate, p.priority, p.status || 'Active', p.outreach, p.inquiryCount, p.details, p.notes]));
+      p.equip, p.pickupEarliest, p.weight, p.datRate, p.targetRate, p.priority, p.status || 'Active', p.outreach, p.inquiryCount, p.details, p.notes, p.broker || '', p.contact || '']));
   return ['#FREIGHT-SIGNAL-BRIDGE', BRIDGE_VERSION, now.toISOString(), rows.length].join('\t') + '\r\n'
     + POSTING_COLS.join('\t') + '\r\n' + rows.join('\r\n') + (rows.length ? '\r\n' : '');
 }
@@ -57,9 +61,13 @@ export function postingsFile(postings, now = new Date()) {
 export const postingsFingerprint = (postings) => postingsFile(postings, new Date(0));
 
 export function configFile(settings) {
+  const t = templatesOf(settings);
   const out = [
     ['rateProximity', settings.rateProximity], ['minRate', settings.minReasonableRate], ['maxRate', settings.maxReasonableRate],
     ['recogniseCommaRates', settings.recogniseCommaRates ? 1 : 0],
+    // v5: percent ladder + the wording for each rung ({rate} {target} {split} {pct} are filled in by the macro)
+    ['bookPct', settings.ladderBookPct], ['splitPct', settings.ladderSplitPct], ['ladderRound', settings.ladderRound],
+    ['tplBook', t.book], ['tplSplit', t.split], ['tplTarget', t.target],
   ];
   for (const b of settings.inboundBlocklist || []) out.push(['inboundBlock', b]);
   return ['#FREIGHT-SIGNAL-CONFIG', BRIDGE_VERSION].join('\t') + '\r\n' + out.map(line).join('\r\n') + '\r\n';
@@ -143,3 +151,31 @@ export function planInquirySync(records, inquiries, postings) {
   return { creates, patches, postingBumps };
 }
 const safeInt = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+
+
+// ------------------------------------------------------------------------------------------------ outbox (drafts -> Outlook Drafts folder)
+
+export const OUTBOX_COLS = ['DraftId', 'To', 'Cc', 'Subject', 'Body', 'Kind', 'Created'];
+export const DRAFTS_DONE_COLS = ['DraftId', 'Timestamp', 'Result', 'Detail'];
+
+/**
+ * The outbox the Outlook macro (v5) turns into real Outlook drafts. Only drafts still waiting are listed. The last line is
+ * "#END<TAB>count": the macro ignores the file until it sees it, so a half-written file is never processed.
+ * Each draft needs `outboxId`, `to`, `subject`, `body`.
+ */
+export function outboxFile(drafts, now = new Date()) {
+  const rows = drafts.filter(d => d && d.outboxId && d.to).map(d => line([d.outboxId, d.to, d.cc || '', d.subject, d.body, d.kind || '', d.createdAt || now.toISOString()]));
+  return ['#FREIGHT-SIGNAL-OUTBOX', BRIDGE_VERSION, now.toISOString(), rows.length].join('\t') + '\r\n' + OUTBOX_COLS.join('\t') + '\r\n'
+    + rows.map(r => r + '\r\n').join('') + ['#END', rows.length].join('\t') + '\r\n';
+}
+
+/** freight-signal-drafts-done.tsv -> Map(draftId -> { ok, at, detail }) (last line per id wins). */
+export function parseDraftsDone(text) {
+  const out = new Map();
+  for (const ln of String(text ?? '').split(/\r?\n/)) {
+    if (!ln || ln.startsWith('DraftId') || ln.startsWith('#')) continue;
+    const c = ln.split('\t'); if (c.length < 3 || !c[0].trim()) continue;
+    out.set(decodeField(c[0]).trim(), { ok: String(c[2]).trim().toUpperCase() === 'OK', at: toIso(c[1]), detail: decodeField(c[3] || '') });
+  }
+  return out;
+}

@@ -70,6 +70,30 @@ export class ZipMap {
 
   get size() { return this.rows.length; }
 
+  /**
+   * Markets = one entry per city: population summed over its ZIPs, location = population-weighted centre, ZIP = the biggest ZIP.
+   * (The old matrix scored single ZIP rows, so a city was judged by one neighbourhood.) Built once, then cached.
+   */
+  markets() {
+    if (this._markets) return this._markets;
+    const m = new Map();
+    for (const r of this.rows) {
+      if (!Number.isFinite(r.lat) || !Number.isFinite(r.lng) || !r.city || !r.state || !r.zip) continue;
+      const key = normalizeText(r.city) + '|' + normalizeText(r.state);   // lower-case "city|st" (same shape as coverlog.cityKey)
+      let c = m.get(key);
+      if (!c) { c = { key, city: r.city, state: r.state, zip: r.zip, pop: 0, _w: 0, _lat: 0, _lng: 0, _best: -1 }; m.set(key, c); }
+      const w = Math.max(r.population, 1);
+      c.pop += r.population; c._w += w; c._lat += r.lat * w; c._lng += r.lng * w;
+      if (r.population > c._best) { c._best = r.population; c.zip = r.zip; }
+    }
+    for (const c of m.values()) { c.lat = c._lat / c._w; c.lng = c._lng / c._w; delete c._w; delete c._lat; delete c._lng; delete c._best; }
+    this._markets = m;
+    return m;
+  }
+
+  /** Market for a city/state, or null. */
+  market(city, state) { return this.markets().get(normalizeText(city) + '|' + normalizeText(state)) || null; }
+
   findZip(zip) { return this.byZipFirst.get(normalizeZip(zip)) || null; }
 
   /** BestZipForCityState: highest-population ZIP for city+state; first row wins ties. */

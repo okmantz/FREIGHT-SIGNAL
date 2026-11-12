@@ -2,7 +2,7 @@
 // Stores: postings, carriers, inquiries, outreach, spares, drafts, kv (settings/counters), zipmap (raw CSV text), handles (bridge folder).
 
 export const DB_NAME = 'freight-signal';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 export const STORES = {
   postings: { keyPath: 'id' },
   carriers: { keyPath: 'id' },
@@ -12,8 +12,12 @@ export const STORES = {
   drafts: { keyPath: 'id' },
   kv: { keyPath: 'key' },
   zipmap: { keyPath: 'key' },
+  customers: { keyPath: 'id' },  // v3: customer contact database
+  coverLog: { keyPath: 'id' },   // v3: attribution log of covered / expired / manually closed loads
   handles: { keyPath: 'key' },   // v2: Outlook-bridge folder handle (never exported in backups)
 };
+
+const BACKUP_STORES = ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv', 'customers', 'coverLog'];
 
 let dbPromise = null;
 
@@ -66,7 +70,7 @@ export const kvSet = (key, value) => put('kv', { key, value });
 /** Snapshot of everything except the (large, re-importable) ZIP map. */
 export async function exportAll() {
   const out = { app: 'freight-signal', schema: 1, exportedAt: new Date().toISOString(), data: {} };
-  for (const s of ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv']) out.data[s] = await getAll(s);
+  for (const s of BACKUP_STORES) out.data[s] = await getAll(s);
   return out;
 }
 
@@ -74,7 +78,7 @@ export async function exportAll() {
 export async function importAll(snapshot, mode = 'replace') {
   if (!snapshot || snapshot.app !== 'freight-signal' || !snapshot.data) throw new Error('This file is not a Freight Signal backup.');
   if (snapshot.schema !== 1) throw new Error('Unsupported backup schema version: ' + snapshot.schema);
-  for (const s of ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv']) {
+  for (const s of BACKUP_STORES) {
     if (snapshot.data[s] !== undefined && !Array.isArray(snapshot.data[s])) throw new Error(`Backup is damaged: "${s}" is not a list.`);
   }
   for (const s of Object.keys(snapshot.data)) {

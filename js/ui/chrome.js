@@ -50,3 +50,9 @@ export function flash(btn, ms = 1300) {
   btn.classList.add('flash');
   setTimeout(() => btn.classList.remove('flash'), ms);
 }
+
+/** A strip of stat tiles: [[value, label, tone?], ...]. tone = ok | act | urgent (colours the number). */
+export function statTiles(items) {
+  return h('div', { class: 'ovstrip', role: 'group', 'aria-label': 'Overview' }, items.filter(Boolean).map(([n, label, tone]) =>
+    h('div', { class: 'ovtile ' + (tone && n ? 't-' + tone : '') }, h('b', null, n), h('span', null, label))));
+}

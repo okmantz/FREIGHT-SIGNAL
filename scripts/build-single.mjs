@@ -18,7 +18,8 @@ const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const css = rd('css/app.css').toString('utf8');
 const zipGz = zlib.gzipSync(rd('data/uszips.csv'), { level: 9 }).toString('base64');
 const sample = rd('data/sample/sample-backup.json').toString('utf8');
-const embed = `globalThis.__FS_EMBEDDED_ZIP=${JSON.stringify(zipGz)};globalThis.__FS_SAMPLE=${JSON.stringify(sample)};`;
+const macroText = rd('outlook/Outlook_v5_ThisOutlookSession.txt').toString('utf8');
+const embed = `globalThis.__FS_EMBEDDED_ZIP=${JSON.stringify(zipGz)};globalThis.__FS_SAMPLE=${JSON.stringify(sample)};globalThis.__FS_MACRO=${JSON.stringify(macroText)};`;
 
 let html = rd('index.html').toString('utf8');
 html = html
@@ -35,7 +36,7 @@ html = html.replace(/assets\/logo-mark\.png/g, markUri);
 const body = html.replace(/assets\/logo-mark\.png/g, markUri);
 const scripts = [...body.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 const style = body.match(/<style>([\s\S]*?)<\/style>/)[1];
-const csp = `default-src 'none'; script-src ${scripts.map(sha).join(' ')}; style-src ${sha(style)}; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`;
+const csp = `default-src 'none'; script-src ${scripts.map(sha).join(' ')}; style-src ${sha(style)}; img-src data: blob:; connect-src https://api.weather.gov; object-src 'none'; base-uri 'none'; form-action 'none'`;
 html = body.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, `<meta http-equiv="Content-Security-Policy" content="${csp}">`);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/freight-signal.html'), html);

@@ -23,7 +23,7 @@ A local-first browser application that replaces the Excel (ThisWorkbook VBA) + O
 2. *Matrix* on the original row → preview of the 2 alternate origins and 2 alternate destinations (20–60 mi tier first, widening if needed; tiers are configurable) → confirm → original + 8 postings (A-A … C-C).
 3. *Rate* (DAT RateView link), *Wx* (weather link), priority (Low 5 / Medium 10 / High 15 targets), *Outreach* (carrier drafts).
 4. Type a **DAT rate** (one rate for a whole lane box, or per posting) and press **Download CSV** on the lane (or **Download all**, **Download selected**, or the row's **CSV**). The file is DAT's bulk-upload template exactly (24 columns, LF, no BOM). The *Target $* column is for incoming e-mail only and is never exported.
-5. **Outlook:** System → *Outlook connection* → choose your `Documents\FreightSignal` folder, then paste `outlook/Outlook_v4_ThisOutlookSession.txt` into Outlook. See `docs/OUTLOOK-BRIDGE.md`.
+5. **Outlook:** System → *Outlook connection* → choose your `Documents\FreightSignal` folder, then paste `outlook/Outlook_v5_ThisOutlookSession.txt` into Outlook. See `docs/OUTLOOK-BRIDGE.md`.
 5. **Inquiry Log** → *Process carrier e-mail* (paste a carrier reply → logged + draft reply), approve carriers into the **Carrier Database**.
 6. Status = **Covered** removes the whole load group and bumps the covers counters.
 

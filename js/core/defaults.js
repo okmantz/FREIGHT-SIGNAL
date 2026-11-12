@@ -28,6 +28,45 @@ export const DEFAULT_SETTINGS = {
   inboundBlocklist: [],
   // Split pasted TQL text into loads at lines matching this regex (default: "N pick - M drop").
   loadSeparatorRegex: '^\\s*\\d+\\s*pick\\s*[-–]\\s*\\d+\\s*drop',
+  // ------------------------------------------------------------------------------------------------------------
+  // FREIGHT SIGNAL 2.0 settings. Nested objects (templates, strategies, ui) are merged with their defaults by the
+  // accessor functions in ladder.js / lanes.js, so a settings record saved by an older version keeps working.
+  // ------------------------------------------------------------------------------------------------------------
+  // Counter ladder, as a PERCENT of the target rate (a flat $200 is 22% of a $900 load but 3% of a $6,000 load).
+  //   carrier rate <= target + ladderBookPct %  -> "book it" script (confirm ETA)
+  //   carrier rate <= target + ladderSplitPct % -> split-the-difference counter (rounded to ladderRound dollars)
+  //   anything higher                           -> target counter ("How close can you come to $target?")
+  ladderBookPct: 3,
+  ladderSplitPct: 8,
+  ladderRound: 5,
+  templates: null,                 // null = DEFAULT_TEMPLATES (ladder.js). Editable in System -> Counter ladder & e-mail wording.
+  // Lane classes (by lane miles between origin and destination ZIP centres, x1.15 road factor) and the posting strategy per class.
+  laneLocalMax: 150,
+  laneRegionalMax: 600,
+  strategies: null,                // null = DEFAULT_STRATEGIES (lanes.js)
+  // 3 x 3 matrix: 'auto' builds straight away unless the plan looks odd; 'ask' always shows the preview first.
+  matrixMode: 'auto',
+  matrixPins: {},                  // "san leandro|CA" -> [{city,state},{city,state}] : your own preferred alternates for a market
+  // Ranked outreach
+  carrierRadiusMiles: 75,
+  // Auto-expiry: postings whose pickup date has passed are retired (logged in the Cover Log as "Expired", restorable).
+  autoExpire: true,
+  expireGraceDays: 0,
+  // DAT "Contact Method" for new loads: 'Email' (default) or 'Phone'.
+  defaultContact: 'Email',
+  // Save outreach drafts straight into Outlook's Drafts folder when the Outlook folder is connected.
+  draftsToOutlook: true,
+  // Brokers you post for. Each gets its own board tab; "All" shows everything.
+  brokers: [],
+  // Cover pace tracker
+  weeklyFloor: 50,
+  workDays: [1, 2, 3, 4, 5],       // 0 = Sunday ... 6 = Saturday
+  workStart: 7,                    // hour of day (local) the working day starts
+  workEnd: 18,                     // hour of day (local) it ends
+  // Weather flags use the US National Weather Service alerts API (api.weather.gov). Only pickup/delivery city coordinates are sent.
+  weatherFlags: true,
+  // Remembered UI state (collapsed sections / lane boxes, active broker tab ...)
+  ui: {},
   theme: 'dark',
   // Appearance (themes, accent, background...) and the account profile. null/blank = defaults; see js/ui/appearance.js.
   appearance: null,
@@ -76,6 +115,13 @@ export const EQUIPMENT = [
   { code: 'SD', label: 'Step Deck', rateView: 'Flatbed' },
   { code: 'VM', label: 'Van Team', rateView: 'Van' },
   { code: 'RM', label: 'Reefer Team', rateView: 'Reefer' },
+];
+
+export const CUSTOMER_HEADERS = [
+  'Company', 'Contact Name', 'Title', 'Email', 'Phone', 'City', 'State', 'Industry / Commodity', 'Typical Lanes', 'Equipment', 'Status', 'Last Contacted', 'Notes',
+];
+export const CUSTOMER_KEYS = [
+  'company', 'contactName', 'title', 'email', 'phone', 'city', 'state', 'industry', 'lanes', 'equipment', 'status', 'lastContacted', 'notes',
 ];
 
 export const CARRIER_HEADERS = [

@@ -7,6 +7,7 @@ import { normalizeForMatching, safeNumeric, safeString, formatCurrency0, vbaRoun
 import { DEFAULT_SETTINGS } from './defaults.js';
 import { isBlockedOutlook } from './outreach.js';
 import { buildOutlookLoadDetails } from './outreach.js';
+import { ladderReply, ladderAction } from './ladder.js';
 
 // ---- Rate engine (InitRegex / ExtractCarrierRate) ----
 const RATE_RE_SRC = '(rate|offer|can do|do for|take|counter|all in|all-in|total)[^$0-9]{0,40}\\$?\\s*([0-9]{3,5}(?:,[0-9]{3})?(?:\\.\\d{1,2})?)';
@@ -159,21 +160,25 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
     };
   }
 
-  const diff = Math.abs(rate - targetRate);
-  const within = diff <= settings.rateProximity;
-  const text = within ? 'Please confirm your ETA to pickup.' : 'How close can you come to ' + formatCurrency0(targetRate) + '?';
+  const lad = ladderReply(rate, targetRate, settings);
+  if (lad.stage === 'none') {
+    return {
+      action: 'flag-no-target', reason: 'Carrier rate ' + formatCurrency0(rate) + ' received, but this posting has no Target $ to compare it with.', flag: 'MANUAL REVIEW - NO TARGET RATE',
+      inquiryPatch: { id: log.id, patch: { stage: 'FOLLOWUP_RECEIVED', lastCarrierRate: rate, eventCount: evt, lastAction: 'Carrier rate ' + formatCurrency0(rate) + ' received - no target rate set, no draft', flag: 'MANUAL REVIEW - NO TARGET RATE' } },
+    };
+  }
+  const flag = lad.stage === 'book' ? 'RATE RECEIVED - REVIEW / ETA' : lad.stage === 'split' ? 'RATE RECEIVED - SPLIT COUNTER DRAFTED' : '';
   return {
-    action: within ? 'rate-within-target' : 'rate-negotiate',
-    reason: 'Carrier rate ' + formatCurrency0(rate) + ' vs target ' + formatCurrency0(targetRate) + '.',
-    draft: { to: mail.from, subject: replySubject(mail.subject), body: text + CRLF + CRLF + quotedOriginal(mail).trimStart(), display: false, kind: 'Rate response' },
-    flag: within ? 'RATE RECEIVED - REVIEW / ETA' : '',
+    action: lad.stage === 'book' ? 'rate-within-target' : lad.stage === 'split' ? 'rate-split' : 'rate-negotiate',
+    ladder: { stage: lad.stage, pct: lad.pct, split: lad.split },
+    reason: 'Carrier rate ' + formatCurrency0(rate) + ' vs target ' + formatCurrency0(targetRate) + ' (' + (lad.pct >= 0 ? '+' : '') + lad.pct.toFixed(1) + '%).',
+    draft: { to: mail.from, subject: replySubject(mail.subject), body: lad.text + CRLF + CRLF + quotedOriginal(mail).trimStart(), display: false, kind: 'Rate response' },
+    flag,
     inquiryPatch: {
       id: log.id,
       patch: {
         stage: 'RATE_RESPONSE_SENT', rateResponseSent: 'YES', lastCarrierRate: rate, eventCount: evt,
-        lastAction: within ? 'Rate within $' + Math.round(settings.rateProximity) + ' of target - ETA confirmation drafted'
-          : 'Rate $' + vbaRound(diff, 0) + ' from target - negotiation draft created',
-        flag: within ? 'RATE RECEIVED - REVIEW / ETA' : '',
+        lastAction: ladderAction(lad, rate, targetRate), ladderStage: lad.stage, flag,
       },
     },
   };

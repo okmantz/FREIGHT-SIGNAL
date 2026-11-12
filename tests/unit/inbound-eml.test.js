@@ -51,8 +51,12 @@ test('conversation: rate far from target -> negotiate; near target -> ETA; then 
   const again = processIncomingEmail({ mail: mail({ body: 'any update?' }), postings: [p], inquiries: inq });
   assert.equal(again.action, 'flag-repeat'); assert.equal(again.draft, undefined);
   const rec2 = { id: 'q2', ...processIncomingEmail({ mail: mail({ from: 'b@x.example' }), postings: [p], inquiries: [] }).newInquiry }; 
-  const near = processIncomingEmail({ mail: mail({ from: 'b@x.example', body: '$1600 works' }), postings: [p], inquiries: [rec2] });
+  const near = processIncomingEmail({ mail: mail({ from: 'b@x.example', body: '$1540 works' }), postings: [p], inquiries: [rec2] });
   assert.equal(near.action, 'rate-within-target'); assert.ok(near.draft.body.startsWith('Please confirm your ETA to pickup.'));
+  // 6.7% over target is the split-the-difference stage (percent ladder: book <= 3%, split <= 8%)
+  const rec3 = { id: 'q3', ...processIncomingEmail({ mail: mail({ from: 'c@x.example' }), postings: [p], inquiries: [] }).newInquiry };
+  const split = processIncomingEmail({ mail: mail({ from: 'c@x.example', body: '$1600 works' }), postings: [p], inquiries: [rec3] });
+  assert.equal(split.action, 'rate-split'); assert.ok(split.draft.body.startsWith('Can we meet in the middle at $1,550?'), split.draft.body);
 });
 test('.eml is an UNSENT draft with a decodable UTF-8 body', () => {
   const eml = buildEml({ to: 'a@b.example', subject: 'Café – load', body: 'Line1\nLine2 é' });

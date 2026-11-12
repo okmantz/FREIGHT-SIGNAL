@@ -27,6 +27,8 @@ export function blankPosting(over = {}) {
     priority: '',             // AL Outreach Priority
     outreachTarget: '',       // AM Outreach Target
     comment: '', commodity: '', referenceId: '',   // DAT columns V, W, X
+    broker: '',               // v2: which broker owns this load (scoreboards / tabs)
+    ops: [],                  // v2: actions applied to the load (reprice, second wave...) - drives the next-step advice
     originAltMiles: '', destAltMiles: '',
     draftsCreated: '', lastRun: '', result: '',
     order: 0,

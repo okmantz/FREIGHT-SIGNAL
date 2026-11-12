@@ -4,6 +4,8 @@ import * as home from './ui/pages/home.js';
 import * as board from './ui/pages/board.js';
 import * as spare from './ui/pages/spare.js';
 import * as carriers from './ui/pages/carriers.js';
+import * as customers from './ui/pages/customers.js';
+import * as covers from './ui/pages/covers.js';
 import * as inquiry from './ui/pages/inquiry.js';
 import * as zipmap from './ui/pages/zipmap.js';
 import * as drafts from './ui/pages/drafts.js';
@@ -11,6 +13,8 @@ import * as manual from './ui/pages/manual.js';
 import * as system from './ui/pages/system.js';
 import * as account from './ui/pages/account.js';
 import { initBridge, onBridge } from './store/bridge.js';
+import { startWeather } from './store/weather.js';
+import { paceStats } from './core/coverlog.js';
 import { icon } from './ui/icons.js';
 import { initials } from './ui/chrome.js';
 import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode, toggleMode, onAppearance } from './ui/appearance.js';
@@ -19,8 +23,10 @@ import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode,
 export const TABS = [
   { id: 'home', label: 'Home', icon: 'home', group: 'Workspace', page: home },
   { id: 'board', label: 'Freight Signal', icon: 'board', group: 'Workspace', page: board },
+  { id: 'covers', label: 'Cover Log', icon: 'covers', group: 'Workspace', page: covers },
   { id: 'spare', label: 'Spare Load Details', icon: 'spare', group: 'Workspace', page: spare },
   { id: 'carriers', label: 'Carrier Database', icon: 'carriers', group: 'Network', page: carriers },
+  { id: 'customers', label: 'Customer Database', icon: 'customers', group: 'Network', page: customers },
   { id: 'inquiry', label: 'Inquiry Log', icon: 'inquiry', group: 'Network', page: inquiry },
   { id: 'drafts', label: 'Drafts', icon: 'drafts', group: 'Network', page: drafts },
   { id: 'zipmap', label: 'ZIP Map', icon: 'zipmap', group: 'Tools', page: zipmap },
@@ -54,6 +60,7 @@ export function renderChrome() {
   const zs = document.getElementById('zipstat');
   zs.textContent = state.zip ? `ZIP Map: ${state.zip.size.toLocaleString()} rows` : 'ZIP Map: not loaded';
   zs.className = 'pill' + (state.zip ? '' : ' warn');
+  renderPace();
   const light = resolvedMode() === 'light';
   const tb = document.getElementById('themebtn');
   clear(tb); tb.append(icon(light ? 'moon' : 'sun', 16), h('span', null, light ? 'Dark mode' : 'Light mode'));
@@ -64,6 +71,19 @@ export function renderChrome() {
   const ini = initials(pf.name);
   chip.append(h('span', { class: 'avatar' }, ini || icon('user', 16)),
     h('span', { class: 'who' }, h('b', null, pf.name || 'Account'), h('small', null, pf.title || 'Settings and themes')));
+}
+
+/** Top-right cover pace tracker: covers today, covers this week, and where the week is heading against the floor. */
+export function renderPace() {
+  const el = document.getElementById('pace'); if (!el) return;
+  clear(el);
+  const p = paceStats(state.coverLog, state.settings, new Date(), null);
+  el.className = 'pace-strip ' + p.status;
+  el.title = p.text + (p.status === 'early' ? '' : ` You need about ${p.perDay} a day for the rest of the week.`) + ' Click for the Cover Log.';
+  el.append(
+    h('span', { class: 'pc' }, h('b', null, p.today), h('small', null, 'today')),
+    h('span', { class: 'pc' }, h('b', null, p.week), h('small', null, `week / ${p.floor}`)),
+    h('span', { class: 'pc proj' }, h('b', null, p.projection === null ? '–' : p.projection), h('small', null, p.projection === null ? 'early' : (p.status === 'on' ? 'on pace' : p.status === 'close' ? 'just short' : 'short'))));
 }
 
 let renderPending = false;
@@ -137,8 +157,14 @@ async function boot() {
   window.addEventListener('hashchange', render);
   subscribe(() => { syncFromStore(state.settings.appearance); render(); });
   await render();
-  onBridge(() => { if (current && current.id === 'system') render(); });
+  onBridge(() => { if (current && (current.id === 'system' || current.id === 'drafts')) render(); });
   initBridge();
+  startWeather();
+  // Housekeeping: retire loads past pickup, refresh the time-based flags and the pace tracker.
+  const tick = async () => { try { const n = await actions.expireDue(); if (n) toast(`${n} load${n === 1 ? '' : 's'} past pickup moved to the Cover Log (Expired). You can restore them there.`, 'info', 8000); } catch (e) { console.error(e); } };
+  tick();
+  let beat = 0;
+  setInterval(() => { renderPace(); if (++beat % 5 === 0 && !document.hidden) { tick().then(() => render()); } }, 60000);
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 }

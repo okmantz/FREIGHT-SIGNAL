@@ -14,12 +14,17 @@ const { srv, url } = await startServer();
 const browser = await chromium.launch(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {});
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 900 }, acceptDownloads: true });
 const page = await ctx.newPage();
+// The only third-party request the app may make is the optional NWS alert lookup (coordinates only). Stub it so the suite is offline-safe.
+const weatherCalls = [];
+await ctx.route('https://api.weather.gov/**', (route) => { weatherCalls.push(route.request().url()); route.fulfill({ status: 200, contentType: 'application/geo+json', body: JSON.stringify({ features: [{ properties: { event: 'Winter Storm Warning', severity: 'Severe', status: 'Actual', headline: 'E2E test storm' } }] }) }); });
 const errors = []; const external = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-page.on('request', (r) => { if (!r.url().startsWith(url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) external.push(r.url()); });
+page.on('request', (r) => { if (!r.url().startsWith(url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && !r.url().startsWith('https://api.weather.gov/')) external.push(r.url()); });
 const go = async (tab) => { await page.goto(url + '#/' + tab); await page.waitForSelector('#nav a', { timeout: 20000 }); };
 // Click something that triggers a CSV download; if DAT's "incomplete postings" confirm shows up, accept it.
+// System page sections are collapsible: open one before using its controls.
+const openSys = async (id) => { const d = page.locator(`details[data-sect="${id}"]`); await d.waitFor(); if (!(await d.evaluate(e => e.open))) await d.locator('summary').first().click(); };
 const downloadVia = async (click) => {
   const dlP = page.waitForEvent('download', { timeout: 8000 });
   await click();
@@ -29,7 +34,7 @@ const downloadVia = async (click) => {
   return { name: dl.suggestedFilename(), buf: fs.readFileSync(await dl.path()) };
 };
 const restoreBackupFile = async (file) => {
-  await go('system');
+  await go('system'); await openSys('backup');
   const [fcx] = await Promise.all([page.waitForEvent('filechooser'), page.click('text=Restore from backup…')]);
   await fcx.setFiles(file);
   await page.click('.modal >> text=Replace all');
@@ -50,25 +55,16 @@ try {
   const vx = page.locator('.hero a', { hasText: 'Ventusky' });
   check('HOME has a Ventusky weather button that opens in a new tab', (await vx.count()) === 1 && (await vx.getAttribute('href')) === 'https://www.ventusky.com/' && (await vx.getAttribute('target')) === '_blank' && /noopener/.test(await vx.getAttribute('rel')));
 
-  // --- parse + review + add
+  // --- paste: parsed live (no Parse button), editable inline, Enter / button adds, 3x3 builds itself
   await go('board');
-  await page.fill('textarea', tql);
-  await page.click('text=Parse pasted loads');
-  await page.waitForSelector('.modal');
-  check('parse review dialog shows parsed origin', (await page.locator('.modal .field', { hasText: /^Origin city/ }).locator('input').inputValue()) === 'Chicago');
-  await page.click('.modal >> text=Add to board');
-  await page.waitForSelector('tbody .rowact');
-  check('load added to board', (await page.locator('tbody tr').count()) === 1);
-
-  // --- matrix
-  await page.click('button:has-text("Matrix")');
-  await page.waitForSelector('.modal');
-  const preview = await page.textContent('.modal-body pre');
-  check('matrix preview lists 3 origins + 3 destinations', /Origin C:/.test(preview) && /Destination C:/.test(preview));
-  await page.click('.modal >> text=Create 9 postings');
-  await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 9);
-  check('matrix creates exactly 9 postings', (await page.locator('tbody tr').count()) === 9);
-  check('second matrix on same group is refused', !(await page.locator('button:has-text("Matrix")').count()));
+  await page.fill('textarea.pastebox', tql);
+  await page.waitForSelector('.pastetable');
+  check('pasted load is parsed live and shown as an editable row', (await page.locator('.pastetable tbody tr').count()) === 1 && (await page.locator('.pastetable input[aria-label="originCity"]').inputValue()) === 'Chicago');
+  check('there is no Parse button any more', (await page.locator('text=Parse pasted loads').count()) === 0);
+  await page.locator('.pastetable input[aria-label="originCity"]').press('Enter');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9, null, { timeout: 20000 });
+  check('Enter adds the load and the 3 x 3 matrix builds automatically (9 postings)', (await page.locator('.lanebox tbody tr').count()) === 9);
+  check('second matrix on same group is refused', !(await page.locator('button:has-text("Build 3")').count()));
 
   // --- lane box + DAT CSV + rates + equipment + city->ZIP
   check('one lane box with the lane header', (await page.locator('.lanebox').count()) === 1 && /^.+, [A-Z]{2} \u2192 .+, [A-Z]{2}$/.test((await page.textContent('.lanebox h3.lane')).trim()), await page.textContent('.lanebox h3.lane'));
@@ -240,20 +236,33 @@ try {
   await go('board');
 
   // --- backup / restore
-  await go('system');
+  await go('system'); await openSys('backup');
   const [bdl] = await Promise.all([page.waitForEvent('download'), page.click('text=Download backup (.json)')]);
   const backup = JSON.parse(fs.readFileSync(await bdl.path(), 'utf8'));
   check('backup contains carriers, postings, inquiries', backup.app === 'freight-signal' && backup.data.carriers.length >= 3 && backup.data.postings.length === 9 && backup.data.inquiries.length >= 1);
   fs.writeFileSync('/tmp/e2e-backup.json', JSON.stringify(backup));
 
   await go('board');
-  await page.locator('.lanehead select[data-fk$=":status"]').first().selectOption('Covered');
+  await page.click('[data-act="mark-covered"]');
+  await page.waitForSelector('.modal');
+  check('Mark covered asks which of the 9 postings covered it', (await page.locator('.modal select option').count()) === 9);
+  await page.locator('.modal select').selectOption({ index: 3 });
+  await page.fill('.modal input[placeholder="Carrier name"]', 'E2E Freight');
+  await page.fill('.modal input[placeholder="Carrier e-mail"]', 'e2e-driver@example.test');
+  await page.fill('.modal input[placeholder="$ paid / agreed"]', '1650');
+  await page.waitForFunction(() => { const q = (p) => document.querySelector(`.modal input[placeholder="${p}"]`); return q('Carrier name').value === 'E2E Freight' && q('$ paid / agreed').value === '1650'; }, null, { timeout: 5000 }).catch(() => {});
+  await page.click('.modal >> text=Log cover and remove');
   await page.waitForFunction(() => !document.querySelector('tbody tr .rowact'));
   check('Covered removes the entire group', (await page.locator('tbody tr .rowact').count()) === 0);
+  await go('covers');
+  await page.waitForFunction(() => /E2E Freight/.test((document.querySelector('.tablewrap') || {}).textContent || ''), null, { timeout: 8000 }).catch(() => {});
+  const logTxt = await page.textContent('.tablewrap') + ' || ' + JSON.stringify(await page.evaluate(async () => (await import('/js/store/state.js')).state.coverLog.map(e => e.carrier)));
+  check('the cover was logged first: carrier, rate and posting position', logTxt.includes('E2E Freight') && logTxt.includes('$1,650') && /[ABC]-[ABC]/.test(logTxt), logTxt.slice(0, 200));
+  check('header pace tracker shows 1 cover today', (await page.textContent('#pace')).replace(/\s+/g, ' ').includes('1today') || /1\s*today/.test(await page.textContent('#pace')));
   await go('home');
   check('Covers counter incremented', (await page.locator('.metric').nth(1).textContent()).includes('1'));
 
-  await go('system');
+  await go('system'); await openSys('backup');
   page.once('filechooser', () => {});
   const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('text=Restore from backup…')]);
   await fc.setFiles('/tmp/e2e-backup.json');
@@ -264,7 +273,7 @@ try {
 
   // --- malformed restore does not damage data
   fs.writeFileSync('/tmp/e2e-bad.json', JSON.stringify({ app: 'other' }));
-  await go('system');
+  await go('system'); await openSys('backup');
   const [fc2] = await Promise.all([page.waitForEvent('filechooser'), page.click('text=Restore from backup…')]);
   await fc2.setFiles('/tmp/e2e-bad.json');
   await page.click('.modal >> text=Replace all');
@@ -293,6 +302,66 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9, null, { timeout: 8000 }).catch(() => {});
   check('restore after delete tests brings the 9 postings back', (await page.locator('tbody tr').count()) === 9, String(await page.locator('tbody tr').count()));
 
+  await go('board');
+  await page.waitForSelector('.lanebox .flag:has-text("Winter Storm")', { timeout: 15000 }).catch(async () => { await page.reload(); await page.waitForSelector('.lanebox .flag:has-text("Winter Storm")', { timeout: 20000 }).catch(() => {}); });
+  check('weather flag appears on a load whose pickup lane has a severe alert', (await page.locator('.lanebox .flag:has-text("Winter Storm")').count()) >= 1);
+
+
+  // --- v2 features: collapsible lane boxes, brokers, customers, truck check, auto-expiry, collapsible System sections
+  await go('board');
+  await page.click('[data-act="collapse-all"]');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox.collapsed').length >= 1 && !document.querySelector('.lanebox tbody tr'));
+  check('collapse all hides the rows of every load group', (await page.locator('.lanebox tbody tr').count()) === 0);
+  await page.click('[data-act="expand-all"]');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9);
+  check('expand all brings the rows back', true);
+  check('overview strip and the ranked worklist are on the Freight Signal page', (await page.locator('.ovstrip .ovtile').count()) >= 8 && (await page.locator('.worklist .wl li').count()) >= 1);
+  check('each load shows a next-step guidance panel', (await page.locator('.lanebox .guide').count()) >= 1);
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.addBroker('Sam Rivers'); });
+  await page.waitForSelector('.tabs .tab:has-text("Sam Rivers")');
+  await page.click('.tabs .tab[data-fk="tab:Sam Rivers"]');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox').length === 0);
+  check('a broker tab shows only that broker\'s loads (none yet)', (await page.locator('.lanebox').count()) === 0);
+  await page.click('.tabs .tab[data-fk="tab:__all"]');
+  await page.waitForSelector('.lanebox', { timeout: 8000 });
+  check('the All tab shows everything and offers the whole-board CSV', (await page.locator('.lanebox').count()) >= 1 && (await page.locator('[data-act="csv-all"]').count()) === 1);
+
+  await go('customers');
+  await page.click('text=Import…');
+  await page.fill('.modal textarea', 'Company\tContact Name\tTitle\tEmail\tPhone\nAcme Foods\tPat Lee\tLogistics\tpat@acme.example\t555-0100\nBolt Steel\tDana Fox\tBuyer\tdana@bolt.example\t555-0101');
+  await page.click('.modal-foot >> text=Import');
+  await page.waitForSelector('td:has-text("Acme Foods")');
+  check('customer database imports pasted rows like the carrier database', (await page.locator('table.carrier tbody tr').count()) === 2 && (await page.locator('.ovstrip .ovtile').first().textContent()).includes('2'));
+
+  await go('carriers');
+  await page.locator('[data-act="truck"]').first().click();
+  await page.waitForSelector('.modal .draft');
+  const truckDraft = await page.textContent('.modal .draft');
+  check('one-click Truck? drafts "Do you have any trucks available"', /trucks available/i.test(truckDraft), truckDraft.slice(0, 160));
+  await page.click('.modal >> text=Close');
+
+  await page.evaluate(async () => {
+    const m = await import('/js/store/state.js');
+    window.__p = (await m.actions.addParsedLoad({ originCity: 'Reno', originState: 'NV', destCity: 'Boise', destState: 'ID', pickupEarliest: '1/2/2020', pickupLatest: '1/2/2020', equip: 'V' })).id;
+    window.__n = await m.actions.expireDue();
+  });
+  check('auto-expiry retires a load past its pickup day into the Cover Log (Expired)', (await page.evaluate(() => window.__n)) === 1 && (await page.evaluate(async () => (await import('/js/store/state.js')).state.coverLog.some(e => e.outcome === 'Expired'))));
+  await go('covers');
+  check('expired loads are listed in the Cover Log and can be restored', (await page.locator('tr.o-expired button:has-text("Restore")').count()) >= 1);
+  await page.locator('tr.o-expired button:has-text("Restore")').first().click();
+  await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings.some(p => p.originCity === 'Reno'));
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.deletePostings(m.state.postings.filter(p => p.originCity === 'Reno').map(p => p.id)); });
+
+  await go('system');
+  check('System sections are collapsible', (await page.locator('details.sect').count()) >= 10);
+  await page.locator('details[data-sect="ladder"] > summary').click();
+  await page.waitForFunction(() => document.querySelector('details[data-sect="ladder"]').open);
+  check('ladder section shows percent settings and editable e-mail wording', (await page.locator('details[data-sect="ladder"] textarea').count()) === 3 && /Book it within/.test(await page.textContent('details[data-sect="ladder"]')));
+  await page.waitForTimeout(600);
+  await page.reload(); await page.waitForSelector('details.sect');
+  check('open/closed state of a System section is remembered', await page.locator('details[data-sect="ladder"]').evaluate(e => e.open));
+  check('Outlook guide is step by step', (await page.locator('details[data-sect="outlook"] .gstep2').count()) >= 8);
+  await go('board');
   // --- markup injection is inert
   await go('carriers');
   await page.click('button:has-text("Add carrier")');
@@ -341,9 +410,10 @@ try {
   await ctx.setOffline(false);
 
   check('no console/page errors during the run', errors.length === 0, errors.join(' | '));
+  check('the only outside request is the optional weather lookup, and it carries coordinates only', weatherCalls.length > 0 && weatherCalls.every(u => /^https:\/\/api\.weather\.gov\/alerts\/active\?[^#]*point=-?\d+\.\d+%2C-?\d+\.\d+$/.test(u)), weatherCalls.slice(0, 2).join(' | '));
   check('no requests left the origin (no telemetry/CDN)', external.length === 0, external.join(' | '));
 } catch (e) {
-  check('suite aborted by exception', false, e.message.split('\n')[0]);
+  check('suite aborted by exception', false, e.message.split('\n')[0]); console.log(String(e.stack).split('\n').filter(l => l.includes('run.mjs')).slice(0, 3).join('\n'));
   await page.screenshot({ path: '/tmp/e2e-fail.png' }).catch(() => {});
 }
 await browser.close(); srv.close();

@@ -33,3 +33,13 @@ Legend: **Tested** = automated unit and/or browser test passes · **Partial** = 
 | Microsoft Edge | **Untested** (Chromium engine; only Chrome run) | – |
 | GitHub Pages deployment | **Untested** (workflow written, not run) | – |
 | Parity with your workbook | **Untested** — see PARITY-CHECKLIST | – |
+
+
+## v2 additions
+- Lane-class strategies (local <150 mi, regional 150-600, long >600) and an adaptive 3x3 matrix with remembered pins.
+- Percent proximity/counter ladder (book / split / target) with editable wording in System.
+- Live paste box: parses as you paste, editable inline rows, Enter adds all and auto-builds the matrix.
+- Per-broker boards with an All view and CSV download; cover pace tracker with projection; ranked top-15 worklist; weather flags; adaptive per-load guidance.
+- Cover attribution log and lane memory; auto-expiry (midnight after pickup + grace) with second wave and reprice suggestions.
+- Customer database with import; one-click "any trucks?" per carrier; ranked ~75 mi outreach; drafts saved to Outlook Drafts (never sent).
+- DAT contact option (email default); collapsible load groups and System sections; step-by-step Outlook setup guide.

@@ -1,21 +1,32 @@
 import { h, toast, modal, confirmDialog, copyText, openExternal, field, inputEl, selectEl, download } from '../dom.js';
 import { state, actions } from '../../store/state.js';
-import { parseTqlLoad, splitLoads } from '../../core/parser.js';
-import { buildPreviewMessage } from '../../core/matrix.js';
 import { rateViewUrl, ventuskyUrl } from '../../core/links.js';
 import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
-import { PRIORITIES, STATUSES, groupMembers, laneBoxes, gridLabel, targetForPriority } from '../../core/model.js';
+import { PRIORITIES, laneBoxes, gridLabel, targetForPriority } from '../../core/model.js';
 import { datTsv, datCsv, datProblems, datPostings, datFileName } from '../../core/dat.js';
-import { draftCard } from '../draftcard.js';
 import { originalLoadDetails, copyDetailsMessage } from '../../core/loaddetails.js';
+import { analyseBoard, matchesQuick } from '../../core/worklist.js';
+import { laneMemory, laneMemoryText, rateVsMemory, paceStats } from '../../core/coverlog.js';
+import { safeNumeric } from '../../core/util.js';
 import { icon } from '../icons.js';
 import { pageHead, emptyState, flash } from '../chrome.js';
+import { boardCtx } from '../board/ctx.js';
+import { pastePanel, matrixFlow } from '../board/flow.js';
+import { coverModal } from '../board/cover.js';
+import { overviewStrip, worklistPanel, scoreboard, guidanceBlock, agingModal } from '../board/insights.js';
+import { summaryOutreach } from '../board/outreachview.js';
+import { money } from '../board/util.js';
 
-let pasteText = '';
 let filter = '';
-let statusFilter = 'All';
+let quick = '';               // overview-tile filter ('' = none)
+let brokerTab = '__all';      // '__all' | broker name | '' (unassigned)
 const selected = new Set();   // ticked posting ids (for Download selected / Delete selected)
 const rerender = () => import('../../main.js').then(m => m.render());
+
+const ui = () => state.settings.ui || {};
+const collapsedSet = () => new Set(ui().collapsed || []);
+const saveUi = (patch) => actions.savePrefs({ ui: { ...ui(), ...patch } });
+const setCollapsed = (keys) => { saveUi({ collapsed: [...keys] }); rerender(); };
 
 /** Copy the ORIGINAL load details (the pasted TQL text) for a lane, falling back to a lane summary when none was pasted. */
 async function copyLoadDetails(members, btn) {
@@ -40,63 +51,6 @@ function viewDetails(b) {
 }
 
 const shortGroup = (g) => (g ? g.replace(/^FS-/, '').slice(-9) : '');
-
-function summaryOutreach(res) {
-  const body = [h('p', null, res.detail || '')];
-  if (res.error) body.push(h('div', { class: 'banner err' }, res.error));
-  body.push(h('div', { class: 'banner ok' }, 'These are DRAFTS only. Nothing has been sent. Download the .eml files (they open in Outlook as unsent drafts) or open each in your mail app and press Send yourself.'));
-  (res.drafts || []).forEach(d => body.push(draftCard(d)));
-  modal({ title: `Carrier outreach: ${res.created ?? (res.drafts || []).length} draft(s)`, body, wide: true, actions: [{ label: 'Close', kind: 'primary' }] });
-}
-
-async function reviewParsed(text) {
-  const blocks = splitLoads(text, state.settings.loadSeparatorRegex);
-  if (!blocks.length) return toast('Paste at least one TQL load first.', 'warn');
-  const items = blocks.map(b => ({ raw: b, parsed: parseTqlLoad(b), take: true }));
-  const body = h('div', null, h('p', { class: 'muted' }, `${items.length} load block(s) found. Check each parse, correct anything wrong, and add. The pasted source text is stored with each load.`));
-  const editors = items.map((it, i) => {
-    const f = it.parsed.fields;
-    const inputs = {};
-    const cell = (k, label) => { inputs[k] = h('input', { value: f[k] ?? '' }); return field(label, inputs[k]); };
-    const box = h('div', { class: 'panel' },
-      h('label', null, h('input', { type: 'checkbox', checked: true, onchange: (e) => { it.take = e.target.checked; } }), ` Load ${i + 1}`),
-      it.parsed.missing.length ? h('div', { class: 'banner err' }, 'Could not find: ' + it.parsed.missing.join(', ') + '. Fill in by hand below.') : null,
-      ...it.parsed.warnings.map(w => h('div', { class: 'banner' }, w)),
-      h('div', { class: 'grid4' }, cell('originCity', 'Origin city'), cell('originState', 'Origin state'), cell('originZip', 'Origin ZIP'), cell('pickupEarliest', 'Pickup date'),
-        cell('destCity', 'Dest city'), cell('destState', 'Dest state'), cell('weight', 'Weight'), cell('equip', 'Equip (V R F SD VM RM)')),
-      h('details', null, h('summary', null, 'Source text'), h('pre', { class: 'plain mono' }, it.raw)));
-    it.inputs = inputs;
-    return box;
-  });
-  body.appendChild(h('div', null, editors));
-  modal({
-    title: 'Review parsed loads', body, wide: true,
-    actions: [{ label: 'Cancel' }, {
-      label: 'Add to board', kind: 'primary',
-      onClick: async () => {
-        let n = 0;
-        for (const it of items) {
-          if (!it.take) continue;
-          const f = { ...it.parsed.fields };
-          for (const [k, el] of Object.entries(it.inputs)) f[k] = el.value.trim();
-          f.originState = f.originState.toUpperCase(); f.destState = f.destState.toUpperCase();
-          f.pickupLatest = f.pickupEarliest;
-          await actions.addParsedLoad(f); n++;
-        }
-        pasteText = ''; toast(`${n} load(s) added.`, 'ok');
-      },
-    }],
-  });
-}
-
-async function matrixFlow(p) {
-  const plan = actions.previewMatrix(p.id);
-  if (!plan.ok) return toast(plan.error, 'err', 7000);
-  const ok = await confirmDialog('Create 3 x 3 posting matrix', (plan.warnings.length ? plan.warnings.join('\n') + '\n\n' : '') + buildPreviewMessage(plan.origins, plan.dests), 'Create 9 postings');
-  if (!ok) return;
-  const rows = await actions.createMatrix(p.id, plan);
-  toast(`Matrix created: ${rows.length} postings (original + ${rows.length - 1} alternates).`, 'ok');
-}
 
 function detailModal(p) {
   const inputs = {};
@@ -161,6 +115,21 @@ function equipSelect(p) {
   return sel;
 }
 
+/** DAT-rate cell: while you type, shows how the rate compares with the last cover on THIS posting's lane (from your own Cover Log). */
+function rateCell(p) {
+  const hint = h('small', { class: 'ratehint muted' }, '');
+  const inp = inputEl(p.datRate, (v) => actions.updatePosting(p.id, { datRate: v }), { size: 6, placeholder: '$', title: 'Select rate posted on DAT (goes in the CSV)', 'data-fk': `${p.id}:datRate`, class: 'cell datrate' });
+  let mem; let looked = false;
+  const show = () => {
+    if (!looked) { mem = laneMemory(state.coverLog, p, state.zip, Number(state.settings.carrierRadiusMiles) || 75); looked = true; }
+    if (!mem) { hint.textContent = ''; return; }
+    const vs = rateVsMemory(inp.value, mem);
+    hint.textContent = vs ? `${laneMemoryText(mem)} - ${vs}` : laneMemoryText(mem);
+  };
+  inp.addEventListener('focus', show); inp.addEventListener('input', show);
+  return h('td', { class: 'ratecell' }, inp, hint);
+}
+
 function row(p, members) {
   const upd = (k) => (v) => actions.updatePosting(p.id, { [k]: v });
   const td = (k, w, extra = {}) => h('td', null, inputEl(p[k], upd(k), { size: w, 'data-fk': `${p.id}:${k}`, ...extra }));
@@ -172,13 +141,13 @@ function row(p, members) {
     td('pickupEarliest', 9), td('weight', 6), h('td', null, equipSelect(p)),
     td('originCity', 14), td('originState', 3), td('originZip', 6, { class: 'cell zip' }),
     td('destCity', 14), td('destState', 3), td('destZip', 6, { class: 'cell zip' }),
-    h('td', { class: 'ratecell' }, inputEl(p.datRate, upd('datRate'), { size: 6, placeholder: '$', title: 'Select rate posted on DAT (goes in the CSV)', 'data-fk': `${p.id}:datRate`, class: 'cell datrate' })),
+    rateCell(p),
     h('td', { class: 'ratecell' }, inputEl(p.targetRate, upd('targetRate'), { size: 6, placeholder: '$', title: 'Target rate: used ONLY to judge carrier replies in e-mail. Never uploaded to DAT.', 'data-fk': `${p.id}:targetRate` })),
     h('td', { class: 'num' }, `${p.inquiryCount || 0} / ${p.outreachCount || 0}`),
     h('td', null, selectEl(['No', 'Yes'], p.outreach || 'No', (v) => actions.updatePosting(p.id, { outreach: v }), { title: 'Yes = include in the next lane scan', 'data-fk': `${p.id}:outreach` })),
     h('td', null, h('div', { class: 'rowact' },
       h('button', { class: 'btn small iconcopy', type: 'button', title: 'Copy the original load details', 'aria-label': 'Copy original load details', 'data-act': 'copy-details', onclick: (e) => copyLoadDetails(members, e.currentTarget) }, icon('copy', 14), 'Copy'),
-      h('button', { class: 'btn small', type: 'button', title: 'Draft carrier outreach for this posting', onclick: async () => { const r = await actions.runOutreach(p.id); if (r) summaryOutreach(r); } }, 'Outreach'),
+      h('button', { class: 'btn small', type: 'button', title: 'Draft carrier outreach for this posting (best-matched carriers first)', onclick: async () => { const r = await actions.runOutreach(p.id); if (r) summaryOutreach(r); } }, 'Outreach'),
       h('button', { class: 'btn small', type: 'button', title: 'Open DAT RateView for this lane', onclick: () => rateLink(p) }, 'Rate'),
       h('button', { class: 'btn small', type: 'button', title: 'Open weather for the origin', onclick: () => weather(p) }, 'Wx'),
       h('button', { class: 'btn small', type: 'button', title: 'Edit every field', onclick: () => detailModal(p) }, 'Edit'),
@@ -186,29 +155,57 @@ function row(p, members) {
       h('button', { class: 'btn small danger', type: 'button', title: 'Delete only this posting', 'data-act': 'del-one', onclick: () => deleteMany([p.id], 'this posting') }, '✕'))));
 }
 
-function groupBox(b) {
-  const head = b.head; const ids = b.members.map(m => m.id);
+function flagChips(r) {
+  const chips = [];
+  if (r.stats.alerts.length) chips.push(h('span', { class: 'flag ' + (r.stats.alerts.some(a => a.level === 'severe') ? 'urgent' : 'act'), title: r.stats.alerts.map(a => a.headline).join('\n') }, icon('storm', 13), ' ' + r.stats.weatherText));
+  for (const f of r.flags) if (f.kind !== 'weather') chips.push(h('span', { class: 'flag ' + f.level }, f.text));
+  return chips;
+}
+
+function groupBox(r, collapsed, toggle) {
+  const b = r.box; const head = b.head; const ids = b.members.map(m => m.id);
   const pr = targetForPriority(head.priority, state.settings);
   const allSel = ids.every(id => selected.has(id));
+  const single = b.members.length === 1 && !b.groupId;
+  const lane = r.stats.cls || '';
   const bulk = h('input', { class: 'cell datrate', size: 6, placeholder: '$ rate', title: 'One DAT rate for every posting in this box', 'data-fk': `${b.key}:bulkrate` });
   const apply = async () => { const n = await actions.setDatRate(ids, bulk.value); toast(n ? `DAT rate ${bulk.value.trim() ? 'set' : 'cleared'} on ${n} posting(s).` : 'Nothing changed.', 'ok'); };
   bulk.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
-  const single = b.members.length === 1 && !b.groupId;
   const priSel = h('select', { class: 'cell', title: 'Priority sets the outreach target for the whole box (Low 5, Medium 10, High 15)', 'data-fk': `${b.key}:priority` },
     PRIORITIES.map(x => h('option', { value: x, selected: x === (head.priority || 'Low') }, x)));
   priSel.addEventListener('change', () => actions.setPriority(head.id, priSel.value));
-  const stSel = selectEl(STATUSES, head.status || 'Active', async (v) => { const r = await actions.setStatus(head.id, v); if (r.removed) toast(`Covered: ${r.removed} row(s) removed from the board.`, 'ok'); }, { 'data-fk': `${b.key}:status` });
-  return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), dataset: { group: b.groupId || '', lane: b.title } },
-    h('header', { class: 'lanehead' },
-      h('div', { class: 'lanetitle' },
-        h('input', { type: 'checkbox', checked: allSel, 'aria-label': 'Select every posting in this lane', 'data-fk': `${b.key}:chk`, onchange: (e) => { ids.forEach(id => (e.target.checked ? selected.add(id) : selected.delete(id))); rerender(); } }),
-        h('h3', { class: 'lane' }, b.title),
-        h('span', { class: 'pill' }, `${b.members.length} posting${b.members.length === 1 ? '' : 's'}`),
-        b.groupId ? h('span', { class: 'pill mono', title: b.groupId }, shortGroup(b.groupId)) : null),
-      h('div', { class: 'lanectl' },
-        h('label', { class: 'inl' }, 'Priority ', priSel),
-        h('span', { class: 'pill tgt', title: 'Target outreach number for this box' }, `Target outreach: ${pr.target}`),
-        h('label', { class: 'inl' }, 'Status ', stSel))),
+  const contact = h('select', { class: 'cell', title: 'How carriers should reach you from the DAT post. Email is the default; Phone shows your phone number on DAT instead.', 'data-fk': `${b.key}:contact` },
+    ['Email', 'Phone'].map(x => h('option', { value: x, selected: x === (String(head.contact || '').toLowerCase() === 'phone' ? 'Phone' : 'Email') }, x === 'Email' ? 'E-mail (default)' : 'Phone')));
+  contact.addEventListener('change', () => actions.setContact(head.id, contact.value));
+  const brokers = state.settings.brokers || [];
+  const brokerSel = brokers.length ? h('select', { class: 'cell', title: 'Which broker owns this load', 'data-fk': `${b.key}:broker` },
+    h('option', { value: '' }, 'Unassigned'), brokers.map(x => h('option', { value: x, selected: x === (head.broker || '') }, x))) : null;
+  if (brokerSel) brokerSel.addEventListener('change', () => actions.setBroker(head.id, brokerSel.value));
+  const memLine = r.stats.mem ? h('p', { class: 'memline' }, icon('trendup', 14), ' ' + laneMemoryText(r.stats.mem)) : null;
+  const rates = b.members.map(m => safeNumeric(m.datRate)).filter(x => x > 0);
+  const rateTxt = rates.length ? (Math.min(...rates) === Math.max(...rates) ? money(rates[0]) : `${money(Math.min(...rates))}-${money(Math.max(...rates))}`) : 'no rate';
+  const toggleBtn = h('button', { class: 'collbtn', type: 'button', 'aria-expanded': String(!collapsed), title: collapsed ? 'Expand this load' : 'Collapse this load', 'data-act': 'toggle-box', onclick: toggle }, icon(collapsed ? 'chevright' : 'chevdown', 16));
+  const header = h('header', { class: 'lanehead' },
+    h('div', { class: 'lanetitle' }, toggleBtn,
+      h('input', { type: 'checkbox', checked: allSel, 'aria-label': 'Select every posting in this lane', 'data-fk': `${b.key}:chk`, onchange: (e) => { ids.forEach(id => (e.target.checked ? selected.add(id) : selected.delete(id))); rerender(); } }),
+      h('h3', { class: 'lane', onclick: toggle }, b.title),
+      h('span', { class: 'score ' + r.label.toLowerCase(), title: `Cover-probability score ${r.score}/100 (${r.label}): ${r.reasons.join('; ')}` }, r.score),
+      h('span', { class: 'pill' }, `${b.members.length} posting${b.members.length === 1 ? '' : 's'}`),
+      lane ? h('span', { class: 'pill lanecls ' + lane, title: 'Posting strategy for this lane length (System > Posting strategy)' }, ({ local: 'Local', regional: 'Regional', long: 'Long-distance' })[lane] || lane) : null,
+      h('span', { class: 'pill' }, rateTxt), head.broker ? h('span', { class: 'pill alt' }, head.broker) : null,
+      String(head.contact || '').toLowerCase() === 'phone' ? h('span', { class: 'pill', title: 'Posted on DAT with your phone number' }, icon('phone', 12), ' phone') : null,
+      `${r.stats.inquiries.total}` !== '0' ? h('span', { class: 'pill ok', title: 'Inquiries received' }, `${r.stats.inquiries.total} inq`) : null,
+      ...flagChips(r)),
+    collapsed ? null : h('div', { class: 'lanectl' },
+      h('label', { class: 'inl' }, 'Priority ', priSel),
+      h('span', { class: 'pill tgt', title: 'Target outreach number for this box' }, `Target outreach: ${pr.target}`),
+      h('label', { class: 'inl' }, 'DAT contact ', contact),
+      brokerSel ? h('label', { class: 'inl' }, 'Broker ', brokerSel) : null,
+      h('button', { class: 'btn small primary', type: 'button', 'data-act': 'mark-covered', title: 'Log which posting and carrier covered it, then remove the load', onclick: () => coverModal(b) }, icon('check', 14), 'Mark covered')));
+  if (collapsed) return h('section', { class: 'lanebox collapsed p-' + (head.priority || 'Low'), dataset: { group: b.groupId || '', lane: b.title, key: b.key } }, header);
+  return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), dataset: { group: b.groupId || '', lane: b.title, key: b.key } },
+    header, memLine,
+    guidanceBlock(r, boardCtx()),
     h('div', { class: 'laneact' },
       h('button', { class: 'btn small', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy load details'),
       h('button', { class: 'btn small', type: 'button', 'data-act': 'view-lane-details', title: 'View the original load details', onclick: () => viewDetails(b) }, icon('eye', 15), 'View details'),
@@ -216,46 +213,72 @@ function groupBox(b) {
       h('span', { class: 'inl' }, h('b', null, 'DAT rate for all:'), bulk, h('button', { class: 'btn small', type: 'button', 'data-act': 'rate-all', onclick: apply }, 'Apply')),
       h('button', { class: 'btn small', type: 'button', 'data-act': 'csv-group', title: 'Download every posting in this box as a DAT CSV', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Lane') }, 'Download CSV'),
       h('button', { class: 'btn small', type: 'button', title: 'Save this load group to Spare Load Details', onclick: async () => { await actions.saveSpareFromGroup(head.id); toast('Saved to Spare Load Details.', 'ok'); } }, 'Spare'),
-      h('button', { class: 'btn small danger', type: 'button', 'data-act': 'del-group', title: 'Delete the whole box', onclick: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }, single ? 'Delete' : 'Delete group')),
+      h('button', { class: 'btn small danger', type: 'button', 'data-act': 'del-group', title: 'Delete the whole box (not logged; use Mark covered to keep a record)', onclick: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }, single ? 'Delete' : 'Delete group')),
     h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable' },
       h('thead', null, h('tr', null, [['', ''], ['Posting', ''], ['Pickup', ''], ['Weight', ''], ['Eq', EQ_TITLE], ['Origin city', ''], ['St', ''], ['ZIP', 'Auto-filled from the city'], ['Dest city', ''], ['St', ''], ['ZIP', 'Auto-filled from the city'], ['DAT rate $', 'Rate posted on DAT (goes in the CSV)'], ['Target $ (email)', 'Used only to judge carrier e-mail replies; never uploaded'], ['Inq / Sent', 'Carrier inquiries received / outreach drafts sent'], ['Outreach', 'Yes = include in the next lane scan'], ['Actions', '']].map(([x, t]) => h('th', { title: t || null }, x)))),
       h('tbody', null, b.members.map(m => row(m, b.members))))));
 }
 
+function brokerTabs(boxesAll) {
+  const brokers = state.settings.brokers || [];
+  const unassigned = boxesAll.filter(x => !(x.box.head.broker || '')).length;
+  const count = (name) => boxesAll.filter(x => (x.box.head.broker || '') === name).length;
+  const tab = (id, label, n) => h('button', { class: 'tab' + (brokerTab === id ? ' on' : ''), type: 'button', role: 'tab', 'aria-selected': String(brokerTab === id), 'data-fk': 'tab:' + id, onclick: () => { brokerTab = id; rerender(); } }, label, h('em', null, n));
+  const addBroker = h('button', { class: 'btn small', type: 'button', onclick: () => {
+    const inp = h('input', { placeholder: 'Broker name', 'data-live': '' });
+    modal({ title: 'Add a broker', body: h('div', null, h('p', { class: 'muted' }, 'Each broker gets their own tab, scoreboard and CSV. You can also assign a load to a broker from its header.'), field('Name', inp)),
+      actions: [{ label: 'Cancel' }, { label: 'Add', kind: 'primary', onClick: async () => { const ok = await actions.addBroker(inp.value); if (!ok) { toast('Enter a new name (it must not already exist).', 'warn'); return false; } brokerTab = inp.value.trim(); } }] });
+    setTimeout(() => inp.focus(), 40);
+  } }, icon('plus', 14), 'Broker');
+  return h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Broker boards' },
+    tab('__all', 'All', boxesAll.length), brokers.map(b => tab(b, b, count(b))), brokers.length && unassigned ? tab('', 'Unassigned', unassigned) : null, addBroker);
+}
+
 export function render() {
+  const now = new Date();
+  const ctx = boardCtx(now);
+  const rowsAll = analyseBoard(ctx);
+  const brokers = state.settings.brokers || [];
+  if (brokerTab !== '__all' && brokerTab !== '' && !brokers.includes(brokerTab)) brokerTab = '__all';
+  if (brokerTab === '' && !brokers.length) brokerTab = '__all';
   const f = filter.trim().toLowerCase();
-  let boxes = laneBoxes(state.postings);
-  boxes = boxes.filter(b => {
-    if (statusFilter !== 'All' && (b.head.status || 'Active') !== statusFilter) return false;
-    if (!f) return true;
-    return b.members.some(p => [p.originCity, p.originState, p.destCity, p.destState, p.groupId, p.variant].join(' ').toLowerCase().includes(f));
-  });
-  // forget ticks for postings that no longer exist
+  const inTab = (r) => brokerTab === '__all' || (r.box.head.broker || '') === brokerTab;
+  const rows = rowsAll.filter(inTab).filter(r => matchesQuick(r, quick)).filter(r => !f || r.box.members.some(p => [p.originCity, p.originState, p.destCity, p.destState, p.groupId, p.variant, p.broker].join(' ').toLowerCase().includes(f)));
+  const rowsTab = rowsAll.filter(inTab);
   for (const id of [...selected]) if (!state.postings.some(p => p.id === id)) selected.delete(id);
   const nSel = selected.size;
-  const shown = boxes.reduce((n, b) => n + b.members.length, 0);
-  const ta = h('textarea', { placeholder: 'Paste one or more TQL load blocks here (Pickup:, Delivery:, Pickup Date/Time:, Weight:, Trailer Type: …)', value: pasteText, 'data-rerender': '', 'data-fk': 'paste' });
-  ta.addEventListener('input', () => { pasteText = ta.value; });
+  const shown = rows.reduce((n, r) => n + r.box.members.length, 0);
+  const collapsed = collapsedSet();
+  const tabPostings = state.postings.filter(p => brokerTab === '__all' || (p.broker || '') === brokerTab);
+  const tabName = brokerTab === '__all' ? 'All' : (brokerTab || 'Unassigned');
   const search = h('input', { type: 'search', placeholder: 'Filter lanes / groups…', value: filter, 'data-live': '', 'data-fk': 'filter' });
   search.addEventListener('input', () => { filter = search.value; rerender(); });
   const selIds = () => [...selected];
+  const openBox = async (box) => { if (collapsed.has(box.key)) { collapsed.delete(box.key); saveUi({ collapsed: [...collapsed] }); } await rerender(); setTimeout(() => { const el = document.querySelector(`[data-key="${CSS.escape(box.key)}"]`); if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); el.classList.add('pulse'); setTimeout(() => el.classList.remove('pulse'), 1600); } }, 120); };
+  const wlOpen = ui().worklist !== false;
+  const pace = paceStats(state.coverLog, state.settings, now, brokerTab === '__all' ? null : brokerTab);
   return h('div', null,
-    pageHead({ icon: 'board', title: 'FREIGHT SIGNAL', sub: 'Paste TQL loads → review → build the 3 × 3 matrix → set DAT rates → download the DAT CSV. Drafts are never sent automatically.' }),
-    h('div', { class: 'panel' }, ta,
-      h('div', { class: 'toolbar' },
-        h('button', { class: 'btn primary', type: 'button', onclick: () => reviewParsed(ta.value) }, 'Parse pasted loads'),
-        h('button', { class: 'btn', type: 'button', onclick: () => actions.addParsedLoad({ originCity: '', originState: '', destCity: '', destState: '', pickupEarliest: '', pickupLatest: '', weight: '', equip: 'V', details: '' }) }, 'Add blank row'))),
+    pageHead({ icon: 'board', title: 'FREIGHT SIGNAL', sub: 'Paste TQL loads → they are read as you paste → the 3 × 3 matrix builds itself → set DAT rates → download the DAT CSV. Drafts are never sent automatically.' }),
+    overviewStrip(rowsAll, ctx, quick, (k) => { quick = k; rerender(); }),
+    worklistPanel(rowsAll, wlOpen, openBox, wlOpen, (v) => { saveUi({ worklist: v }); rerender(); }),
+    pastePanel(),
+    brokerTabs(rowsAll),
+    scoreboard(brokerTab),
     h('div', { class: 'toolbar sticky' }, search,
-      selectEl(['All', 'Active'], statusFilter, (v) => { statusFilter = v; rerender(); }),
-      h('button', { class: 'btn primary', type: 'button', 'data-act': 'csv-all', title: 'Every posting on the board, in DAT’s bulk-upload template format', onclick: () => downloadDat('all', state.postings, 'Whole board') }, 'Download all (DAT CSV)'),
-      h('button', { class: 'btn', type: 'button', onclick: () => copyText(datTsv(state.postings), 'DAT rows copied (tab-separated).') }, 'Copy all for DAT'),
-      h('button', { class: 'btn', type: 'button', onclick: async () => { const r = await actions.runOutlookScan(); toast(`Lane scan: ${r.drafts.length} draft(s) for eligible loads (Outreach = Yes).`, r.drafts.length ? 'ok' : 'info'); if (r.drafts.length) summaryOutreach({ detail: 'Lane scan over all Active loads with Outreach = Yes.', drafts: r.drafts, created: r.drafts.length }); }, title: 'Outlook-macro style scan over loads where Outreach = Yes' }, 'Run lane scan'),
-      h('span', { class: 'muted' }, `${boxes.length} lane${boxes.length === 1 ? '' : 's'} · ${shown} of ${state.postings.length} postings`)),
+      quick ? h('button', { class: 'btn small', type: 'button', onclick: () => { quick = ''; rerender(); } }, `Showing: ${quick} ✕`) : null,
+      h('button', { class: 'btn primary', type: 'button', 'data-act': 'csv-all', title: `${tabName === 'All' ? 'Every posting on the board' : tabName + "'s postings"}, in DAT’s bulk-upload template format`, onclick: () => downloadDat(brokerTab === '__all' ? 'all' : 'group', tabPostings, tabName === 'All' ? 'Whole board' : tabName + ' board') }, icon('download', 15), brokerTab === '__all' ? 'Download all (DAT CSV)' : `Download ${tabName} CSV`),
+      h('button', { class: 'btn', type: 'button', onclick: () => copyText(datTsv(tabPostings), 'DAT rows copied (tab-separated).') }, 'Copy for DAT'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'aging', onclick: () => agingModal(rowsTab, ctx), title: 'Loads with no inquiries past their lane limit: one-click reprice and a fresh round of outreach' }, 'Aging loads' + (rowsTab.filter(r => r.flags.some(x => x.kind === 'aging')).length ? ` (${rowsTab.filter(r => r.flags.some(x => x.kind === 'aging')).length})` : '')),
+      h('button', { class: 'btn', type: 'button', onclick: async () => { const r = await actions.runOutlookScan(); toast(`Lane scan: ${r.drafts.length} draft(s) for eligible loads (Outreach = Yes).`, r.drafts.length ? 'ok' : 'info'); if (r.drafts.length) summaryOutreach({ detail: 'Ranked lane scan over all Active loads with Outreach = Yes.', drafts: r.drafts, created: r.drafts.length }); }, title: 'Scan loads where Outreach = Yes and draft the best-ranked carriers' }, 'Run lane scan'),
+      h('button', { class: 'btn small', type: 'button', 'data-act': 'collapse-all', onclick: () => setCollapsed(new Set(rowsAll.map(r => r.box.key))) }, 'Collapse all'),
+      h('button', { class: 'btn small', type: 'button', 'data-act': 'expand-all', onclick: () => setCollapsed(new Set()) }, 'Expand all'),
+      h('span', { class: 'muted' }, `${rows.length} load${rows.length === 1 ? '' : 's'} · ${shown} postings`)),
     nSel ? h('div', { class: 'toolbar selbar' }, h('b', null, `${nSel} selected`),
       h('button', { class: 'btn small', type: 'button', 'data-act': 'csv-sel', onclick: () => downloadDat('selected', state.postings.filter(p => selected.has(p.id)), 'Selection') }, 'Download selected'),
       h('button', { class: 'btn small danger', type: 'button', 'data-act': 'del-sel', onclick: () => deleteMany(selIds(), `${nSel} selected posting${nSel === 1 ? '' : 's'}`) }, 'Delete selected'),
       h('button', { class: 'btn small', type: 'button', onclick: () => { selected.clear(); rerender(); } }, 'Clear')) : null,
     h('p', { class: 'legend muted' }, h('b', null, 'Equipment: '), EQUIPMENT.map(e => `${e.code} = ${e.label}`).join('  ·  '),
       '   |   ', h('b', null, 'DAT rate'), ' is posted on DAT.  ', h('b', null, 'Target $'), ' is only used to judge carrier e-mail replies.'),
-    boxes.length ? boxes.map(groupBox) : emptyState({ icon: 'board', title: state.postings.length ? 'No lanes match the filter' : 'No loads yet', text: state.postings.length ? 'Clear the filter to see everything.' : 'Paste TQL load text above and choose Parse pasted loads.' }));
+    rows.length ? rows.map(r => groupBox(r, collapsed.has(r.box.key), () => { if (collapsed.has(r.box.key)) collapsed.delete(r.box.key); else collapsed.add(r.box.key); setCollapsed(collapsed); })) :
+      emptyState({ icon: 'board', title: state.postings.length ? 'No loads match' : 'No loads yet', text: state.postings.length ? 'Clear the filter, or pick another broker tab.' : 'Paste TQL load text above. The loads appear as editable rows right away.' }));
 }
