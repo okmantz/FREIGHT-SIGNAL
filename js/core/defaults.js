@@ -29,6 +29,9 @@ export const DEFAULT_SETTINGS = {
   // Split pasted TQL text into loads at lines matching this regex (default: "N pick - M drop").
   loadSeparatorRegex: '^\\s*\\d+\\s*pick\\s*[-–]\\s*\\d+\\s*drop',
   theme: 'dark',
+  // Appearance (themes, accent, background...) and the account profile. null/blank = defaults; see js/ui/appearance.js.
+  appearance: null,
+  profile: { name: '', title: '', company: '', startPage: 'home' },
   // Outreach mode used by the per-row Carrier Outreach button: 'excel' (tiered, Excel v3) or 'outlook' (lane scan, Outlook v3)
   outreachButtonMode: 'excel',
 };

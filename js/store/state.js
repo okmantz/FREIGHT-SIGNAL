@@ -82,6 +82,11 @@ export const actions = {
     state.settings = { ...state.settings, ...patch };
     await guard(() => db.kvSet('settings', state.settings)); emit();
   },
+  /** Save settings WITHOUT re-rendering the page (appearance and profile apply themselves, and a re-render would reset sliders mid-drag). */
+  async savePrefs(patch) {
+    state.settings = { ...state.settings, ...patch };
+    await guard(() => db.kvSet('settings', state.settings));
+  },
 
   // ---------- postings ----------
   /** Parse a TQL block and add it as an "Original" posting (the macro's first double-click on AB). */

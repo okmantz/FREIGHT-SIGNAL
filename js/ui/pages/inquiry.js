@@ -1,4 +1,5 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, inputEl, selectEl, field, fmtDate, copyText } from '../dom.js';
+import { pageHead, emptyState } from '../chrome.js';
 import { state, actions } from '../../store/state.js';
 import { INQUIRY_HEADERS, INQUIRY_KEYS } from '../../core/defaults.js';
 import { toDelimited } from '../../core/csv.js';
@@ -95,7 +96,7 @@ function processor() {
 export function render() {
   const tabs = [['log', 'Log'], ['dash', 'Performance dashboard'], ['email', 'Process carrier e-mail']];
   return h('div', null,
-    h('div', { class: 'pagehead' }, h('h2', null, 'Inquiry Log')),
+    pageHead({ icon: 'inquiry', title: 'Inquiry Log', sub: 'Carrier inquiries, replies and your performance dashboard.' }),
     h('div', { class: 'toolbar' }, tabs.map(([id, l]) => h('button', { class: 'btn' + (tab === id ? ' primary' : ''), type: 'button', onclick: () => { tab = id; rerender(); } }, l))),
     tab === 'log' ? log() : tab === 'dash' ? dashboard() : processor());
 }

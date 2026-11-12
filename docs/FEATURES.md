@@ -21,7 +21,9 @@ Legend: **Tested** = automated unit and/or browser test passes · **Partial** = 
 | Single-file build from `file://` | Tested | `single.mjs` |
 | No external requests / no telemetry | Tested | e2e |
 | Markup injection inert | Tested | e2e |
-| Light/dark theme | Tested | e2e |
+| Light/dark/auto mode | Tested | e2e |
+| Account Settings: profile, 10 interface themes, accent colours (10 + custom), 16 backgrounds (animated scenes, seasons, gradient, own image), density, corners, type, sidebar | Tested | e2e |
+| Copy original load details (lane header, each row, edit window, Spare cards) | Tested | e2e + unit |
 | Spare Load Details | Partial (behaviour inferred) | manual only |
 | DAT bulk-upload CSV (all / lane / selected / single), exact 24-column template header, DAT rate per posting or per lane | Tested against the real template header | unit + e2e |
 | Lane boxes (one box per lane, 9 postings each), delete posting / selection / group, priority → target (5/10/15) | Tested incl. real-focus regression | e2e |

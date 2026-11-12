@@ -26,6 +26,8 @@ html = html
   .replace('<link rel="icon" href="favicon.ico">', `<link rel="icon" href="${datauri('favicon.ico', 'image/x-icon')}">`)
   .replace('<link rel="stylesheet" href="css/app.css">', `<style>${css}</style>`)
   .replace('src="assets/logo-256.png"', `src="${datauri('assets/logo-256.png', 'image/png')}"`)
+  // js/boot.js appears twice (head: before paint, body end: once #bg-art exists). Both become inline classic scripts.
+  .replaceAll('<script src="js/boot.js"></script>', () => `<script>${rd('js/boot.js').toString('utf8').replace(/<\/script/gi, '<\\/script')}</script>`)
   .replace('<script type="module" src="js/main.js"></script>', `<script>${embed}</script>\n<script>${js}</script>`);
 // logo-mark used on HOME is referenced from JS: inline it
 const markUri = datauri('assets/logo-mark.png', 'image/png');

@@ -1,4 +1,6 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, field } from '../dom.js';
+import { pageHead, emptyState } from '../chrome.js';
+import { icon } from '../icons.js';
 import { state, actions, importZipCsv } from '../../store/state.js';
 import * as db from '../../store/db.js';
 import { bridge, connect, reconnect, disconnect, writeNow, pollNow, outlookConnected } from '../../store/bridge.js';
@@ -83,7 +85,7 @@ export function render() {
   const both = h('input', { type: 'checkbox', checked: s.requireBothStates }); both.addEventListener('change', () => actions.saveSettings({ requireBothStates: both.checked }));
   const comma = h('input', { type: 'checkbox', checked: s.recogniseCommaRates }); comma.addEventListener('change', () => actions.saveSettings({ recogniseCommaRates: comma.checked }));
   return h('div', null,
-    h('div', { class: 'pagehead' }, h('h2', null, 'System'), h('p', null, 'Settings, backup and data. All stored in this browser only.')),
+    pageHead({ icon: 'system', title: 'System', sub: 'Settings, backup and data. All stored in this browser only.', actions: [h('a', { class: 'btn', href: '#/account' }, icon('palette', 15), 'Themes & appearance')] }),
     state.persistError ? h('div', { class: 'banner err' }, 'Storage problem: ' + state.persistError) : null,
     bridgePanel(),
     h('div', { class: 'panel' }, h('h3', null, 'Outreach targets and rules'),

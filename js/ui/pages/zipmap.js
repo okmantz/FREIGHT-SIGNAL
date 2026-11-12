@@ -1,4 +1,5 @@
 import { h, field, openExternal } from '../dom.js';
+import { pageHead, emptyState } from '../chrome.js';
 import { state } from '../../store/state.js';
 import { ventuskyUrl } from '../../core/links.js';
 
@@ -20,7 +21,7 @@ export function render() {
   }
   const inp = (val, set, props = {}) => { const el = h('input', { value: val, 'data-rerender': '', ...props }); el.addEventListener('input', () => set(el.value)); el.addEventListener('keydown', (e) => { if (e.key === 'Enter') rerender(); }); return el; };
   return h('div', null,
-    h('div', { class: 'pagehead' }, h('h2', null, 'ZIP Map'), h('p', null, `${zm.size.toLocaleString()} rows • ${state.zipInfo.source || ''}`)),
+    pageHead({ icon: 'zipmap', title: 'ZIP Map', sub: `${zm.size.toLocaleString()} rows • ${state.zipInfo.source || ''}` }),
     h('div', { class: 'toolbar' },
       h('button', { class: 'btn' + (mode === 'search' ? ' primary' : ''), type: 'button', onclick: () => { mode = 'search'; rerender(); } }, 'Search'),
       h('button', { class: 'btn' + (mode === 'radius' ? ' primary' : ''), type: 'button', onclick: () => { mode = 'radius'; rerender(); } }, 'Nearby markets')),

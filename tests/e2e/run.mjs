@@ -319,6 +319,20 @@ try {
   await page.reload(); await page.waitForSelector('#nav a');
   check('theme persists after reload', (await page.getAttribute('html', 'data-theme')) === 'light');
 
+  // --- Account Settings + copy original load details
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+  await go('board');
+  await page.click('[data-act="copy-lane-details"]'); await page.waitForTimeout(300);
+  const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  check('Copy load details puts the original TQL text on the clipboard', /Pickup:/i.test(clip) && clip.length > 40, clip.slice(0, 60));
+  await go('account');
+  check('Account Settings page renders', (await page.locator('.set-card').count()) >= 5);
+  await page.click('.skin-tile:has-text("Obsidian Gold")'); await page.click('.bg-tile:has-text("Sakura")'); await page.click('.swatch[title="Violet"]');
+  await page.waitForTimeout(500);
+  check('skin + background apply live', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura');
+  await page.waitForTimeout(500); await page.reload(); await page.waitForSelector('#nav a');
+  check('skin + background persist after reload', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura');
+
   // --- offline: core functions without network
   await page.waitForTimeout(800);
   await ctx.setOffline(true);

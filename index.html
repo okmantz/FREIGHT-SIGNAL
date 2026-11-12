@@ -1,28 +1,44 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" data-skin="signal" data-bg="mountains">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
 <link rel="icon" href="favicon.ico">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/app.css">
+<script src="js/boot.js"></script>
 </head>
 <body>
+<div id="bg" aria-hidden="true">
+  <div class="bg-art art-mountains" id="bg-art"></div>
+  <canvas id="bg-fx" hidden></canvas>
+  <div class="bg-scrim"></div>
+</div>
 <div id="app">
   <header class="top">
-    <img src="assets/logo-256.png" alt="Freight Signal logo">
-    <div class="brand"><span class="name">FREIGHT <b>SIGNAL</b></span><small>By O.K. Mantz</small><em class="tag">Intelligent Carrier Sourcing Optimization System</em></div>
+    <button id="navtoggle" class="hdr-btn square" type="button" aria-label="Open menu" aria-controls="nav"></button>
+    <a class="brandlink" href="#/home" aria-label="Freight Signal home">
+      <img src="assets/logo-256.png" alt="Freight Signal logo">
+      <div class="brand"><span class="name">FREIGHT <b>SIGNAL</b></span><small>By O.K. Mantz</small><em class="tag">Intelligent Carrier Sourcing Optimization System</em></div>
+    </a>
     <div class="spacer"></div>
-    <span id="zipstat" class="pill"></span>
-    <button id="themebtn" class="btn small" type="button" title="Toggle dark / light">Light mode</button>
+    <div class="hdr-actions">
+      <span id="zipstat" class="pill"></span>
+      <button id="themebtn" class="hdr-btn" type="button" title="Toggle dark / light"></button>
+      <a id="appearbtn" class="hdr-btn square" href="#/account" title="Appearance and account settings" aria-label="Appearance and account settings"></a>
+      <a id="profilechip" class="profile-chip" href="#/account" title="Account settings"></a>
+    </div>
   </header>
   <nav class="side" id="nav" aria-label="Main"></nav>
   <main id="view" tabindex="-1"><p class="muted">Loading…</p></main>
+  <div id="navscrim"></div>
 </div>
-<noscript><p style="padding:20px;color:#fff">Freight Signal needs JavaScript (Chrome or Edge).</p></noscript>
+<noscript><p class="noscript">Freight Signal needs JavaScript (Chrome or Edge).</p></noscript>
+<script src="js/boot.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

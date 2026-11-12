@@ -7,12 +7,37 @@ import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
 import { PRIORITIES, STATUSES, groupMembers, laneBoxes, gridLabel, targetForPriority } from '../../core/model.js';
 import { datTsv, datCsv, datProblems, datPostings, datFileName } from '../../core/dat.js';
 import { draftCard } from '../draftcard.js';
+import { originalLoadDetails, copyDetailsMessage } from '../../core/loaddetails.js';
+import { icon } from '../icons.js';
+import { pageHead, emptyState, flash } from '../chrome.js';
 
 let pasteText = '';
 let filter = '';
 let statusFilter = 'All';
 const selected = new Set();   // ticked posting ids (for Download selected / Delete selected)
 const rerender = () => import('../../main.js').then(m => m.render());
+
+/** Copy the ORIGINAL load details (the pasted TQL text) for a lane, falling back to a lane summary when none was pasted. */
+async function copyLoadDetails(members, btn) {
+  const d = originalLoadDetails(members);
+  if (d.source === 'none') return toast('This load has no details to copy yet. Fill in the origin and destination first.', 'warn');
+  await copyText(d.text, copyDetailsMessage(d.source));
+  flash(btn);
+}
+
+function viewDetails(b) {
+  const d = originalLoadDetails(b.members);
+  const ta = h('textarea', { class: 'copybox', readOnly: true, rows: 14, 'aria-label': 'Original load details' }, d.text);
+  ta.value = d.text;
+  const note = d.source === 'original' ? 'This is the text pasted for the original posting, exactly as it was stored.'
+    : d.source === 'summary' ? 'No source text was pasted for this load, so this is a summary built from its lane fields.' : 'There are no details for this load yet.';
+  modal({
+    title: `Load details: ${b.title}`, wide: true,
+    body: h('div', null, h('p', { class: 'muted' }, note), ta),
+    actions: [{ label: 'Close' }, { label: 'Copy details', kind: 'primary', keepOpen: true, onClick: async () => { if (d.text) await copyText(d.text, copyDetailsMessage(d.source)); return false; } }],
+  });
+  setTimeout(() => ta.select(), 30);
+}
 
 const shortGroup = (g) => (g ? g.replace(/^FS-/, '').slice(-9) : '');
 
@@ -79,7 +104,9 @@ function detailModal(p) {
   const body = h('div', null,
     h('div', { class: 'grid4' }, DAT_COLUMNS.map(c => mk(c.key, `${c.letter} ${c.header}`)),
       mk('targetRate', 'Target Rate (emails only)')),
-    mk('details', 'Auto-reply details (source TQL text)', true), mk('notes', 'Auto-reply notes'));
+    mk('details', 'Auto-reply details (source TQL text)', true),
+    h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: (e) => { const v = inputs.details.value.trim(); if (!v) return toast('There are no details to copy.', 'warn'); copyText(v, 'Load details copied.'); flash(e.currentTarget); } }, icon('copy', 15), 'Copy details')),
+    mk('notes', 'Auto-reply notes'));
   modal({
     title: `Edit ${p.originCity}, ${p.originState} → ${p.destCity}, ${p.destState}`, body, wide: true,
     actions: [{ label: 'Cancel' }, { label: 'Save', kind: 'primary', onClick: async () => {
@@ -134,7 +161,7 @@ function equipSelect(p) {
   return sel;
 }
 
-function row(p) {
+function row(p, members) {
   const upd = (k) => (v) => actions.updatePosting(p.id, { [k]: v });
   const td = (k, w, extra = {}) => h('td', null, inputEl(p[k], upd(k), { size: w, 'data-fk': `${p.id}:${k}`, ...extra }));
   const lbl = gridLabel(p.variant);
@@ -150,6 +177,7 @@ function row(p) {
     h('td', { class: 'num' }, `${p.inquiryCount || 0} / ${p.outreachCount || 0}`),
     h('td', null, selectEl(['No', 'Yes'], p.outreach || 'No', (v) => actions.updatePosting(p.id, { outreach: v }), { title: 'Yes = include in the next lane scan', 'data-fk': `${p.id}:outreach` })),
     h('td', null, h('div', { class: 'rowact' },
+      h('button', { class: 'btn small iconcopy', type: 'button', title: 'Copy the original load details', 'aria-label': 'Copy original load details', 'data-act': 'copy-details', onclick: (e) => copyLoadDetails(members, e.currentTarget) }, icon('copy', 14), 'Copy'),
       h('button', { class: 'btn small', type: 'button', title: 'Draft carrier outreach for this posting', onclick: async () => { const r = await actions.runOutreach(p.id); if (r) summaryOutreach(r); } }, 'Outreach'),
       h('button', { class: 'btn small', type: 'button', title: 'Open DAT RateView for this lane', onclick: () => rateLink(p) }, 'Rate'),
       h('button', { class: 'btn small', type: 'button', title: 'Open weather for the origin', onclick: () => weather(p) }, 'Wx'),
@@ -182,6 +210,8 @@ function groupBox(b) {
         h('span', { class: 'pill tgt', title: 'Target outreach number for this box' }, `Target outreach: ${pr.target}`),
         h('label', { class: 'inl' }, 'Status ', stSel))),
     h('div', { class: 'laneact' },
+      h('button', { class: 'btn small', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy load details'),
+      h('button', { class: 'btn small', type: 'button', 'data-act': 'view-lane-details', title: 'View the original load details', onclick: () => viewDetails(b) }, icon('eye', 15), 'View details'),
       single ? h('button', { class: 'btn small primary', type: 'button', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3×3 matrix') : null,
       h('span', { class: 'inl' }, h('b', null, 'DAT rate for all:'), bulk, h('button', { class: 'btn small', type: 'button', 'data-act': 'rate-all', onclick: apply }, 'Apply')),
       h('button', { class: 'btn small', type: 'button', 'data-act': 'csv-group', title: 'Download every posting in this box as a DAT CSV', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Lane') }, 'Download CSV'),
@@ -189,7 +219,7 @@ function groupBox(b) {
       h('button', { class: 'btn small danger', type: 'button', 'data-act': 'del-group', title: 'Delete the whole box', onclick: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }, single ? 'Delete' : 'Delete group')),
     h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable' },
       h('thead', null, h('tr', null, [['', ''], ['Posting', ''], ['Pickup', ''], ['Weight', ''], ['Eq', EQ_TITLE], ['Origin city', ''], ['St', ''], ['ZIP', 'Auto-filled from the city'], ['Dest city', ''], ['St', ''], ['ZIP', 'Auto-filled from the city'], ['DAT rate $', 'Rate posted on DAT (goes in the CSV)'], ['Target $ (email)', 'Used only to judge carrier e-mail replies; never uploaded'], ['Inq / Sent', 'Carrier inquiries received / outreach drafts sent'], ['Outreach', 'Yes = include in the next lane scan'], ['Actions', '']].map(([x, t]) => h('th', { title: t || null }, x)))),
-      h('tbody', null, b.members.map(row)))));
+      h('tbody', null, b.members.map(m => row(m, b.members))))));
 }
 
 export function render() {
@@ -210,7 +240,7 @@ export function render() {
   search.addEventListener('input', () => { filter = search.value; rerender(); });
   const selIds = () => [...selected];
   return h('div', null,
-    h('div', { class: 'pagehead' }, h('h2', null, 'FREIGHT SIGNAL'), h('p', null, 'Paste TQL loads → review → build the 3 × 3 matrix → set DAT rates → download the DAT CSV. Drafts are never sent automatically.')),
+    pageHead({ icon: 'board', title: 'FREIGHT SIGNAL', sub: 'Paste TQL loads → review → build the 3 × 3 matrix → set DAT rates → download the DAT CSV. Drafts are never sent automatically.' }),
     h('div', { class: 'panel' }, ta,
       h('div', { class: 'toolbar' },
         h('button', { class: 'btn primary', type: 'button', onclick: () => reviewParsed(ta.value) }, 'Parse pasted loads'),
@@ -227,5 +257,5 @@ export function render() {
       h('button', { class: 'btn small', type: 'button', onclick: () => { selected.clear(); rerender(); } }, 'Clear')) : null,
     h('p', { class: 'legend muted' }, h('b', null, 'Equipment: '), EQUIPMENT.map(e => `${e.code} = ${e.label}`).join('  ·  '),
       '   |   ', h('b', null, 'DAT rate'), ' is posted on DAT.  ', h('b', null, 'Target $'), ' is only used to judge carrier e-mail replies.'),
-    boxes.length ? boxes.map(groupBox) : h('div', { class: 'panel muted' }, state.postings.length ? 'No lanes match the filter.' : 'No loads yet. Paste TQL text above.'));
+    boxes.length ? boxes.map(groupBox) : emptyState({ icon: 'board', title: state.postings.length ? 'No lanes match the filter' : 'No loads yet', text: state.postings.length ? 'Clear the filter to see everything.' : 'Paste TQL load text above and choose Parse pasted loads.' }));
 }
