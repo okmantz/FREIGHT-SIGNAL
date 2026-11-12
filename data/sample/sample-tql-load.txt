@@ -1,0 +1,5 @@
+Pickup: Chicago, IL 60601
+Delivery: Atlanta, GA 30303
+Pickup Date/Time: 11/16/2026 08:00
+Weight: 38000 lbs
+Trailer Type: Van

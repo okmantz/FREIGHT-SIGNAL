@@ -1,0 +1,6 @@
+Load #SYN-1001 (synthetic test fixture, not a real load)
+Pickup: Chicago, IL 60601
+Delivery: Atlanta, GA 30303
+Pickup Date/Time: 11/16/2026 08:00 - 17:00
+Weight: 38,000 lbs
+Trailer Type: Van

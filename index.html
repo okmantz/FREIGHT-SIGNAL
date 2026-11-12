@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>FREIGHT SIGNAL by O.K. Mantz</title>
+<link rel="icon" href="favicon.ico">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <img src="assets/logo-256.png" alt="Freight Signal logo">
+    <div class="brand"><span class="name">FREIGHT <b>SIGNAL</b></span><small>By O.K. Mantz</small></div>
+    <div class="spacer"></div>
+    <span id="zipstat" class="pill"></span>
+    <button id="themebtn" class="btn small" type="button" title="Toggle dark / light">Light mode</button>
+  </header>
+  <nav class="side" id="nav" aria-label="Main"></nav>
+  <main id="view" tabindex="-1"><p class="muted">Loading…</p></main>
+</div>
+<noscript><p style="padding:20px;color:#fff">Freight Signal needs JavaScript (Chrome or Edge).</p></noscript>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

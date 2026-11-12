@@ -1,0 +1,16 @@
+{
+  "name": "freight-signal",
+  "version": "1.0.0",
+  "description": "FREIGHT SIGNAL by O.K. Mantz - local-first browser app for freight posting, carrier outreach and inquiry tracking",
+  "type": "module",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test \"tests/unit/*.test.js\"",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "build": "node scripts/build-single.mjs",
+    "test:single": "node tests/e2e/single.mjs",
+    "serve": "node tests/e2e/server.mjs"
+  },
+  "devDependencies": { "esbuild": "^0.25.0", "playwright": "^1.50.0" }
+}

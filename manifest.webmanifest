@@ -1,0 +1,3 @@
+{ "name": "Freight Signal", "short_name": "Freight Signal", "start_url": ".", "display": "standalone",
+  "background_color": "#05080c", "theme_color": "#05080c",
+  "icons": [{ "src": "assets/logo-256.png", "sizes": "256x256", "type": "image/png" }] }
