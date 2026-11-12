@@ -17,8 +17,8 @@ export function rateViewUrl(p) {
   dc = dc.replace(/-/g, '_').replace(/ /g, '%20');
   let equipment;
   switch (String(p.equip ?? '').trim().toUpperCase()) {
-    case 'R': equipment = 'Reefer'; break;
-    case 'F': case 'SD': equipment = 'Flatbed'; break;
+    case 'R': case 'RM': equipment = 'Reefer'; break;
+    case 'F': case 'SD': equipment = 'Flatbed'; break;   // VM falls through to Van
     default: equipment = 'Van';
   }
   return { ok: true, url: `${RATEVIEW_BASE}${oc}-${os}~${dc}-${ds}~${equipment}` };

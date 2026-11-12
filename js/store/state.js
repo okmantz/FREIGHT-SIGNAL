@@ -9,6 +9,15 @@ import { planExcelOutreach, planOutlookScan } from '../core/outreach.js';
 import { processIncomingEmail } from '../core/inbound.js';
 import { todayKey, uid, safeNumeric, normalizeText } from '../core/util.js';
 import { parseTqlLoad } from '../core/parser.js';
+import { toast } from '../ui/dom.js';
+
+/** DAT rates are whole dollars: "$1,650.00" -> "1650"; blank/invalid -> "". */
+export function cleanRate(v) {
+  const t = String(v ?? '').replace(/[$,\s]/g, '');
+  if (!t) return '';
+  const n = Number(t);
+  return Number.isFinite(n) && n > 0 ? String(Math.round(n)) : '';
+}
 
 export const state = {
   ready: false,
@@ -88,10 +97,27 @@ export const actions = {
   async updatePosting(id, patch) {
     const p = state.postings.find(x => x.id === id); if (!p) return;
     Object.assign(p, patch);
-    if ('originCity' in patch || 'originState' in patch || 'originZip' in patch || 'destState' in patch) {
-      const r = reconcileManualLane(p, state.zip); if (r.warning) state.lastWarning = r.warning;
+    if (['originCity', 'originState', 'originZip', 'destCity', 'destState', 'destZip'].some(k => k in patch)) {
+      // City/state changed -> the ZIP follows automatically (origin AND destination). A ZIP typed by hand that does not
+      // belong to the city/state is replaced too, exactly like the Excel macro's ReconcileManualLane.
+      const r = reconcileManualLane(p, state.zip);
+      if (r.warning) { state.lastWarning = r.warning; try { toast(r.warning, 'warn', 7000); } catch { /* no DOM (unit tests) */ } }
     }
+    if ('datRate' in patch) p.datRate = cleanRate(p.datRate);
     await savePostings(); emit();
+  },
+  /** Set (or clear, with '') the DAT-posted rate on specific postings. This is NOT the target rate (emails only). */
+  async setDatRate(ids, rate) {
+    const r = cleanRate(rate); const set = new Set(ids);
+    let n = 0;
+    for (const p of state.postings) if (set.has(p.id)) { p.datRate = r; n++; }
+    await savePostings(); emit(); return n;
+  },
+  /** Delete exactly these postings (individual rows or a ticked selection). */
+  async deletePostings(ids) {
+    const set = new Set(ids); const before = state.postings.length;
+    state.postings = state.postings.filter(p => !set.has(p.id));
+    await savePostings(); emit(); return before - state.postings.length;
   },
   async setPriority(id, priority) {
     const p = state.postings.find(x => x.id === id); if (!p) return;
@@ -114,6 +140,25 @@ export const actions = {
     if (p.groupId) setGroupStatus(state.postings, p.groupId, 'Active'); else p.status = 'Active';
     await savePostings(); emit();
     return { removed: 0 };
+  },
+  /**
+   * Apply Outlook events (from the bridge) to the Inquiry Log. Idempotent: an unseen ConversationId creates one inquiry
+   * and bumps the posting's inquiry count once; later events only update that inquiry. Returns how many rows changed.
+   */
+  async applyBridgeInquiries(plan) {
+    const { creates, patches, postingBumps } = plan;
+    if (!creates.length && !patches.length) return 0;
+    const newQ = creates.map(c => ({ id: uid(), ...c }));
+    state.inquiries.push(...newQ);
+    const touched = [...newQ];
+    for (const { id, patch } of patches) { const q = state.inquiries.find(x => x.id === id); if (q) { Object.assign(q, patch); touched.push(q); } }
+    await guard(() => db.putMany('inquiries', touched));
+    if (postingBumps.length) {
+      for (const b of postingBumps) { const p = state.postings.find(x => x.id === b.id); if (p) p.inquiryCount = b.count; }
+      await savePostings();
+    }
+    emit();
+    return newQ.length + patches.length;
   },
   async deleteGroup(id) {
     const { remaining, removed } = coverPosting(state.postings, id);

@@ -17,7 +17,7 @@ Sources read in full: `Excel_v3.md` (ThisWorkbook VBA), `Outlook_v3.md` (ThisOut
 | `InboxItems_ItemAdd` chain (inquiry reply, rate engine, flags, log stages) | *Process carrier e-mail* (paste) | `core/inbound.js` |
 | Outlook `.Display` of drafts | `.eml` (X-Unsent), mailto, OWA link, clipboard, bulk ZIP | `core/eml.js`, `core/ziparchive.js` |
 | Carrier Database / Inquiry Log sheets, Approved = Yes → carrier upsert | CRUD, import/export, filters | `ui/pages/*` |
-| DAT sheet (columns A–T) | DAT tab, copy/CSV | `core/dat.js` |
+| DAT sheet / DAT bulk template (24 columns A–X) | Board: per-lane / selected / single / all CSV download (the DAT tab was removed) | `core/dat.js` |
 | ZIP Map sheet + `ValidateZipMap` | bundled CSV, header validation, import | `core/zipmap.js` |
 | HOME tiles / Performance dashboard | **inferred** definitions | `core/stats.js` |
 

@@ -26,8 +26,6 @@ export const DEFAULT_SETTINGS = {
   // not be committed to a repository. Enter them in Settings (stored only in this browser).
   outreachBlocklist: [],
   inboundBlocklist: [],
-  // Optional override for the DAT bulk-upload header row (tab- or comma-separated).
-  datHeaderOverride: '',
   // Split pasted TQL text into loads at lines matching this regex (default: "N pick - M drop").
   loadSeparatorRegex: '^\\s*\\d+\\s*pick\\s*[-–]\\s*\\d+\\s*drop',
   theme: 'dark',
@@ -36,9 +34,9 @@ export const DEFAULT_SETTINGS = {
 };
 
 /**
- * DAT bulk-posting columns, in sheet order A..T (letters match the VBA: P=origin city ... T=dest state).
- * The header TEXT for columns F..O and R is read from truncated screenshot headers and is UNVERIFIED;
- * it can be overridden in Settings with the exact header row from the real DAT template.
+ * DAT bulk-upload columns, in EXACT template order (24 columns, copied from DAT's "bulk upload template" CSV).
+ * DAT's own instructions: "Do not remove or rearrange the columns." A trailing * marks a mandatory field.
+ * Letters A..X are the spreadsheet column letters of that template.
  */
 export const DAT_COLUMNS = [
   { letter: 'A', key: 'pickupEarliest', header: 'Pickup Earliest*' },
@@ -61,6 +59,20 @@ export const DAT_COLUMNS = [
   { letter: 'R', key: 'originZip', header: 'Origin Postal Code' },
   { letter: 'S', key: 'destCity', header: 'Destination City*' },
   { letter: 'T', key: 'destState', header: 'Destination State*' },
+  { letter: 'U', key: 'destZip', header: 'Destination Postal Code' },
+  { letter: 'V', key: 'comment', header: 'Comment' },
+  { letter: 'W', key: 'commodity', header: 'Commodity' },
+  { letter: 'X', key: 'referenceId', header: 'Reference ID' },
+];
+
+/** Equipment codes accepted on the board / written to the DAT "Equipment*" column. rateView = DAT RateView equipment word. */
+export const EQUIPMENT = [
+  { code: 'V', label: 'Van', rateView: 'Van' },
+  { code: 'R', label: 'Reefer', rateView: 'Reefer' },
+  { code: 'F', label: 'Flatbed', rateView: 'Flatbed' },
+  { code: 'SD', label: 'Step Deck', rateView: 'Flatbed' },
+  { code: 'VM', label: 'Van Team', rateView: 'Van' },
+  { code: 'RM', label: 'Reefer Team', rateView: 'Reefer' },
 ];
 
 export const CARRIER_HEADERS = [

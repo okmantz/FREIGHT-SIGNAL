@@ -55,10 +55,11 @@ export function extractWeight(text) {
 /** GetEquipmentCode */
 export function getEquipmentCode(text) {
   const t = String(text ?? '').toLowerCase();
-  if (t.includes('reefer') && !t.includes('van')) return 'R';
+  const team = /\bteam\b|\bteams\b/.test(t);
+  if (t.includes('reefer') && !t.includes('van')) return team ? 'RM' : 'R';   // RM = reefer team
   if (t.includes('flat')) return 'F';
   if (t.includes('step')) return 'SD';
-  return 'V';
+  return team ? 'VM' : 'V';                                                  // VM = van team
 }
 
 /** ExtractLastZipAfterLabel: 5-digit(-4) zip found on the LAST line starting with label. */

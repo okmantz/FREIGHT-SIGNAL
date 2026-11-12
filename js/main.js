@@ -2,7 +2,6 @@ import { h, clear, toast } from './ui/dom.js';
 import { state, subscribe, loadAll, actions } from './store/state.js';
 import * as home from './ui/pages/home.js';
 import * as board from './ui/pages/board.js';
-import * as dat from './ui/pages/dat.js';
 import * as spare from './ui/pages/spare.js';
 import * as carriers from './ui/pages/carriers.js';
 import * as inquiry from './ui/pages/inquiry.js';
@@ -10,11 +9,11 @@ import * as zipmap from './ui/pages/zipmap.js';
 import * as drafts from './ui/pages/drafts.js';
 import * as manual from './ui/pages/manual.js';
 import * as system from './ui/pages/system.js';
+import { initBridge, onBridge } from './store/bridge.js';
 
 export const TABS = [
   { id: 'home', label: 'HOME', page: home },
   { id: 'board', label: 'FREIGHT SIGNAL', page: board },
-  { id: 'dat', label: 'DAT', page: dat },
   { id: 'spare', label: 'Spare Load Details', page: spare },
   { id: 'carriers', label: 'Carrier Database', page: carriers },
   { id: 'inquiry', label: 'Inquiry Log', page: inquiry },
@@ -43,19 +42,40 @@ function renderNav() {
   zs.className = 'pill' + (state.zip ? '' : ' warn');
 }
 
+let renderPending = false;
+
+/** Typing detection: an input/textarea the user has changed but not yet committed must never be wiped by a re-render. */
+view.addEventListener('input', (e) => { const t = e.target; if (t && t.dataset && !('live' in t.dataset) && !('rerender' in t.dataset)) t.dataset.dirty = '1'; });
+view.addEventListener('change', (e) => { const t = e.target; if (t && t.dataset) delete t.dataset.dirty; });
+view.addEventListener('focusout', (e) => {
+  const t = e.target;
+  if (t && t.dataset && t.dataset.dirty) { delete t.dataset.dirty; }
+  if (renderPending) setTimeout(() => { if (renderPending) render(); }, 0);
+});
+
+const isTextual = (el) => /^(INPUT|TEXTAREA)$/.test(el.tagName) && !/^(checkbox|radio|button|submit|file)$/.test(el.type || '');
+
 export async function render() {
   const t = tabFromHash();
   const changed = !current || current.id !== t.id;
   current = t;
   renderNav();
-  // Do not wipe the page while the user is typing into a cell.
   const a = document.activeElement;
-  if (!changed && a && view.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && !a.dataset.rerender) return;
+  // Never wipe the page while the user is mid-typing (a cell with uncommitted text). Re-render as soon as they leave it.
+  if (!changed && a && view.contains(a) && isTextual(a) && a.dataset.dirty) { renderPending = true; return; }
+  renderPending = false;
   const scroll = view.scrollTop;
+  // Remember which control had focus so the re-render does not kick the user out of the cell they just edited.
+  const fk = !changed && a && view.contains(a) ? a.getAttribute('data-fk') : null;
+  const sel = fk && isTextual(a) ? (() => { try { return [a.selectionStart, a.selectionEnd]; } catch { return null; } })() : null;
   clear(view);
   try { view.appendChild(await t.page.render()); }
   catch (e) { console.error(e); view.appendChild(h('div', { class: 'banner err' }, 'This page failed to render: ' + (e.message || e))); }
   if (!changed) view.scrollTop = scroll;
+  if (fk) {
+    const el = [...view.querySelectorAll('[data-fk]')].find(x => x.getAttribute('data-fk') === fk);
+    if (el) { el.focus({ preventScroll: true }); if (sel) { try { el.setSelectionRange(sel[0], sel[1]); } catch { /* number inputs */ } } }
+  }
 }
 
 function applyTheme(t) {
@@ -88,6 +108,8 @@ async function boot() {
   window.addEventListener('hashchange', render);
   subscribe(() => { render(); });
   await render();
+  onBridge(() => { if (current && current.id === 'system') render(); });
+  initBridge();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 }

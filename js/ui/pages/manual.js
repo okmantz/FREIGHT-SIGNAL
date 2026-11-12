@@ -1,28 +1,94 @@
 import { h } from '../dom.js';
+import { EQUIPMENT } from '../../core/defaults.js';
 
-const STEPS = [
-  ['A', 'Paste the load', 'On FREIGHT SIGNAL, paste the TQL load text (one or many loads) and press Parse pasted loads. Review the parsed origin, destination, date, weight and equipment, fix anything flagged, then Add to board. The original text is kept with the load.'],
-  ['B', 'Build the 3 x 3 matrix', 'Press Matrix on an original row. The app picks two nearby origin markets and two nearby destination markets from the ZIP Map (20–60 miles first, then wider if needed), shows them for approval, and on confirm creates the original plus 8 alternates (9 postings).'],
-  ['C', 'Set priority and check the market', 'Priority (Low / Medium / High) sets the outreach target for the whole group. Rate opens DAT RateView for the lane in a new tab; Wx opens weather for the origin.'],
-  ['D', 'Post on DAT', 'Open the DAT tab. Copy all rows (or one row) and paste them into your DAT bulk-posting template, or download the CSV. Covered loads are never included.'],
-  ['E', 'Carrier outreach', 'Outreach on a row drafts e-mails to carriers in your Carrier Database that run the lane (exact lane, then state-to-state, then origin state). Drafts appear on the Drafts tab. Download .eml files to open them in Outlook as unsent drafts, or use Open in mail app. You press Send.'],
-  ['F', 'Handle carrier replies', 'Inquiry Log → Process carrier e-mail: paste the carrier\'s message. The app matches it to a posting, logs it, and drafts your reply (ask for a rate/ETA, or negotiate toward the target rate). Repeat messages are flagged for manual review.'],
-  ['G', 'Cover the load', 'Set Status to Covered. The whole group is removed from the board and the covers counters on HOME go up.'],
-  ['H', 'Approve carriers', 'In the Inquiry Log set Approved = Yes on a sender to add (or update) them in the Carrier Database.'],
+// Section navigation uses scrollIntoView (not #anchors) because the app's router owns the URL hash.
+const go = (id) => { const el = document.getElementById('man-' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+
+const SECTIONS = [
+  ['start', 'Quick start'], ['board', 'The board'], ['dat', 'DAT & rates'], ['outreach', 'Carriers & outreach'],
+  ['outlook', 'Outlook'], ['tools', 'Weather & RateView'], ['safety', 'Backup & safety'], ['help', 'Troubleshooting'],
 ];
 
+const sec = (id, n, title, ...body) => h('section', { class: 'man-sec', id: 'man-' + id }, h('h3', null, h('span', { class: 'num' }, n), title), ...body);
+const steps = (...items) => h('ol', { class: 'man-steps' }, items.map(i => h('li', null, i)));
+const note = (text, kind = '') => h('div', { class: 'man-note ' + kind }, text);
+const card = (t, d) => h('div', { class: 'man-card' }, h('b', null, t), h('p', null, d));
+const table = (head, rows) => h('table', { class: 'man-table' }, h('thead', null, h('tr', null, head.map(x => h('th', null, x)))), h('tbody', null, rows.map(r => h('tr', null, r.map(c => h('td', null, c))))));
+
 export function render() {
-  return h('div', { class: 'manual' },
-    h('div', { class: 'pagehead' }, h('h2', null, 'User Manual'), h('p', null, 'FREIGHT SIGNAL by O.K. Mantz')),
-    h('div', { class: 'banner' }, 'This manual was written from the macros and screenshots. The original workbook\'s manual text below section D was not provided.'),
-    h('h3', null, 'Workflow'),
-    STEPS.map(([n, t, d]) => h('div', { class: 'step' }, h('div', { class: 'n' }, n), h('div', { class: 't' }, h('b', null, t), d))),
-    h('h3', null, 'Rules the app follows'),
-    h('ul', null,
-      h('li', null, 'Nothing is ever sent automatically. Every e-mail is a draft you review and send yourself.'),
-      h('li', null, 'Markets come only from the ZIP Map. If a city cannot be matched, the app tells you and does not guess.'),
-      h('li', null, 'RateView and weather are links that open in a new tab. The app does not fetch or invent rates.'),
-      h('li', null, 'Everything is stored in this browser (IndexedDB). Use System → Backup regularly: clearing browser data deletes it.')),
-    h('h3', null, 'Priority targets'),
-    h('p', null, 'Low = 5, Medium = 10, High = 15 outreach drafts per group by default. Change in System.'));
+  return h('div', { class: 'man' },
+    h('div', { class: 'man-hero' },
+      h('div', { class: 'eyebrow' }, 'User guide'),
+      h('h2', null, 'Intelligent Carrier Sourcing Optimization System'),
+      h('p', null, 'Freight Signal turns one load into nine DAT postings, sets your rates, drafts carrier outreach and tracks every reply. This guide takes about five minutes to read.')),
+    h('nav', { class: 'man-toc', 'aria-label': 'Guide sections' }, SECTIONS.map(([id, t]) => h('button', { type: 'button', onclick: () => go(id) }, t))),
+
+    sec('start', 1, 'Quick start',
+      steps(
+        h('span', null, h('b', null, 'Paste the load. '), 'On FREIGHT SIGNAL paste the TQL text and press ', h('b', null, 'Parse pasted loads'), '. Check the origin, destination, date, weight and equipment, then ', h('b', null, 'Add to board'), '.'),
+        h('span', null, h('b', null, 'Build the matrix. '), 'Press ', h('b', null, 'Build 3×3 matrix'), '. Approve the nearby markets and you get one lane box holding all 9 postings.'),
+        h('span', null, h('b', null, 'Set priority and rates. '), 'Pick Low / Medium / High for the box and type the DAT rate you want posted (one rate for the whole box, or per posting).'),
+        h('span', null, h('b', null, 'Download the DAT file. '), 'Press ', h('b', null, 'Download CSV'), ' on the lane, or ', h('b', null, 'Download all (DAT CSV)'), ' at the top, and upload it in DAT’s bulk posting tool.'),
+        h('span', null, h('b', null, 'Work the replies. '), 'Carrier e-mails land in Outlook, which drafts your answers from the same postings (section 5). Nothing is sent until you press Send.'))),
+
+    sec('board', 2, 'The board: one box per lane',
+      h('p', null, 'Every lane lives in its own box. The header names the lane (for example ', h('b', null, 'Modesto, CA → Reno, NV'), '), and everything below it belongs to that lane: the original posting plus its eight nearby alternates.'),
+      h('div', { class: 'man-cards' },
+        card('A-A = the original', 'Postings are labelled by grid position. A is the original origin / destination, B and C are the two nearby markets. A-B means original origin to the first nearby destination.'),
+        card('Priority sets the target', 'Changing Priority on a box updates the whole box at once: Low = 5, Medium = 10, High = 15 outreach emails. The badge in the header shows the live number.'),
+        card('Edit anywhere', 'Every cell is editable. Change a city and its ZIP follows automatically (origin and destination). If the city is not in the ZIP Map you get a warning instead of a guess.'),
+        card('Tick, then act', 'Use the checkboxes to select postings across lanes, then Download selected or Delete selected from the bar that appears.')),
+      h('p', null, h('b', null, 'Deleting. '), 'The red ✕ deletes one posting. ', h('b', null, 'Delete group'), ' deletes the whole box. Both ask first. Setting a load to Covered removes the whole group and counts a cover.')),
+
+    sec('dat', 3, 'DAT, rates and CSV downloads',
+      h('div', { class: 'man-note warn' }, h('b', null, 'Two different rates. '), h('b', null, 'DAT rate $'), ' is the price posted on DAT (goes into the CSV). ', h('b', null, 'Target $'), ' is what you want to pay and is used only to judge carrier e-mail replies. The target is never uploaded to DAT.'),
+      table(['I want to…', 'Do this'], [
+        ['Post the same rate on all 9', 'Type it in DAT rate for all in the lane header, press Apply.'],
+        ['Rate only some postings', 'Type the rate in that row’s DAT rate $ cell. Leave the others blank to post without a rate.'],
+        ['Download everything', 'Download all (DAT CSV) in the top bar.'],
+        ['Download one lane', 'Download CSV in the lane box.'],
+        ['Download some postings', 'Tick them, then Download selected.'],
+        ['Download one posting', 'CSV at the end of that row.']]),
+      note('The file is DAT’s bulk template exactly: the same 24 columns in the same order, header row and one line per posting, with no instruction rows. If a required field is missing you are told which postings DAT would reject before the file downloads.'),
+      h('h4', null, 'Equipment codes'),
+      table(['Code', 'Equipment'], EQUIPMENT.map(e => [h('span', { class: 'kbd' }, e.code), e.label])),
+      note('Team codes (VM, RM) are written to DAT exactly as shown. If DAT rejects one on your account, tell your admin which code your template expects and change it in the Eq column.')),
+
+    sec('outreach', 4, 'Carriers and outreach',
+      h('p', null, 'Add your approved carriers in the Carrier Database with their lanes. Outreach on a posting drafts e-mails to carriers that run the lane (exact lane first, then state to state, then origin state), up to your target number. Review the drafts on the Drafts tab and send them from your mail app.'),
+      h('div', { class: 'man-cards' },
+        card('Run lane scan', 'Drafts outreach for every Active posting whose Outreach cell is Yes.'),
+        card('Inquiry Log', 'Every carrier conversation, its stage, the last rate and what was done. Approve a sender to add them to the Carrier Database.'),
+        card('Drafts', 'Everything the app prepared. Download .eml files to open them in Outlook as unsent drafts.'))),
+
+    sec('outlook', 5, 'Outlook connection',
+      h('p', null, 'Outlook cannot see data inside a browser, so Freight Signal shares your postings with it through one folder on your computer. The Outlook macro reads that folder, drafts the replies, and tells the app what it did.'),
+      steps(
+        h('span', null, 'Create a folder called ', h('span', { class: 'kbd' }, 'FreightSignal'), ' inside Documents.'),
+        h('span', null, 'In Freight Signal open ', h('b', null, 'System → Outlook connection'), ' and press ', h('b', null, 'Choose Outlook folder…'), '. Pick that folder and allow access.'),
+        h('span', null, 'In Outlook press ', h('span', { class: 'kbd' }, 'Alt+F11'), ', open ', h('b', null, 'ThisOutlookSession'), ', paste the contents of ', h('span', { class: 'kbd' }, 'outlook/Outlook_v4_ThisOutlookSession.txt'), ', save and restart Outlook.'),
+        h('span', null, 'Run ', h('span', { class: 'kbd' }, 'FS_Diagnostics'), ' (Alt+F8). It lists the files it found and how many postings it can read. The System page then shows ', h('b', null, 'Outlook connected'), '.')),
+      table(['When…', 'Outlook does this'], [
+        ['A carrier asks about a posting', 'Matches the lane, drafts a reply with the load details and “best all-in rate? ETA?” and opens it for you.'],
+        ['They reply with a rate far from target', 'Saves a counter draft “How close can you come to $target?”.'],
+        ['They reply within $200 of target', 'Saves “Please confirm your ETA to pickup” and flags the e-mail.'],
+        ['They write again after that', 'Flags it FOLLOW-UP – MANUAL REVIEW and drafts nothing.']]),
+      note('Postings sync within moments of any change, so an e-mail about a posting you added a minute ago is already matched. Covered or deleted postings stop matching. Keep Freight Signal open in Chrome or Edge while you work; Outlook’s activity appears in the Inquiry Log within a few seconds.')),
+
+    sec('tools', 6, 'Weather and RateView',
+      h('p', null, h('b', null, 'Wx'), ' on a posting opens Ventusky weather at the origin. The ', h('b', null, 'Ventusky weather'), ' button on HOME opens the general map. ', h('b', null, 'Rate'), ' opens DAT RateView for the lane and equipment in a new tab. The app never fetches or invents rates.')),
+
+    sec('safety', 7, 'Backup and safety',
+      h('div', { class: 'man-cards' },
+        card('Everything stays local', 'Loads, carriers and logs live in this browser only. The Outlook folder holds postings, the rate window and your inbound blocklist.'),
+        card('Nothing is sent for you', 'Every e-mail, by the app or by Outlook, is a draft until you press Send.'),
+        card('Back up often', 'System → Download backup. Clearing browser data erases the board.'))),
+
+    sec('help', 8, 'Troubleshooting',
+      table(['Symptom', 'Fix'], [
+        ['ZIP did not change after editing a city', 'The city or state is not in the ZIP Map (a warning appears). Check the spelling or type the ZIP yourself.'],
+        ['DAT rejects a row', 'Use the warning shown at download: it names the posting and missing field. Dates must be m/d/yyyy.'],
+        ['Outlook shows “waiting”', 'Press Write postings now, then run FS_Ping in Outlook. Make sure both use the same folder.'],
+        ['Folder asks for permission again', 'Chrome forgets folder access after a restart. Press Reconnect folder once.'],
+        ['No draft for a carrier e-mail', 'The lane (city names) must appear in the subject or body and match a posting on the board.']])));
 }

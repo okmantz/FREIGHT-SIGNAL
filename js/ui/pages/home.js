@@ -1,10 +1,10 @@
 import { h } from '../dom.js';
 import { state } from '../../store/state.js';
 import { homeMetrics } from '../../core/stats.js';
+import { ventuskyUrl } from '../../core/links.js';
 
 const TILES = [
-  ['board', 'FREIGHT SIGNAL', 'Paste TQL loads, build the 3 x 3 matrix, run outreach', 'OPEN BOARD'],
-  ['dat', 'DAT', 'Posting export for the DAT bulk template', 'OPEN DAT'],
+  ['board', 'FREIGHT SIGNAL', 'Paste TQL loads, build the 3 x 3 matrix, set DAT rates, download the DAT CSV', 'OPEN BOARD'],
   ['spare', 'SPARE LOAD DETAILS', 'Parked loads you can restore later', 'OPEN SPARES'],
   ['carriers', 'CARRIER DATABASE', 'Approved carriers by lane', 'OPEN DATABASE'],
   ['inquiry', 'INQUIRY LOG', 'Carrier inquiries and performance dashboard', 'OPEN LOG'],
@@ -18,13 +18,15 @@ export function render() {
     h('div', { class: 'hero' },
       h('div', { class: 'left' },
         h('h1', null, 'FREIGHT SIGNAL'),
+        h('div', { class: 'tagline' }, 'Intelligent Carrier Sourcing Optimization System'),
         h('div', { class: 'sub' }, 'By O.K. Mantz  |  Load posting, carrier outreach and inquiry tracking'),
         h('div', { class: 'accentbar' }),
         h('div', { class: 'btnrow' },
           h('a', { class: 'outline', href: '#/board' }, 'Add loads'),
           h('a', { class: 'outline', href: '#/drafts' }, 'Drafts' + (state.drafts.length ? ` (${state.drafts.length})` : '')),
           h('a', { class: 'outline', href: '#/system' }, 'System / backup'),
-          h('a', { class: 'outline', href: '#/manual' }, 'User manual')),
+          h('a', { class: 'outline', href: '#/manual' }, 'User manual'),
+          h('a', { class: 'outline wx', href: ventuskyUrl(NaN, NaN), target: '_blank', rel: 'noopener noreferrer', title: 'Opens Ventusky weather in a new tab' }, 'Ventusky weather \u2197')),
       ),
       h('img', { class: 'logo', src: 'assets/logo-mark.png', alt: 'Freight Signal' })),
     h('div', { class: 'metrics' },

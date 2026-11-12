@@ -41,9 +41,9 @@ function escapeField(v, delimiter) {
   return s;
 }
 
-/** Serialize rows (arrays) to CSV (CRLF line endings, Excel-friendly). */
-export function toDelimited(rows, delimiter = ',') {
-  return rows.map(r => r.map(v => escapeField(v, delimiter)).join(delimiter)).join('\r\n') + '\r\n';
+/** Serialize rows (arrays) to CSV. Default CRLF (Excel-friendly); pass eol = '\n' for LF files (the DAT template uses LF). */
+export function toDelimited(rows, delimiter = ',', eol = '\r\n') {
+  return rows.map(r => r.map(v => escapeField(v, delimiter)).join(delimiter)).join(eol) + eol;
 }
 
 /** Turn parsed rows into objects keyed by header text. */

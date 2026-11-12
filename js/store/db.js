@@ -1,8 +1,8 @@
 // IndexedDB wrapper. All company data stays in this browser profile. Nothing is sent anywhere.
-// Stores: postings, carriers, inquiries, outreach, spares, drafts, kv (settings/counters), zipmap (raw CSV text).
+// Stores: postings, carriers, inquiries, outreach, spares, drafts, kv (settings/counters), zipmap (raw CSV text), handles (bridge folder).
 
 export const DB_NAME = 'freight-signal';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const STORES = {
   postings: { keyPath: 'id' },
   carriers: { keyPath: 'id' },
@@ -12,6 +12,7 @@ export const STORES = {
   drafts: { keyPath: 'id' },
   kv: { keyPath: 'key' },
   zipmap: { keyPath: 'key' },
+  handles: { keyPath: 'key' },   // v2: Outlook-bridge folder handle (never exported in backups)
 };
 
 let dbPromise = null;
@@ -89,7 +90,7 @@ export async function importAll(snapshot, mode = 'replace') {
 }
 
 export async function wipeAll(includeZip = false) {
-  for (const s of Object.keys(STORES)) if (s !== 'zipmap' || includeZip) await clear(s);
+  for (const s of Object.keys(STORES)) if (s === 'handles') continue; else if (s !== 'zipmap' || includeZip) await clear(s);
 }
 
 export async function storageEstimate() {

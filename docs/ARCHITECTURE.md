@@ -5,7 +5,7 @@ index.html  css/app.css  sw.js  manifest.webmanifest
 js/
   main.js            shell, hash router, theme, boot (loads state, registers SW)
   core/              PURE logic, no DOM, no storage - unit-tested in Node
-    util csv defaults parser zipmap model matrix outreach inbound dat links eml ziparchive stats
+    util csv defaults parser zipmap model matrix outreach inbound dat links eml ziparchive stats bridge
   store/
     db.js            IndexedDB wrapper (8 stores, atomic replaceAll, validated import)
     state.js         in-memory state, write-through persistence, `actions` (all mutations)
@@ -13,7 +13,7 @@ js/
     dom.js           h() element builder (text nodes only - never innerHTML), modal, toast, download, clipboard
     draftcard.js     reviewable draft + hand-off buttons
     importer.js      paste/CSV table import with header matching
-    pages/           home board dat spare carriers inquiry zipmap drafts manual system
+    pages/           home board spare carriers inquiry zipmap drafts manual system
 data/uszips.csv      ZIP Map   data/sample/  fictional sample data
 scripts/build-single.mjs   esbuild → dist/freight-signal.html (CSP hashes, ZIP embedded gzip+base64)
 tests/unit (node:test)  tests/e2e (Playwright)  tests/fixtures (synthetic)

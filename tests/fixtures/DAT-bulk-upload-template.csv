@@ -1,0 +1,7 @@
+Instructions: Delete the sample rows below and fill in with the details of your shipments. Fields marked with an asterisk* are mandatory. Do not remove or rearrange the columns.,,,,,,,,,,,,,,,,,,,,,,,
+"When finished, delete these three rows of instructions as well, leaving the header row and your postings.",,,,,,,,,,,,,,,,,,,,,,,
+"For more information on filling out this file, see https://one.dat.com/my-shipments/forms/new-bulk-upload/instructions",,,,,,,,,,,,,,,,,,,,,,,
+Pickup Earliest*,Pickup Latest,Length (ft)*,Weight (lbs)*,Full/Partial*,Equipment*,Use Private Network*,Private Network Rate,Allow Private Network Booking,Allow Private Network Bidding,Use DAT Loadboard*,DAT Loadboard Rate,Allow DAT Loadboard Booking,Use Extended Network,Contact Method*,Origin City*,Origin State*,Origin Postal Code,Destination City*,Destination State*,Destination Postal Code,Comment,Commodity,Reference ID
+8/15/2022,8/25/2022,53,46000,Full,V,yes,5331,yes,no,no,,no,no,primary phone,Salem,AL,36874,Garland,TX,75040,Enter only registered contacts in standard formats,,
+8/15/0202,8/19/2022,24,20000,Partial,R,no,,no,no,yes,1900,yes,yes,email,Austin,TX,78705,Forest Acres,SC,29204,,apples,
+8/24/2022,9/1/2022,53,55555,Full,F,yes,1351,yes,yes,yes,1200,yes,no,alternate phone,Denver,CO,80246,Santa Fe,NM,87501,Quick Pay Available,,RA3231

@@ -19,6 +19,25 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('request', (r) => { if (!r.url().startsWith(url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) external.push(r.url()); });
 const go = async (tab) => { await page.goto(url + '#/' + tab); await page.waitForSelector('#nav a', { timeout: 20000 }); };
+// Click something that triggers a CSV download; if DAT's "incomplete postings" confirm shows up, accept it.
+const downloadVia = async (click) => {
+  const dlP = page.waitForEvent('download', { timeout: 8000 });
+  await click();
+  const warn = page.locator('.modal:has-text("incomplete") >> text=Download anyway');
+  if (await warn.waitFor({ timeout: 700 }).then(() => true).catch(() => false)) await warn.click();
+  const dl = await dlP;
+  return { name: dl.suggestedFilename(), buf: fs.readFileSync(await dl.path()) };
+};
+const restoreBackupFile = async (file) => {
+  await go('system');
+  const [fcx] = await Promise.all([page.waitForEvent('filechooser'), page.click('text=Restore from backup…')]);
+  await fcx.setFiles(file);
+  await page.click('.modal >> text=Replace all');
+  await page.waitForSelector('text=Backup restored');
+  await go('board');
+};
+const tpl = fs.readFileSync(path.join(root, 'tests/fixtures/DAT-bulk-upload-template.csv'), 'utf8');
+const TPL_HEADER = tpl.split('\n').find(l => l.startsWith('Pickup Earliest*'));
 const tql = fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8');
 
 try {
@@ -26,6 +45,10 @@ try {
   await page.waitForSelector('.metrics');
   check('app boots; bundled ZIP Map loaded (33,782 rows)', (await page.textContent('#zipstat')).includes('33,782'));
   check('branding present', (await page.textContent('header.top')).includes('By O.K. Mantz'));
+  check('tagline in header and on HOME', (await page.textContent('header.top')).includes('Intelligent Carrier Sourcing Optimization System') && (await page.textContent('.hero')).includes('Intelligent Carrier Sourcing Optimization System'));
+  check('DAT tab is gone (nav + home tile)', (await page.locator('#nav a[data-tab="dat"]').count()) === 0 && (await page.locator('.tile', { hasText: /^DAT/ }).count()) === 0);
+  const vx = page.locator('.hero a', { hasText: 'Ventusky' });
+  check('HOME has a Ventusky weather button that opens in a new tab', (await vx.count()) === 1 && (await vx.getAttribute('href')) === 'https://www.ventusky.com/' && (await vx.getAttribute('target')) === '_blank' && /noopener/.test(await vx.getAttribute('rel')));
 
   // --- parse + review + add
   await go('board');
@@ -47,9 +70,71 @@ try {
   check('matrix creates exactly 9 postings', (await page.locator('tbody tr').count()) === 9);
   check('second matrix on same group is refused', !(await page.locator('button:has-text("Matrix")').count()));
 
-  // --- DAT
-  await go('dat');
-  check('DAT tab lists 9 rows', (await page.locator('table.dat tbody tr').count()) === 9);
+  // --- lane box + DAT CSV + rates + equipment + city->ZIP
+  check('one lane box with the lane header', (await page.locator('.lanebox').count()) === 1 && /^.+, [A-Z]{2} \u2192 .+, [A-Z]{2}$/.test((await page.textContent('.lanebox h3.lane')).trim()), await page.textContent('.lanebox h3.lane'));
+  check('the box holds all 9 postings labelled A-A .. C-C', (await page.locator('.lanebox tbody tr').count()) === 9 && (await page.textContent('.lanebox tbody')).includes('A-A') && (await page.textContent('.lanebox tbody')).includes('C-C'));
+  const eqLegend = await page.textContent('.legend');
+  check('equipment legend lists SD, F, VM, RM', /SD = Step Deck/.test(eqLegend) && /F = Flatbed/.test(eqLegend) && /VM = Van Team/.test(eqLegend) && /RM = Reefer Team/.test(eqLegend));
+  const eqSel = page.locator('.lanebox tbody tr').first().locator('select.eq');
+  check('equipment select offers V R F SD VM RM', JSON.stringify(await eqSel.locator('option').allTextContents()) === JSON.stringify(['V', 'R', 'F', 'SD', 'VM', 'RM']));
+  await eqSel.selectOption('SD');
+  await page.waitForTimeout(250);
+  check('equipment SD sticks', (await page.locator('.lanebox tbody tr').first().locator('select.eq').inputValue()) === 'SD');
+  await page.locator('.lanebox tbody tr').first().locator('select.eq').selectOption('V');
+
+  // bulk DAT rate for the whole box, then one posting with its own rate; target rate stays separate
+  await page.fill('.laneact input.datrate', '$1,800');
+  await page.click('[data-act="rate-all"]');
+  await page.waitForFunction(() => [...document.querySelectorAll('.lanebox tbody input.datrate')].every(i => i.value === '1800'));
+  check('DAT rate for all sets every posting in the box', true);
+  const row3 = page.locator('.lanebox tbody tr').nth(3);
+  await row3.locator('input.datrate').fill('2100'); await row3.locator('input.datrate').press('Tab');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr')[3].querySelector('input.datrate').value === '2100');
+  const tgtInput = page.locator('.lanebox tbody tr').first().locator('input[placeholder="$"]').nth(1);
+  await tgtInput.fill('1500'); await tgtInput.press('Tab');
+  await page.waitForTimeout(250);
+
+  const grp = await downloadVia(() => page.click('[data-act="csv-group"]'));
+  const gtxt = grp.buf.toString('utf8');
+  const glines = gtxt.split('\n').filter(Boolean);
+  check('lane CSV header matches DAT template exactly', glines[0] === TPL_HEADER, glines[0]);
+  check('lane CSV has header + 9 postings, LF endings, no BOM', glines.length === 10 && !gtxt.includes('\r') && grp.buf[0] !== 0xEF && !gtxt.startsWith('\ufeff'));
+  check('lane CSV file name carries the lane', /^freight-signal-dat-.+-to-.+-\d{4}-\d{2}-\d{2}\.csv$/.test(grp.name), grp.name);
+  const col = (line, i) => line.split(',')[i];
+  check('DAT rates land in "DAT Loadboard Rate" (1800 x8, 2100 x1)', glines.slice(1).filter(l => col(l, 11) === '1800').length === 8 && glines.slice(1).filter(l => col(l, 11) === '2100').length === 1);
+  check('target rate is NOT in the CSV', !gtxt.includes('1500'));
+  check('destination ZIP column is filled', glines.slice(1).every(l => /^\d{5}$/.test(col(l, 20))), glines[1]);
+
+  const all = await downloadVia(() => page.click('[data-act="csv-all"]'));
+  check('Download all gives the same 9 postings', all.buf.toString('utf8').split('\n').filter(Boolean).length === 10 && /^freight-signal-dat-all-/.test(all.name));
+
+  await page.locator('.lanebox tbody tr').nth(2).locator('input[type=checkbox]').check();
+  await page.waitForSelector('.selbar');
+  const sel = await downloadVia(() => page.click('[data-act="csv-sel"]'));
+  check('Download selected exports just the ticked posting', sel.buf.toString('utf8').split('\n').filter(Boolean).length === 2);
+  await page.click('.selbar >> text=Clear');
+  const one = await downloadVia(() => page.locator('.lanebox tbody tr').nth(4).locator('[data-act="csv-one"]').click());
+  check('single-posting CSV has header + 1 row', one.buf.toString('utf8').split('\n').filter(Boolean).length === 2);
+
+  // city -> ZIP, driven like a real user (type, Tab)
+  const r0 = () => page.locator('.lanebox tbody tr').first();
+  const zipOf = async (n) => r0().locator('input.zip').nth(n).inputValue();
+  const oz0 = await zipOf(0), dz0 = await zipOf(1);
+  const oc = r0().locator('input[data-fk$=":originCity"]'); const oc0 = await oc.inputValue();
+  await oc.fill('Joliet'); await oc.press('Tab');
+  await page.waitForFunction((z) => document.querySelector('.lanebox tbody tr input.zip').value !== z, oz0);
+  const oz1 = await zipOf(0);
+  check('origin city change updates the ZIP automatically (Joliet)', oz1 === '60432' || (/^\d{5}$/.test(oz1) && oz1 !== oz0), oz1);
+  const dc = r0().locator('input[data-fk$=":destCity"]'); const dc0 = await dc.inputValue();
+  await dc.fill('Macon'); await dc.press('Tab');
+  await page.waitForFunction((z) => document.querySelectorAll('.lanebox tbody tr')[0].querySelectorAll('input.zip')[1].value !== z, dz0);
+  const dz1 = await zipOf(1);
+  check('destination city change updates the ZIP automatically (Macon)', /^\d{5}$/.test(dz1) && dz1 !== dz0, dz1);
+  await r0().locator('input[data-fk$=":originCity"]').fill(oc0); await r0().locator('input[data-fk$=":originCity"]').press('Tab');
+  await page.waitForFunction((z) => document.querySelector('.lanebox tbody tr input.zip').value !== z, oz1);
+  await r0().locator('input[data-fk$=":destCity"]').fill(dc0); await r0().locator('input[data-fk$=":destCity"]').press('Tab');
+  await page.waitForFunction((z) => document.querySelectorAll('.lanebox tbody tr')[0].querySelectorAll('input.zip')[1].value !== z, dz1);
+  check('ZIPs follow the city when it is put back', /^\d{5}$/.test(await zipOf(0)) && /^\d{5}$/.test(await zipOf(1)));
 
   // --- carriers CRUD + import
   await go('carriers');
@@ -109,13 +194,50 @@ try {
   await go('board');
   check('board survives reload', (await page.locator('tbody tr').count()) === 9);
 
-  // --- priority propagates to group, covered removes group
-  await page.locator('tbody tr').first().locator('select').nth(2).selectOption('High');
+  // --- priority -> target outreach, with the select focused like a real user (regression: stale display)
+  const priSel = page.locator('.lanehead select').first();
+  const tgtPill = page.locator('.lanehead .pill.tgt');
+  await priSel.focus(); await priSel.selectOption('Medium');
+  await page.waitForFunction(() => /Target outreach: 10/.test(document.querySelector('.lanehead .pill.tgt').textContent));
+  check('Medium priority shows target outreach 10', true);
+  await page.locator('.lanehead select').first().selectOption('High');
+  await page.waitForFunction(() => /Target outreach: 15/.test(document.querySelector('.lanehead .pill.tgt').textContent));
+  check('High priority shows target outreach 15', true);
+  await page.locator('.lanehead select').first().selectOption('Low');
+  await page.waitForFunction(() => /Target outreach: 5\b/.test(document.querySelector('.lanehead .pill.tgt').textContent));
+  check('Low priority shows target outreach 5', true);
+  await page.locator('.lanehead select').first().selectOption('High');
   await page.waitForTimeout(300);
-  const prios = await page.locator('tbody tr').evaluateAll(trs => trs.map(t => t.querySelectorAll('select')[2].value));
-  check('priority change applies to all 9 rows', prios.every(v => v === 'High'));
-  const tgt = await page.locator('tbody tr').evaluateAll(trs => trs.map(t => t.lastElementChild.textContent));
-  check('High priority sets target 15', tgt.every(v => v === '15'), tgt.join());
+  const stored = await page.evaluate(async () => { const m = await import('/js/store/state.js'); return m.state.postings.map(p => [p.priority, p.outreachTarget]); });
+  check('priority + target stored on all 9 postings', stored.length === 9 && stored.every(([pr, t]) => pr === 'High' && t === 15), JSON.stringify(stored));
+
+  // --- Outlook bridge (OPFS stands in for the user's Documents\FreightSignal folder)
+  await go('system');
+  await page.evaluate(async () => { const b = await import('/js/store/bridge.js'); await b.useHandle(await navigator.storage.getDirectory()); });
+  await page.waitForSelector('[data-bridge="connected"]');
+  const readFeed = (name) => page.evaluate(async (n) => { const d = await navigator.storage.getDirectory(); try { return await (await (await d.getFileHandle(n)).getFile()).text(); } catch { return null; } }, name);
+  const writeFeed = (name, text) => page.evaluate(async ([n, t]) => { const d = await navigator.storage.getDirectory(); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(t); await w.close(); }, [name, text]);
+  const feed = await readFeed('freight-signal-postings.tsv');
+  const feedLines = feed.split('\r\n').filter(Boolean);
+  check('bridge writes the postings feed (header + column row + 9 postings, ASCII)', feedLines[0].startsWith('#FREIGHT-SIGNAL-BRIDGE\tv1\t') && feedLines.length === 11 && /^[\x00-\x7f]*$/.test(feed), feedLines[0]);
+  check('bridge writes config + an empty Outlook event log with header', /rateProximity\t200/.test(await readFeed('freight-signal-config.tsv')) && (await readFeed('freight-signal-inquiries.tsv')).startsWith('ConversationId\t'));
+  const first = feedLines[2].split('\t'); const postingId = first[0], postingRow = first[1];
+  const ev = (stage, rate, action, flag, count, ts) => ['CONV-E2E-1', ts, 'bridge-carrier@example.test', 'Modesto to Reno', postingId, postingRow, stage, rate, '1500', action, flag, count].join('\t') + '\r\n';
+  const header = (await readFeed('freight-signal-inquiries.tsv'));
+  await writeFeed('freight-signal-outlook-status.txt', 'macroVersion=v4\r\nlastSeen=2026-11-11 10:00:00\r\npostingsRead=9\r\nlastEvent=Inquiry reply draft created\r\n');
+  await writeFeed('freight-signal-inquiries.tsv', header + ev('INQUIRY_REPLY_SENT', '', 'Inquiry reply draft created', '', 1, '2026-11-11 10:00:00'));
+  const n1 = await page.evaluate(async () => (await import('/js/store/bridge.js')).pollNow());
+  check('Outlook inquiry event is imported into the Inquiry Log', n1 === 1, String(n1));
+  await page.evaluate(async () => (await import('/js/store/bridge.js')).pollNow());
+  await writeFeed('freight-signal-inquiries.tsv', header + ev('INQUIRY_REPLY_SENT', '', 'Inquiry reply draft created', '', 1, '2026-11-11 10:00:00') + ev('RATE_RESPONSE_SENT', '1700', 'Rate $200 from target - negotiation draft created', '', 2, '2026-11-11 10:05:00'));
+  await page.evaluate(async () => (await import('/js/store/bridge.js')).pollNow());
+  const iq = await page.evaluate(async () => { const m = await import('/js/store/state.js'); return { q: m.state.inquiries.filter(q => q.conversationId === 'CONV-E2E-1'), cnt: m.state.postings.find(p => p.inquiryCount !== '' && p.inquiryCount !== undefined && m.state.inquiries.some(q => q.postingId === p.id && q.conversationId === 'CONV-E2E-1'))?.inquiryCount }; });
+  check('re-polling is idempotent: one inquiry, updated to RATE_RESPONSE_SENT at $1700, posting count bumped once', iq.q.length === 1 && iq.q[0].stage === 'RATE_RESPONSE_SENT' && iq.q[0].lastCarrierRate === 1700 && iq.q[0].eventCount === 2 && Number(iq.cnt) >= 1, JSON.stringify(iq));
+  await go('system'); await page.waitForSelector('[data-outlook="connected"]');
+  check('System page shows Outlook connected', /Outlook connected/.test(await page.textContent('[data-outlook]')));
+  await go('inquiry');
+  check('bridge inquiry visible in the Inquiry Log', (await page.textContent('table.inq')).includes('bridge-carrier@example.test'));
+  await go('board');
 
   // --- backup / restore
   await go('system');
@@ -125,7 +247,7 @@ try {
   fs.writeFileSync('/tmp/e2e-backup.json', JSON.stringify(backup));
 
   await go('board');
-  await page.locator('tbody tr').first().locator('select').nth(1).selectOption('Covered');
+  await page.locator('.lanehead select[data-fk$=":status"]').first().selectOption('Covered');
   await page.waitForFunction(() => !document.querySelector('tbody tr .rowact'));
   check('Covered removes the entire group', (await page.locator('tbody tr .rowact').count()) === 0);
   await go('home');
@@ -149,6 +271,27 @@ try {
   await page.waitForSelector('text=Restore failed');
   await go('board');
   check('bad backup rejected, data intact', (await page.locator('tbody tr').count()) === 9);
+
+  // --- delete: one posting, a ticked selection, a whole group; the Outlook feed follows
+  await go('board');
+  const feedCount = async () => (await readFeed('freight-signal-postings.tsv')).split('\r\n').filter(Boolean).length - 2;
+  await page.locator('.lanebox tbody tr').nth(1).locator('[data-act="del-one"]').click();
+  await page.click('.modal-foot >> text=Delete');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 8);
+  check('delete one posting removes only that posting', true);
+  let feedN = -1; for (let i = 0; i < 25 && feedN !== 8; i++) { feedN = await feedCount(); if (feedN !== 8) await page.waitForTimeout(200); }
+  check('Outlook postings feed drops the deleted posting', feedN === 8, String(feedN));
+  await page.locator('.lanebox tbody tr').nth(0).locator('input[type=checkbox]').check();
+  await page.locator('.lanebox tbody tr').nth(1).locator('input[type=checkbox]').check();
+  await page.click('[data-act="del-sel"]'); await page.click('.modal-foot >> text=Delete');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 6);
+  check('delete selected removes the ticked postings', true);
+  await page.click('[data-act="del-group"]'); await page.click('.modal-foot >> text=Delete');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox').length === 0);
+  check('delete group removes the whole box', true);
+  await restoreBackupFile('/tmp/e2e-backup.json');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9, null, { timeout: 8000 }).catch(() => {});
+  check('restore after delete tests brings the 9 postings back', (await page.locator('tbody tr').count()) === 9, String(await page.locator('tbody tr').count()));
 
   // --- markup injection is inert
   await go('carriers');

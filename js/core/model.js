@@ -26,6 +26,7 @@ export function blankPosting(over = {}) {
     status: '',               // AK Load Status
     priority: '',             // AL Outreach Priority
     outreachTarget: '',       // AM Outreach Target
+    comment: '', commodity: '', referenceId: '',   // DAT columns V, W, X
     originAltMiles: '', destAltMiles: '',
     draftsCreated: '', lastRun: '', result: '',
     order: 0,
@@ -42,11 +43,11 @@ export function targetForPriority(priority, settings = DEFAULT_SETTINGS) {
   }
 }
 
-/** InitializeLoadControls: defaults for status/priority/outreach; target is ALWAYS reset to LOW_TARGET (as in the macro). */
+/** InitializeLoadControls: defaults for status/priority/outreach. Outreach target always follows the priority (blank priority = Low = LOW_TARGET, exactly as the macro). */
 export function initializeLoadControls(p, settings = DEFAULT_SETTINGS) {
   if (!String(p.status ?? '').trim()) p.status = 'Active';
   if (!String(p.priority ?? '').trim()) p.priority = 'Low';
-  p.outreachTarget = settings.lowTarget;
+  p.outreachTarget = targetForPriority(p.priority, settings).target;
   if (!String(p.outreach ?? '').trim()) p.outreach = 'No';
   return p;
 }
@@ -92,24 +93,67 @@ export function reindex(postings) {
 /** Display row number (header is row 1 in the workbook, so first posting = row 2). */
 export const sheetRow = (postings, id) => { const i = postings.findIndex(p => p.id === id); return i < 0 ? 0 : i + 2; };
 
-/** ReconcileManualLane: fix ZIP from city/state; uppercase states. Returns { warning? } */
+function reconcileEnd(p, zipMap, cityKey, stateKey, zipKey, label) {
+  const city = String(p[cityKey] ?? '').trim();
+  const st = String(p[stateKey] ?? '').trim().toUpperCase();
+  p[stateKey] = st;
+  if (!(zipMap && zipMap.size && city && st)) return null;
+  let z = String(p[zipKey] ?? '').replace(/[^0-9]/g, '');
+  z = z ? z.slice(0, 5).padStart(5, '0') : '';
+  let warning = null;
+  if (z === '' || !zipMap.zipMatchesCityState(z, city, st)) {
+    const best = zipMap.bestZipForCityState(city, st);
+    if (!best) warning = `${label} "${city}, ${st}" was not found in the ZIP Map; the ZIP was cleared.`;
+    z = best;
+  }
+  p[zipKey] = z;
+  return warning;
+}
+
+/**
+ * ReconcileManualLane: fix the ZIP from city/state and uppercase states, for the ORIGIN (as in the macro) and also the
+ * DESTINATION (web-app addition, needed for the DAT "Destination Postal Code" column). Returns { warning? }.
+ */
 export function reconcileManualLane(p, zipMap) {
   const out = {};
-  const city = String(p.originCity ?? '').trim();
-  const st = String(p.originState ?? '').trim().toUpperCase();
-  if (zipMap && zipMap.size && city && st) {
-    let z = String(p.originZip ?? '').replace(/[^0-9]/g, '');
-    z = z ? z.slice(0, 5).padStart(5, '0') : '';
-    if (z === '' || !zipMap.zipMatchesCityState(z, city, st)) {
-      const best = zipMap.bestZipForCityState(city, st);
-      if (!best) out.warning = `"${city}, ${st}" was not found in the ZIP Map; the ZIP was cleared (same as the Excel macro).`;
-      z = best;
-    }
-    p.originZip = z;
-  }
-  p.originState = st;
-  p.destState = String(p.destState ?? '').trim().toUpperCase();
+  const w1 = reconcileEnd(p, zipMap, 'originCity', 'originState', 'originZip', 'Origin');
+  const w2 = reconcileEnd(p, zipMap, 'destCity', 'destState', 'destZip', 'Destination');
+  const w = [w1, w2].filter(Boolean);
+  if (w.length) out.warning = w.join(' ');
   return out;
+}
+
+/** Position label inside a 3x3 matrix: Original = A-A, Nearby n (grid order, origin outer, destination inner) = A-B, A-C, B-A ... C-C. */
+export function gridLabel(variant) {
+  const v = String(variant ?? '');
+  if (v === 'Original') return 'A-A';
+  const m = /^nearby (\d+)$/i.exec(v);
+  if (!m) return '';
+  const n = Number(m[1]);           // 1..8
+  const idx = n;                    // skips (0,0): index in a 3x3 row-major grid
+  return 'ABC'[Math.floor(idx / 3)] + '-' + 'ABC'[idx % 3];
+}
+
+/**
+ * Lane boxes for the board: one box per load group (the 9 matrix postings), one box per ungrouped posting.
+ * Boxes keep first-appearance order; members keep sheet order. title = "Origin City, ST → Destination City, ST" of the ORIGINAL row.
+ */
+export function laneBoxes(postings) {
+  const boxes = []; const byKey = new Map();
+  for (const p of postings) {
+    const gid = String(p.groupId || '').trim();
+    const key = gid ? 'g:' + gid.toLowerCase() : 'p:' + p.id;
+    let b = byKey.get(key);
+    if (!b) { b = { key, groupId: gid, members: [] }; byKey.set(key, b); boxes.push(b); }
+    b.members.push(p);
+  }
+  for (const b of boxes) {
+    const head = b.members.find(m => m.variant === 'Original') || b.members[0];
+    b.head = head;
+    b.title = `${head.originCity || '?'}, ${head.originState || '?'} \u2192 ${head.destCity || '?'}, ${head.destState || '?'}`;
+    b.isMatrix = b.members.length > 1 || !!b.groupId;
+  }
+  return boxes;
 }
 
 export function activeGroups(postings) {

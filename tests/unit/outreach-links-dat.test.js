@@ -4,7 +4,6 @@ import { blankPosting, targetForPriority, setGroupPriority, coverPosting, initia
 import { DEFAULT_SETTINGS, CARRIER_KEYS } from '../../js/core/defaults.js';
 import { planExcelOutreach, isBlockedExcel, isBlockedOutlook, buildExcelSubject, planOutlookScan } from '../../js/core/outreach.js';
 import { rateViewUrl, ventuskyUrl } from '../../js/core/links.js';
-import { datRows, datHeader, datCsv, datTsv } from '../../js/core/dat.js';
 import { parseDelimited } from '../../js/core/csv.js';
 
 const P = (o = {}) => { const p = blankPosting({ originCity: 'Chicago', originState: 'IL', destCity: 'Atlanta', destState: 'GA', details: 'Pickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nWeight: 38000', pickupEarliest: '11/16/2026', pickupLatest: '11/16/2026', weight: '38000', ...o }); initializeLoadControls(p); return p; };
@@ -69,17 +68,4 @@ test('Outlook scan: respects max per load and never duplicates (load, email)', (
   const first = new Set(s1.drafts.map(d => d.to));
   assert.ok(s2.drafts.every(d => !first.has(d.to)));
   assert.ok(s1.drafts[0].subject.startsWith('Truck Available?'));
-});
-test('DAT export: column order A..T, header, CSV/TSV, one row per live posting', () => {
-  const rows = [P(), P({ status: 'Covered' }), P({ originCity: 'Joliet' })];
-  const out = datRows(rows, DEFAULT_SETTINGS);
-  assert.equal(out.length, 2); assert.equal(out[0].length, 20);
-  assert.equal(out[0][0], '11/16/2026'); assert.equal(out[0][15], 'Chicago'); assert.equal(out[0][16], 'IL'); assert.equal(out[0][18], 'Atlanta'); assert.equal(out[0][19], 'GA');
-  assert.equal(datHeader(DEFAULT_SETTINGS).length, 20);
-  const csv = parseDelimited(datCsv(rows, DEFAULT_SETTINGS), ',');
-  assert.equal(csv.length, 3); assert.ok(datTsv(rows, DEFAULT_SETTINGS).includes('\t'));
-});
-test('DAT header override replaces header text by position', () => {
-  const h = datHeader({ ...DEFAULT_SETTINGS, datHeaderOverride: 'A1\tB1\tC1' });
-  assert.deepEqual(h.slice(0, 3), ['A1', 'B1', 'C1']);
 });

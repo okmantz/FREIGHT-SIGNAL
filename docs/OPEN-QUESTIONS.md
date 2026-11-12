@@ -5,9 +5,9 @@ Each item is something the supplied files did not contain. The app uses the stat
 | # | Question | Current behaviour |
 |---|---|---|
 | 1 | A **real TQL load text block** (the screenshots truncate it). | Parser built from the macro's label logic; tested only on a **synthetic** fixture. Paste a real one (redact names) and run it. |
-| 2 | **Exact DAT bulk-template header text** (cols F–O, R) and hidden columns U–Y. | Best-guess headers; paste the real header row in *System → DAT header override*. |
+| 2 | ~~Exact DAT bulk-template header text~~ | **Resolved:** the real template was supplied; the export uses its exact 24-column header (tested). |
 | 3 | **Formulas for HOME tiles and the Performance Dashboard.** | Inferred (see `core/stats.js`). |
-| 4 | **DAT Loadboard Rate (col L)** logic, esp. matrix positions 3 and 7. | Left as typed/blank. |
+| 4 | **DAT Loadboard Rate (col L)** logic. | Typed per posting or per lane box; exported as whole dollars. Separate from the target rate. |
 | 5 | **Ventusky URL** the workbook button opens. | `ventusky.com`; with coordinates `?p=lat;lng;8&l=temperature-2m` (**unverified**). |
 | 6 | What does **SYSTEM CONTROL CENTER** do? | *System* page covers settings, backup, blocklists, counters. |
 | 7 | **Spare Load Details**: exact macro behaviour. | Inferred from the screenshot (park/restore load groups). |

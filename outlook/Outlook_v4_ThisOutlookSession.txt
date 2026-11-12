@@ -1,0 +1,733 @@
+Option Explicit
+
+' =====================================================================================================
+' Freight Signal Outlook Engine v4  -  "bridge" edition
+' Paste this entire module into Outlook VBA > ThisOutlookSession (Alt+F11), save, restart Outlook.
+'
+' What changed from v3: the macro no longer opens FREIGHT SIGNAL.xlsm. The Freight Signal web app shares your
+' postings through a plain-text folder (default Documents\FreightSignal) and this macro reads / appends to
+' it with ordinary VBA file I/O. No Excel, no ADODB, no references to add.
+'
+' Behaviour is the same as v3 (inbound side):
+'   carrier asks about a posting  -> reply drafted with the load details + "best all-in rate? ETA?"  (DISPLAYED)
+'   carrier replies with a rate    -> counter / ETA draft saved silently, flagged if within RATE_PROXIMITY of target
+'   repeat e-mail after that       -> flagged FOLLOW-UP - MANUAL REVIEW, no reply
+' Nothing is ever sent by this macro. Every reply is a draft.
+' Carrier outreach drafting (the v3 "scan") stays in the Freight Signal app (Board > Run lane scan).
+'
+' Folder files (all ASCII, tab separated):
+'   freight-signal-postings.tsv        written by the app   (read here)
+'   freight-signal-config.tsv          written by the app   (rate window, proximity, inbound blocklist)
+'   freight-signal-inquiries.tsv       appended here        (the app imports it into the Inquiry Log)
+'   freight-signal-outlook-status.txt  written here         (the app shows "Outlook connected")
+' =====================================================================================================
+
+Private Const MACRO_VERSION As String = "v4"
+' Leave empty to auto-detect Documents\FreightSignal. Or set a full path, e.g. "C:\Users\you\Documents\FreightSignal"
+Private Const FOLDER_OVERRIDE As String = ""
+
+' Fallbacks used only if the app has not written freight-signal-config.tsv yet.
+Private Const DEFAULT_RATE_PROXIMITY As Double = 200#
+Private Const DEFAULT_MIN_RATE As Double = 250#
+Private Const DEFAULT_MAX_RATE As Double = 20000#
+Private Const POSTINGS_RELOAD_SECONDS As Long = 15
+
+Private Const FILE_POSTINGS As String = "freight-signal-postings.tsv"
+Private Const FILE_CONFIG As String = "freight-signal-config.tsv"
+Private Const FILE_INQUIRIES As String = "freight-signal-inquiries.tsv"
+Private Const FILE_STATUS As String = "freight-signal-outlook-status.txt"
+Private Const FILE_ERRORS As String = "freight-signal-outlook-errors.txt"
+Private Const INQUIRY_HEADER As String = "ConversationId" & vbTab & "Timestamp" & vbTab & "SenderEmail" & vbTab & "Subject" & vbTab & _
+    "PostingId" & vbTab & "PostingRow" & vbTab & "Stage" & vbTab & "CarrierRate" & vbTab & "TargetRate" & vbTab & "Action" & vbTab & "Flag" & vbTab & "EventCount"
+
+Private Const OL_FOLDER_INBOX As Long = 6
+Private Const OL_FLAG_MARKED As Long = 2
+Private Const OL_IMPORTANCE_NORMAL As Long = 1
+
+Private WithEvents InboxItems As Outlook.Items
+Private mProcessing As Boolean
+Private mFolder As String
+Private mPostings As Collection          ' each item = Variant array of decoded fields
+Private mCols As Object                  ' lower-case column name -> 0-based index
+Private mPostingsStamp As String, mPostingsLoadedAt As Date, mPostingsLoaded As Boolean
+Private mConv As Object                  ' conversation id (lower) -> Array(stage, eventCount, postingId, postingRow)
+Private mRateProximity As Double, mMinRate As Double, mMaxRate As Double, mCommaRates As Boolean
+Private mBlock As Collection
+Private mRateRegex As Object, mDollarRegex As Object
+Private mLastEvent As String
+
+'============================== STARTUP ==============================
+Private Sub Application_Startup()
+    On Error GoTo EH
+    StartFreightSignal
+    Exit Sub
+EH:
+    LogError "Application_Startup"
+End Sub
+
+Private Sub StartFreightSignal()
+    On Error GoTo EH
+    Set InboxItems = Application.GetNamespace("MAPI").GetDefaultFolder(OL_FOLDER_INBOX).Items
+    mProcessing = False
+    InitRegex
+    LoadConfig
+    LoadPostings True
+    LoadConversations
+    WriteStatus "Engine started"
+    Exit Sub
+EH:
+    LogError "StartFreightSignal"
+End Sub
+
+'============================== PUBLIC COMMANDS ==============================
+' Run these from the macro list (Alt+F8) or the VBA editor (F5).
+
+Public Sub FS_Ping()
+    StartFreightSignal
+    MsgBox "Freight Signal Outlook Engine " & MACRO_VERSION & " is running." & vbCrLf & vbCrLf & _
+           "Folder: " & BridgeFolder() & vbCrLf & _
+           "Postings read: " & PostingCount() & vbCrLf & vbCrLf & _
+           "First inquiry draft: DISPLAYED" & vbCrLf & "Rate / follow-up drafts: SAVED SILENTLY" & vbCrLf & _
+           "Repeat carrier e-mails: FLAGGED, NO REPLY", vbInformation, "Freight Signal Engine"
+End Sub
+
+Public Sub FS_Diagnostics()
+    Dim s As String, f As String
+    f = BridgeFolder()
+    s = "Freight Signal Outlook Engine " & MACRO_VERSION & vbCrLf & vbCrLf
+    s = s & "Folder: " & IIf(Len(f) > 0, f, "NOT FOUND") & vbCrLf
+    If Len(f) = 0 Then
+        s = s & vbCrLf & "Create the folder (or set FOLDER_OVERRIDE) and in Freight Signal open System > Outlook connection > Choose Outlook folder."
+        MsgBox s, vbExclamation, "Freight Signal Engine": Exit Sub
+    End If
+    s = s & FileLine(FILE_POSTINGS) & FileLine(FILE_CONFIG) & FileLine(FILE_INQUIRIES) & FileLine(FILE_STATUS)
+    LoadConfig
+    LoadPostings True
+    LoadConversations
+    s = s & vbCrLf & "Postings read: " & PostingCount() & vbCrLf
+    s = s & "Rate proximity: $" & Format$(mRateProximity, "0") & "   Plausible rate window: $" & Format$(mMinRate, "0") & " - $" & Format$(mMaxRate, "0") & vbCrLf
+    s = s & "Blocked sender patterns: " & mBlock.Count & vbCrLf
+    s = s & "Conversations already logged: " & mConv.Count & vbCrLf
+    If PostingCount() = 0 Then s = s & vbCrLf & "No postings yet: open Freight Signal, add loads, and make sure the folder is connected (System page)."
+    WriteStatus "Diagnostics run"
+    MsgBox s, vbInformation, "Freight Signal Engine"
+End Sub
+
+Public Sub FS_Reload()
+    LoadConfig
+    LoadPostings True
+    LoadConversations
+    WriteStatus "Reloaded"
+    MsgBox "Reloaded " & PostingCount() & " posting(s).", vbInformation, "Freight Signal Engine"
+End Sub
+
+' Process everything that is already unread in the Inbox (for e-mails that arrived while Outlook / the macro was off).
+Public Sub ProcessUnreadNow()
+    On Error GoTo EH
+    Dim it As Object, n As Long, items As Outlook.Items
+    Set items = Application.GetNamespace("MAPI").GetDefaultFolder(OL_FOLDER_INBOX).Items
+    items.Sort "[ReceivedTime]", False
+    For Each it In items
+        If TypeOf it Is Outlook.MailItem Then
+            If it.UnRead Then
+                If Not IsBlockedSender(it) And Not IsAutomatedMessage(it) And Not IsForward(it) Then
+                    ProcessIncomingCarrierEmail it: n = n + 1
+                End If
+            End If
+        End If
+    Next it
+    MsgBox "Checked " & n & " unread e-mail(s).", vbInformation, "Freight Signal Engine"
+    Exit Sub
+EH:
+    LogError "ProcessUnreadNow"
+End Sub
+
+'============================== INBOUND ==============================
+Private Sub InboxItems_ItemAdd(ByVal Item As Object)
+    On Error GoTo EH
+    If mProcessing Or Item Is Nothing Then Exit Sub
+    If Not TypeOf Item Is Outlook.MailItem Then Exit Sub
+
+    Dim mail As Outlook.MailItem
+    Set mail = Item
+    If Not mail.UnRead Then Exit Sub
+    If IsBlockedSender(mail) Or IsAutomatedMessage(mail) Or IsForward(mail) Then Exit Sub
+
+    mProcessing = True
+    ProcessIncomingCarrierEmail mail
+Done:
+    mProcessing = False
+    Exit Sub
+EH:
+    LogError "InboxItems_ItemAdd"
+    Resume Done
+End Sub
+
+Private Sub ProcessIncomingCarrierEmail(ByVal mail As Outlook.MailItem)
+    On Error GoTo EH
+    Dim convId As String, stage As String, evt As Long, postingId As String, postingRow As Long
+    Dim idx As Long, targetRate As Double, carrierRate As Double, foundRate As Boolean, withinTarget As Boolean
+    Dim info As Variant
+
+    If Not LoadPostings(False) Then Exit Sub
+    convId = GetConversationTrackingID(mail)
+    If Len(convId) = 0 Then Exit Sub
+
+    If Not mConv.Exists(LCase$(convId)) Then
+        ProcessCarrierInquiry mail, convId
+        Exit Sub
+    End If
+
+    info = mConv(LCase$(convId))
+    stage = UCase$(CStr(info(0))): evt = CLng(info(1)): postingId = CStr(info(2)): postingRow = CLng(info(3))
+
+    If stage = "RATE_RESPONSE_SENT" Or stage = "FOLLOWUP_FLAGGED" Then
+        SetMailFlag mail, "FOLLOW-UP - MANUAL REVIEW - NO AUTO REPLY"
+        RecordEvent mail, convId, postingId, postingRow, "FOLLOWUP_FLAGGED", "", PostingTarget(postingId), _
+            "Repeat carrier email flagged - no auto reply", "FOLLOW-UP - MANUAL REVIEW - NO AUTO REPLY", evt + 1
+        MarkMailRead mail
+        Exit Sub
+    End If
+
+    idx = FindPostingIndex(postingId)
+    If idx = 0 Then
+        ' The posting was covered / deleted in the app since the inquiry started: nothing to draft against.
+        MarkMailRead mail
+        Exit Sub
+    End If
+
+    targetRate = SafeNumeric(PF(idx, "targetrate"))
+    carrierRate = ExtractCarrierRate(mail.Subject, mail.Body, foundRate)
+
+    If Not foundRate Then
+        If stage = "INQUIRY_REPLY_SENT" Then
+            SetMailFlag mail, "MANUAL REVIEW - NO RATE DETECTED"
+            RecordEvent mail, convId, postingId, postingRow, stage, "", targetRate, _
+                "Carrier email received without detectable rate", "MANUAL REVIEW - NO RATE DETECTED", evt + 1
+        Else
+            RecordEvent mail, convId, postingId, postingRow, "FOLLOWUP_RECEIVED", "", targetRate, _
+                "Carrier follow-up received - no detectable rate", "", evt + 1
+        End If
+        MarkMailRead mail
+        Exit Sub
+    End If
+
+    withinTarget = (Abs(carrierRate - targetRate) <= mRateProximity)
+    If CreateRateResponseDraft(mail, carrierRate, targetRate) Then
+        If withinTarget Then
+            SetMailFlag mail, "RATE RECEIVED - REVIEW / ETA"
+            RecordEvent mail, convId, postingId, postingRow, "RATE_RESPONSE_SENT", Trim$(Str$(carrierRate)), targetRate, _
+                "Rate within $" & Format$(mRateProximity, "0") & " of target - ETA confirmation drafted", "RATE RECEIVED - REVIEW / ETA", evt + 1
+        Else
+            RecordEvent mail, convId, postingId, postingRow, "RATE_RESPONSE_SENT", Trim$(Str$(carrierRate)), targetRate, _
+                "Rate $" & Format$(Abs(carrierRate - targetRate), "0") & " from target - negotiation draft created", "", evt + 1
+        End If
+    End If
+    MarkMailRead mail
+    Exit Sub
+EH:
+    LogError "ProcessIncomingCarrierEmail"
+End Sub
+
+Private Sub ProcessCarrierInquiry(ByVal mail As Outlook.MailItem, ByVal convId As String)
+    On Error GoTo EH
+    Dim idx As Long, details As String
+    idx = FindMatchingPosting(mail.Subject, mail.Body)
+    If idx = 0 Then Exit Sub
+    details = PostingDetails(idx)
+    If Len(details) = 0 Then Exit Sub
+
+    If CreateInquiryDraft(mail, details) Then
+        RecordEvent mail, convId, PF(idx, "postingid"), CLng(SafeNumeric(PF(idx, "row"))), "INQUIRY_REPLY_SENT", "", SafeNumeric(PF(idx, "targetrate")), _
+            "Inquiry reply draft created", "", 1
+        MarkMailRead mail
+    End If
+    Exit Sub
+EH:
+    LogError "ProcessCarrierInquiry"
+End Sub
+
+Private Function CreateInquiryDraft(ByVal originalMail As Outlook.MailItem, ByVal details As String) As Boolean
+    On Error GoTo EH
+    Dim reply As Outlook.MailItem
+    Set reply = originalMail.Reply
+    reply.Body = details & vbCrLf & vbCrLf & "What is your best all-in rate? ETA to pickup?" & vbCrLf & vbCrLf & reply.Body
+    reply.Save
+    reply.Display                 'Only the first inquiry draft displays.
+    CreateInquiryDraft = True
+    Exit Function
+EH:
+    LogError "CreateInquiryDraft"
+End Function
+
+Private Function CreateRateResponseDraft(ByVal originalMail As Outlook.MailItem, ByVal carrierRate As Double, ByVal targetRate As Double) As Boolean
+    On Error GoTo EH
+    Dim reply As Outlook.MailItem, responseText As String
+    If Abs(carrierRate - targetRate) <= mRateProximity Then
+        responseText = "Please confirm your ETA to pickup."
+    Else
+        responseText = "How close can you come to " & FormatCurrency(targetRate, 0) & "?"
+    End If
+    Set reply = originalMail.Reply
+    reply.Body = responseText & vbCrLf & vbCrLf & reply.Body
+    reply.Save                    'Follow-up draft saves silently. No Display call.
+    CreateRateResponseDraft = True
+    Exit Function
+EH:
+    LogError "CreateRateResponseDraft"
+End Function
+
+Private Sub SetMailFlag(ByVal mail As Outlook.MailItem, ByVal requestText As String)
+    On Error GoTo EH
+    mail.FlagStatus = OL_FLAG_MARKED
+    mail.FlagRequest = requestText
+    mail.FlagIcon = OL_FLAG_MARKED
+    mail.Importance = OL_IMPORTANCE_NORMAL
+    mail.Save
+    Exit Sub
+EH:
+    LogError "SetMailFlag"
+End Sub
+
+Private Sub MarkMailRead(ByVal mail As Outlook.MailItem)
+    On Error Resume Next
+    If mail.UnRead Then mail.UnRead = False: mail.Save
+    On Error GoTo 0
+End Sub
+
+'============================== FOLDER / FILE I/O ==============================
+Private Function BridgeFolder() As String
+    If Len(mFolder) > 0 Then
+        If FolderExists(mFolder) Then BridgeFolder = mFolder: Exit Function
+    End If
+    mFolder = vbNullString
+    Dim cands(0 To 4) As String, i As Long, docs As String
+    If Len(FOLDER_OVERRIDE) > 0 Then cands(0) = FOLDER_OVERRIDE
+    On Error Resume Next
+    docs = CreateObject("WScript.Shell").SpecialFolders("MyDocuments")
+    On Error GoTo 0
+    If Len(docs) > 0 Then cands(1) = docs & "\FreightSignal"
+    cands(2) = Environ$("USERPROFILE") & "\Documents\FreightSignal"
+    cands(3) = Environ$("OneDrive") & "\Documents\FreightSignal"
+    cands(4) = Environ$("OneDriveCommercial") & "\Documents\FreightSignal"
+    For i = 0 To 4
+        If Len(cands(i)) > 0 Then
+            If FolderExists(cands(i)) Then mFolder = cands(i): Exit For
+        End If
+    Next i
+    BridgeFolder = mFolder
+End Function
+
+Private Function FolderExists(ByVal p As String) As Boolean
+    On Error Resume Next
+    FolderExists = (Len(Dir$(p, vbDirectory)) > 0)
+    On Error GoTo 0
+End Function
+
+Private Function FeedPath(ByVal fileName As String) As String
+    Dim f As String: f = BridgeFolder()
+    If Len(f) > 0 Then FeedPath = f & "\" & fileName
+End Function
+
+Private Function FileLine(ByVal fileName As String) As String
+    Dim p As String: p = FeedPath(fileName)
+    If Len(p) > 0 And Len(Dir$(p)) > 0 Then
+        FileLine = "  OK       " & fileName & "  (" & Format$(FileDateTime(p), "yyyy-mm-dd hh:nn:ss") & ", " & FileLen(p) & " bytes)" & vbCrLf
+    Else
+        FileLine = "  MISSING  " & fileName & vbCrLf
+    End If
+End Function
+
+Private Function ReadAll(ByVal path As String) As String
+    On Error GoTo EH
+    Dim f As Integer, n As Long, s As String
+    If Len(Dir$(path)) = 0 Then Exit Function
+    f = FreeFile
+    Open path For Binary Access Read Shared As #f
+    n = LOF(f)
+    If n > 0 Then s = Space$(n): Get #f, , s
+    Close #f
+    ReadAll = s
+    Exit Function
+EH:
+    On Error Resume Next: Close #f
+    LogError "ReadAll " & path
+End Function
+
+Private Sub AppendLine(ByVal path As String, ByVal text As String)
+    On Error GoTo EH
+    Dim f As Integer
+    f = FreeFile
+    Open path For Append As #f
+    Print #f, text
+    Close #f
+    Exit Sub
+EH:
+    On Error Resume Next: Close #f
+    LogError "AppendLine " & path
+End Sub
+
+Private Sub WriteStatus(ByVal lastEvent As String)
+    On Error GoTo EH
+    Dim p As String, f As Integer
+    If Len(lastEvent) > 0 Then mLastEvent = lastEvent
+    p = FeedPath(FILE_STATUS)
+    If Len(p) = 0 Then Exit Sub
+    f = FreeFile
+    Open p For Output As #f
+    Print #f, "macroVersion=" & MACRO_VERSION
+    Print #f, "lastSeen=" & Format$(Now, "yyyy-mm-dd hh:nn:ss")
+    Print #f, "postingsRead=" & PostingCount()
+    Print #f, "lastEvent=" & EncodeField(mLastEvent)
+    Print #f, "folder=" & EncodeField(BridgeFolder())
+    Close #f
+    Exit Sub
+EH:
+    On Error Resume Next: Close #f
+    LogError "WriteStatus"
+End Sub
+
+Private Function EncodeField(ByVal s As String) As String
+    Dim i As Long, c As String, out As String, code As Long
+    s = Replace(s, "\", "\\")
+    s = Replace(s, vbTab, "\t")
+    s = Replace(s, vbCrLf, "\n"): s = Replace(s, vbCr, "\n"): s = Replace(s, vbLf, "\n")
+    For i = 1 To Len(s)
+        c = Mid$(s, i, 1): code = AscW(c)
+        If code >= 32 And code <= 126 Then out = out & c
+    Next i
+    EncodeField = out
+End Function
+
+Private Function DecodeField(ByVal s As String) As String
+    Dim i As Long, c As String, n As String, out As String
+    If InStr(s, "\") = 0 Then DecodeField = s: Exit Function
+    i = 1
+    Do While i <= Len(s)
+        c = Mid$(s, i, 1)
+        If c = "\" And i < Len(s) Then
+            i = i + 1: n = Mid$(s, i, 1)
+            If n = "t" Then
+                out = out & vbTab
+            ElseIf n = "n" Then
+                out = out & vbCrLf
+            Else
+                out = out & n
+            End If
+        Else
+            out = out & c
+        End If
+        i = i + 1
+    Loop
+    DecodeField = out
+End Function
+
+'============================== CONFIG ==============================
+Private Sub LoadConfig()
+    On Error GoTo EH
+    Dim txt As String, lines() As String, i As Long, kv() As String, k As String, v As String
+    mRateProximity = DEFAULT_RATE_PROXIMITY: mMinRate = DEFAULT_MIN_RATE: mMaxRate = DEFAULT_MAX_RATE: mCommaRates = False
+    Set mBlock = New Collection
+    txt = ReadAll(FeedPath(FILE_CONFIG))
+    If Len(txt) = 0 Then Exit Sub
+    txt = Replace(txt, vbCrLf, vbLf)
+    lines = Split(txt, vbLf)
+    For i = 0 To UBound(lines)
+        If Len(lines(i)) > 0 And Left$(lines(i), 1) <> "#" Then
+            kv = Split(lines(i), vbTab)
+            If UBound(kv) >= 1 Then
+                k = LCase$(Trim$(kv(0))): v = DecodeField(kv(1))
+                Select Case k
+                    Case "rateproximity": If IsNumeric(v) Then mRateProximity = CDbl(v)
+                    Case "minrate": If IsNumeric(v) Then mMinRate = CDbl(v)
+                    Case "maxrate": If IsNumeric(v) Then mMaxRate = CDbl(v)
+                    Case "recognisecommarates": mCommaRates = (Trim$(v) = "1")
+                    Case "inboundblock": If Len(Trim$(v)) > 0 Then mBlock.Add LCase$(Trim$(v))
+                End Select
+            End If
+        End If
+    Next i
+    InitRegex True
+    Exit Sub
+EH:
+    LogError "LoadConfig"
+End Sub
+
+'============================== POSTINGS FEED ==============================
+Private Function LoadPostings(ByVal force As Boolean) As Boolean
+    On Error GoTo EH
+    Dim p As String, stamp As String, txt As String, lines() As String, i As Long, parts() As String, j As Long, hdr() As String
+    p = FeedPath(FILE_POSTINGS)
+    If Len(p) = 0 Then Exit Function
+    If Len(Dir$(p)) = 0 Then Exit Function
+    stamp = Format$(FileDateTime(p), "yyyymmddhhnnss") & "|" & FileLen(p)
+    If Not force And mPostingsLoaded Then
+        If stamp = mPostingsStamp Then LoadPostings = True: Exit Function
+        If DateDiff("s", mPostingsLoadedAt, Now) < 2 Then LoadPostings = True: Exit Function
+    End If
+    txt = ReadAll(p)
+    If Len(txt) = 0 Then Exit Function
+    txt = Replace(txt, vbCrLf, vbLf)
+    lines = Split(txt, vbLf)
+    If UBound(lines) < 1 Then Exit Function
+    If Left$(lines(0), 22) <> "#FREIGHT-SIGNAL-BRIDGE" Then Exit Function
+
+    Set mCols = CreateObject("Scripting.Dictionary"): mCols.CompareMode = vbTextCompare
+    hdr = Split(lines(1), vbTab)
+    For j = 0 To UBound(hdr): mCols(LCase$(Trim$(hdr(j)))) = j: Next j
+    If Not mCols.Exists("origincity") Or Not mCols.Exists("destcity") Or Not mCols.Exists("postingid") Then Exit Function
+
+    Set mPostings = New Collection
+    For i = 2 To UBound(lines)
+        If Len(lines(i)) > 0 Then
+            parts = Split(lines(i), vbTab)
+            If UBound(parts) >= mCols("destcity") Then
+                For j = 0 To UBound(parts): parts(j) = DecodeField(parts(j)): Next j
+                mPostings.Add parts
+            End If
+        End If
+    Next i
+    mPostingsStamp = stamp: mPostingsLoadedAt = Now: mPostingsLoaded = True
+    LoadPostings = True
+    Exit Function
+EH:
+    mPostingsLoaded = False
+    LogError "LoadPostings"
+End Function
+
+Private Function PostingCount() As Long
+    If Not mPostings Is Nothing Then PostingCount = mPostings.Count
+End Function
+
+' Field of posting #idx (1-based) by lower-case column name.
+Private Function PF(ByVal idx As Long, ByVal colName As String) As String
+    Dim arr As Variant, c As Long
+    If mPostings Is Nothing Or mCols Is Nothing Then Exit Function
+    If idx < 1 Or idx > mPostings.Count Then Exit Function
+    If Not mCols.Exists(colName) Then Exit Function
+    arr = mPostings(idx): c = CLng(mCols(colName))
+    If c <= UBound(arr) Then PF = Trim$(CStr(arr(c)))
+End Function
+
+Private Function FindPostingIndex(ByVal postingId As String) As Long
+    Dim i As Long
+    If Len(postingId) = 0 Then Exit Function
+    For i = 1 To PostingCount()
+        If StrComp(PF(i, "postingid"), postingId, vbTextCompare) = 0 Then FindPostingIndex = i: Exit Function
+    Next i
+End Function
+
+Private Function PostingTarget(ByVal postingId As String) As Double
+    Dim i As Long: i = FindPostingIndex(postingId)
+    If i > 0 Then PostingTarget = SafeNumeric(PF(i, "targetrate"))
+End Function
+
+Private Function PostingDetails(ByVal idx As Long) As String
+    Dim details As String, notes As String
+    details = PF(idx, "details")
+    If Len(details) = 0 Then details = BuildLoadDetails(idx)
+    notes = PF(idx, "notes")
+    If Len(notes) > 0 And notes <> "::" Then details = details & vbCrLf & vbCrLf & notes
+    PostingDetails = details
+End Function
+
+Private Function BuildLoadDetails(ByVal r As Long) As String
+    Dim s As String
+    s = "Pickup: " & PF(r, "origincity") & ", " & PF(r, "originstate") & vbCrLf & _
+        "Delivery: " & PF(r, "destcity") & ", " & PF(r, "deststate")
+    If Len(PF(r, "pickupdate")) > 0 Then s = s & vbCrLf & "Pickup Date: " & PF(r, "pickupdate")
+    If Len(PF(r, "equipment")) > 0 Then s = s & vbCrLf & "Equipment: " & PF(r, "equipment")
+    If Len(PF(r, "weight")) > 0 Then s = s & vbCrLf & "Weight: " & PF(r, "weight")
+    BuildLoadDetails = Trim$(s)
+End Function
+
+'============================== MATCHING (same scoring as v3) ==============================
+Private Function FindMatchingPosting(ByVal subjectText As String, ByVal bodyText As String) As Long
+    Dim subj As String, bod As String, i As Long, score As Long, bestScore As Long
+    subj = NormalizeForMatching(subjectText): bod = NormalizeForMatching(bodyText): bestScore = -1
+    For i = PostingCount() To 1 Step -1                       'bottom-up, strict ">" : the lowest row wins ties (as in v3)
+        If Len(PF(i, "origincity")) > 0 And Len(PF(i, "destcity")) > 0 Then
+            score = GetLaneMatchScore(subj, PF(i, "origincity"), PF(i, "originstate"), PF(i, "destcity"), PF(i, "deststate"))
+            If score >= 0 Then
+                score = score + 1000
+            Else
+                score = GetLaneMatchScore(bod, PF(i, "origincity"), PF(i, "originstate"), PF(i, "destcity"), PF(i, "deststate"))
+            End If
+            If score > bestScore Then bestScore = score: FindMatchingPosting = i
+        End If
+    Next i
+End Function
+
+Private Function GetLaneMatchScore(ByVal text As String, ByVal oc As String, ByVal os As String, ByVal dc As String, ByVal ds As String) As Long
+    GetLaneMatchScore = -1
+    If Len(text) = 0 Or Not ContainsExactPhrase(text, oc) Or Not ContainsExactPhrase(text, dc) Then Exit Function
+    GetLaneMatchScore = 200
+    If ContainsExactPhrase(text, os) Then GetLaneMatchScore = GetLaneMatchScore + 10
+    If ContainsExactPhrase(text, ds) Then GetLaneMatchScore = GetLaneMatchScore + 10
+    If ContainsCityStatePair(text, oc, os) Then GetLaneMatchScore = GetLaneMatchScore + 25
+    If ContainsCityStatePair(text, dc, ds) Then GetLaneMatchScore = GetLaneMatchScore + 25
+End Function
+
+Private Function ContainsExactPhrase(ByVal text As String, ByVal phrase As String) As Boolean
+    phrase = NormalizeForMatching(phrase)
+    If Len(phrase) > 0 Then ContainsExactPhrase = (InStr(1, " " & text & " ", " " & phrase & " ", vbTextCompare) > 0)
+End Function
+
+Private Function ContainsCityStatePair(ByVal text As String, ByVal city As String, ByVal stateCode As String) As Boolean
+    city = NormalizeForMatching(city): stateCode = NormalizeForMatching(stateCode)
+    If Len(city) > 0 And Len(stateCode) > 0 Then ContainsCityStatePair = (InStr(1, " " & text & " ", " " & city & " " & stateCode & " ", vbTextCompare) > 0)
+End Function
+
+Private Function NormalizeForMatching(ByVal s As String) As String
+    Dim chars As Variant, v As Variant
+    s = LCase$(CStr(s))
+    chars = Array(vbCr, vbLf, vbTab, Chr$(160), ",", ".", "-", "/", "\", ":", ";", "(", ")", "[", "]", "{", "}", "_", "?", "!", "|", ChrW$(8211), ChrW$(8212))
+    For Each v In chars: s = Replace(s, CStr(v), " "): Next v
+    Do While InStr(s, "  ") > 0: s = Replace(s, "  ", " "): Loop
+    NormalizeForMatching = Trim$(s)
+End Function
+
+'============================== RATE ENGINE (same patterns as v3) ==============================
+Private Sub InitRegex(Optional ByVal rebuild As Boolean = False)
+    Dim num As String
+    If mRateRegex Is Nothing Or rebuild Then
+        If mCommaRates Then num = "(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,5})" Else num = "[0-9]{3,5}(?:,[0-9]{3})?"
+        Set mRateRegex = CreateObject("VBScript.RegExp")
+        mRateRegex.Global = True: mRateRegex.IgnoreCase = True: mRateRegex.Multiline = True
+        mRateRegex.Pattern = "(rate|offer|can do|do for|take|counter|all in|all-in|total)[^$0-9]{0,40}\$?\s*(" & num & "(?:\.\d{1,2})?)"
+        Set mDollarRegex = CreateObject("VBScript.RegExp")
+        mDollarRegex.Global = True: mDollarRegex.IgnoreCase = True: mDollarRegex.Multiline = True
+        mDollarRegex.Pattern = "\$\s*(" & num & "(?:\.\d{1,2})?)"
+    End If
+End Sub
+
+Private Function ExtractCarrierRate(ByVal subjectText As String, ByVal bodyText As String, ByRef found As Boolean) As Double
+    On Error GoTo EH
+    InitRegex
+    Dim textValue As String, matches As Object, mt As Object, value As Double
+    textValue = subjectText & vbCrLf & bodyText
+    Set matches = mRateRegex.Execute(textValue)
+    For Each mt In matches
+        value = Val(Replace(CStr(mt.SubMatches(1)), ",", ""))
+        If IsReasonableCarrierRate(value) Then found = True: ExtractCarrierRate = value: Exit Function
+    Next mt
+    Set matches = mDollarRegex.Execute(textValue)
+    For Each mt In matches
+        value = Val(Replace(CStr(mt.SubMatches(0)), ",", ""))
+        If IsReasonableCarrierRate(value) Then found = True: ExtractCarrierRate = value: Exit Function
+    Next mt
+    Exit Function
+EH:
+    found = False: ExtractCarrierRate = 0
+    LogError "ExtractCarrierRate"
+End Function
+
+Private Function IsReasonableCarrierRate(ByVal value As Double) As Boolean
+    IsReasonableCarrierRate = (value >= mMinRate And value <= mMaxRate)
+End Function
+
+'============================== INQUIRY LOG (append-only, shared with the app) ==============================
+Private Sub LoadConversations()
+    On Error GoTo EH
+    Dim txt As String, lines() As String, i As Long, c() As String, key As String
+    Set mConv = CreateObject("Scripting.Dictionary"): mConv.CompareMode = vbTextCompare
+    EnsureInquiryFile
+    txt = ReadAll(FeedPath(FILE_INQUIRIES))
+    If Len(txt) = 0 Then Exit Sub
+    txt = Replace(txt, vbCrLf, vbLf)
+    lines = Split(txt, vbLf)
+    For i = 0 To UBound(lines)
+        If Len(lines(i)) > 0 And Left$(lines(i), 14) <> "ConversationId" And Left$(lines(i), 1) <> "#" Then
+            c = Split(lines(i), vbTab)
+            If UBound(c) >= 11 Then
+                key = LCase$(DecodeField(c(0)))
+                mConv(key) = Array(UCase$(Trim$(c(6))), CLng(SafeNumeric(c(11))), DecodeField(c(4)), CLng(SafeNumeric(c(5))))
+            End If
+        End If
+    Next i
+    Exit Sub
+EH:
+    LogError "LoadConversations"
+End Sub
+
+Private Sub EnsureInquiryFile()
+    Dim p As String: p = FeedPath(FILE_INQUIRIES)
+    If Len(p) = 0 Then Exit Sub
+    If Len(Dir$(p)) = 0 Then
+        AppendLine p, INQUIRY_HEADER
+    ElseIf FileLen(p) = 0 Then
+        AppendLine p, INQUIRY_HEADER
+    End If
+End Sub
+
+Private Sub RecordEvent(ByVal mail As Outlook.MailItem, ByVal convId As String, ByVal postingId As String, ByVal postingRow As Long, _
+                        ByVal stage As String, ByVal carrierRate As String, ByVal targetRate As Double, _
+                        ByVal actionText As String, ByVal flagText As String, ByVal eventCount As Long)
+    On Error GoTo EH
+    Dim p As String, ln As String
+    p = FeedPath(FILE_INQUIRIES)
+    If Len(p) = 0 Then Exit Sub
+    EnsureInquiryFile
+    ln = EncodeField(convId) & vbTab & Format$(Now, "yyyy-mm-dd hh:nn:ss") & vbTab & EncodeField(GetSenderSMTPAddress(mail)) & vbTab & _
+         EncodeField(mail.Subject) & vbTab & EncodeField(postingId) & vbTab & postingRow & vbTab & stage & vbTab & carrierRate & vbTab & _
+         Trim$(Str$(targetRate)) & vbTab & EncodeField(actionText) & vbTab & EncodeField(flagText) & vbTab & eventCount
+    AppendLine p, ln
+    mConv(LCase$(convId)) = Array(UCase$(stage), eventCount, postingId, postingRow)
+    WriteStatus actionText
+    Exit Sub
+EH:
+    LogError "RecordEvent"
+End Sub
+
+'============================== MAIL HELPERS ==============================
+Private Function GetConversationTrackingID(ByVal mail As Outlook.MailItem) As String
+    On Error Resume Next
+    GetConversationTrackingID = Trim$(CStr(mail.ConversationID))
+    If Len(GetConversationTrackingID) = 0 Then GetConversationTrackingID = Trim$(CStr(mail.EntryID))
+End Function
+
+Private Function GetSenderSMTPAddress(ByVal mail As Outlook.MailItem) As String
+    On Error GoTo Fallback
+    Dim exUser As Object
+    If UCase$(mail.SenderEmailType) = "EX" Then
+        Set exUser = mail.Sender.GetExchangeUser
+        If Not exUser Is Nothing Then GetSenderSMTPAddress = exUser.PrimarySmtpAddress: Exit Function
+    End If
+Fallback:
+    On Error Resume Next
+    GetSenderSMTPAddress = mail.SenderEmailAddress
+End Function
+
+Private Function IsBlockedSender(ByVal mail As Outlook.MailItem) As Boolean
+    Dim s As String, v As Variant
+    If mBlock Is Nothing Then Exit Function
+    s = LCase$(GetSenderSMTPAddress(mail))
+    For Each v In mBlock
+        If InStr(1, s, CStr(v), vbTextCompare) > 0 Then IsBlockedSender = True: Exit Function
+    Next v
+End Function
+
+Private Function IsAutomatedMessage(ByVal mail As Outlook.MailItem) As Boolean
+    Dim sender As String, subj As String
+    sender = LCase$(GetSenderSMTPAddress(mail)): subj = LCase$(Trim$(mail.Subject))
+    IsAutomatedMessage = (InStr(sender, "mailer-daemon") > 0 Or InStr(sender, "postmaster") > 0 Or _
+                          InStr(subj, "out of office") > 0 Or InStr(subj, "automatic reply") > 0)
+End Function
+
+Private Function IsForward(ByVal mail As Outlook.MailItem) As Boolean
+    Dim s As String: s = UCase$(Trim$(mail.Subject))
+    IsForward = (Left$(s, 3) = "FW:" Or Left$(s, 4) = "FWD:")
+End Function
+
+'============================== GENERIC ==============================
+Private Function SafeNumeric(ByVal value As Variant) As Double
+    If IsNumeric(value) Then SafeNumeric = CDbl(value)
+End Function
+
+Private Sub LogError(ByVal procedureName As String)
+    Dim msg As String
+    msg = Format$(Now, "yyyy-mm-dd hh:nn:ss") & " " & procedureName & " error " & Err.Number & ": " & Err.Description
+    Debug.Print msg
+    On Error Resume Next
+    If Len(BridgeFolder()) > 0 Then AppendLine FeedPath(FILE_ERRORS), msg
+End Sub

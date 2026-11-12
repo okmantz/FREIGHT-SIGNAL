@@ -23,7 +23,10 @@ Legend: **Tested** = automated unit and/or browser test passes · **Partial** = 
 | Markup injection inert | Tested | e2e |
 | Light/dark theme | Tested | e2e |
 | Spare Load Details | Partial (behaviour inferred) | manual only |
-| DAT tab, copy/CSV | Tested (row count/order); header text unverified | unit + e2e |
+| DAT bulk-upload CSV (all / lane / selected / single), exact 24-column template header, DAT rate per posting or per lane | Tested against the real template header | unit + e2e |
+| Lane boxes (one box per lane, 9 postings each), delete posting / selection / group, priority → target (5/10/15) | Tested incl. real-focus regression | e2e |
+| City change → ZIP (origin and destination), equipment V R F SD VM RM | Tested | unit + e2e |
+| Outlook bridge (folder feed + v4 macro) | App side tested with a stand-in folder; **VBA not run in real Outlook** | unit + e2e |
 | Performance dashboard / HOME metrics | Partial (inferred formulas) | rendering only |
 | Microsoft Edge | **Untested** (Chromium engine; only Chrome run) | – |
 | GitHub Pages deployment | **Untested** (workflow written, not run) | – |

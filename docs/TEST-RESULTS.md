@@ -20,8 +20,6 @@ Run on 2026-11-12 in the build container: Node v22.23.4, Google Chrome via Playw
 - PASS Excel outreach: tiered selection, subject, body, blocklist, never sends
 - PASS Excel outreach: missing state is reported, not guessed
 - PASS Outlook scan: respects max per load and never duplicates (load, email)
-- PASS DAT export: column order A..T, header, CSV/TSV, one row per live posting
-- PASS DAT header override replaces header text by position
 - PASS parses the synthetic TQL fixture
 - PASS equipment codes
 - PASS weight keeps digits only (macro quirk) and a decimal point triggers a warning
@@ -57,7 +55,6 @@ Run on 2026-11-12 in the build container: Node v22.23.4, Google Chrome via Playw
 - PASS matrix preview lists 3 origins + 3 destinations
 - PASS matrix creates exactly 9 postings
 - PASS second matrix on same group is refused
-- PASS DAT tab lists 9 rows
 - PASS carrier added
 - PASS carrier import (header recognised)
 - PASS outreach creates drafts for matching carriers
@@ -110,3 +107,7 @@ Run on 2026-11-12 in the build container: Node v22.23.4, Google Chrome via Playw
 * The live **RateView** and **Ventusky** pages (links are built and asserted, not opened against the sites).
 * Behaviour on your IT-managed machine (policy blocks, storage clearing on exit).
 * Parity with your real workbook (see PARITY-CHECKLIST.md).
+
+
+## Update (lane boxes / DAT template / Outlook bridge)
+Unit: 59/59 pass (adds tests/unit/dat-template.test.js, tests/unit/bridge.test.js). E2E: 68/68 pass (lane box, DAT CSV vs the real template header, DAT rates, selected/single download, city -> ZIP and priority -> target with real focus, delete posting/selection/group, equipment codes, Outlook bridge via stand-in folder). Single-file build: 7/7 pass.

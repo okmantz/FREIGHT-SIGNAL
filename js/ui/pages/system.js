@@ -1,6 +1,8 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, field } from '../dom.js';
 import { state, actions, importZipCsv } from '../../store/state.js';
 import * as db from '../../store/db.js';
+import { bridge, connect, reconnect, disconnect, writeNow, pollNow, outlookConnected } from '../../store/bridge.js';
+import { fmtDate } from '../dom.js';
 
 let est = null;
 const rerender = () => import('../../main.js').then(m => m.render());
@@ -31,6 +33,38 @@ async function restore() {
   try { await actions.restoreBackup(snap, mode); toast('Backup restored.', 'ok'); } catch (e) { toast('Restore failed (nothing was changed if validation failed): ' + e.message, 'err', 9000); }
 }
 
+function bridgePanel() {
+  const run = async (fn, okMsg) => { try { await fn(); if (okMsg) toast(okMsg, 'ok'); } catch (e) { if (e && e.name === 'AbortError') return; toast(String(e.message || e), 'err', 8000); } rerender(); };
+  const on = bridge.connected;
+  const ol = bridge.outlook;
+  const olOn = on && outlookConnected();
+  const dot = (cls) => h('span', { class: 'dot ' + cls });
+  const rows = [];
+  if (!bridge.supported) rows.push(h('div', { class: 'banner err' }, 'This browser cannot share a folder with Outlook. Open Freight Signal in Chrome or Edge (the app is the same; only the folder sharing needs it).'));
+  else {
+    rows.push(h('div', { class: 'state', 'data-bridge': on ? 'connected' : bridge.needsPermission ? 'permission' : 'off' }, dot(on ? 'on' : bridge.needsPermission ? 'warn' : 'off'),
+      on ? `Folder connected: ${bridge.folderName}` : bridge.needsPermission ? `Folder "${bridge.folderName}" needs your permission again` : 'Not connected'));
+    rows.push(h('div', { class: 'state', 'data-outlook': olOn ? 'connected' : 'waiting' }, dot(olOn ? 'on' : 'warn'),
+      olOn ? `Outlook connected \u2014 last heard ${fmtDate(ol.lastSeen)}, read ${ol.postingsRead} posting(s)${ol.lastEvent ? ', last action: ' + ol.lastEvent : ''}` :
+        on ? (ol && ol.lastSeen ? `Outlook last heard ${fmtDate(ol.lastSeen)} (more than a day ago - restart Outlook or run FS_Ping)` : 'Waiting for Outlook \u2014 run FS_Ping in the Outlook macro (see the guide below)') : 'Outlook status unknown until a folder is connected'));
+    if (on) rows.push(h('dl', { class: 'kv' },
+      h('dt', null, 'Postings shared with Outlook'), h('dd', null, `${bridge.postingsWritten}` + (bridge.lastWrite ? ` (written ${fmtDate(bridge.lastWrite)})` : '')),
+      h('dt', null, 'Carrier conversations from Outlook'), h('dd', null, String(bridge.eventsSeen || 0)),
+      h('dt', null, 'Last checked'), h('dd', null, bridge.lastSync ? fmtDate(bridge.lastSync) : '\u2014')));
+    if (bridge.error) rows.push(h('div', { class: 'banner err' }, bridge.error));
+    rows.push(h('div', { class: 'toolbar' },
+      !on && !bridge.needsPermission ? h('button', { class: 'btn primary', type: 'button', 'data-act': 'bridge-connect', onclick: () => run(connect, 'Folder connected. Postings are now shared with Outlook.') }, 'Choose Outlook folder\u2026') : null,
+      bridge.needsPermission ? h('button', { class: 'btn primary', type: 'button', 'data-act': 'bridge-reconnect', onclick: () => run(reconnect, 'Reconnected.') }, 'Reconnect folder') : null,
+      on ? h('button', { class: 'btn', type: 'button', onclick: () => run(() => writeNow(true), 'Postings written for Outlook.') }, 'Write postings now') : null,
+      on ? h('button', { class: 'btn', type: 'button', onclick: () => run(async () => { const n = await pollNow(); toast(n ? `${n} Outlook update(s) applied to the Inquiry Log.` : 'No new Outlook activity.', n ? 'ok' : 'info'); }) }, 'Check Outlook now') : null,
+      on || bridge.needsPermission ? h('button', { class: 'btn danger', type: 'button', onclick: () => run(disconnect, 'Disconnected.') }, 'Disconnect') : null));
+  }
+  return h('div', { class: 'panel bridge' }, h('h3', null, 'Outlook connection'),
+    h('p', { class: 'muted' }, 'Outlook cannot see data stored in a browser, so Freight Signal shares your live postings with it through one folder (suggested: Documents\\FreightSignal). The Outlook macro reads that folder to match carrier e-mails to your postings, drafts the replies, and writes what it did back so the Inquiry Log updates here. Nothing is uploaded anywhere.'),
+    ...rows,
+    h('p', { class: 'muted' }, 'Setup: choose the folder above, then paste outlook/Outlook_v4_ThisOutlookSession.txt into Outlook (Alt+F11 \u2192 ThisOutlookSession) and run FS_Diagnostics. Full steps: docs/OUTLOOK-BRIDGE.md.'));
+}
+
 function lines(v) { return String(v || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean); }
 
 export function render() {
@@ -51,6 +85,7 @@ export function render() {
   return h('div', null,
     h('div', { class: 'pagehead' }, h('h2', null, 'System'), h('p', null, 'Settings, backup and data. All stored in this browser only.')),
     state.persistError ? h('div', { class: 'banner err' }, 'Storage problem: ' + state.persistError) : null,
+    bridgePanel(),
     h('div', { class: 'panel' }, h('h3', null, 'Outreach targets and rules'),
       h('div', { class: 'grid4' }, num('lowTarget', 'Low target'), num('mediumTarget', 'Medium target'), num('highTarget', 'High target'), num('maxCarriersPerLoad', 'Max carriers / load (scan)'),
         num('rateProximity', 'Rate proximity ($)', 'Within this of target = confirm ETA'), num('minReasonableRate', 'Min plausible rate'), num('maxReasonableRate', 'Max plausible rate')),
@@ -61,8 +96,7 @@ export function render() {
       h('div', { class: 'grid2' },
         area('outreachBlocklist', 'Outreach blocklist', 'One per line: "@domain.com" blocks a domain, a full address blocks one sender. Never shipped in the repo.', lines, (v) => (v || []).join('\n')),
         area('inboundBlocklist', 'Inbound e-mail blocklist', 'Substring match against the sender address.', lines, (v) => (v || []).join('\n')))),
-    h('div', { class: 'panel' }, h('h3', null, 'DAT and parsing'),
-      area('datHeaderOverride', 'DAT header override', 'Paste the exact header row of your DAT bulk-posting template (tab or comma separated).'),
+    h('div', { class: 'panel' }, h('h3', null, 'Parsing'),
       area('loadSeparatorRegex', 'Multi-load separator (regex)', 'Pasted text is split into loads at lines matching this.', (v) => v.trim() || '^\\s*\\d+\\s*pick\\s*[-–]\\s*\\d+\\s*drop')),
     h('div', { class: 'panel' }, h('h3', null, 'ZIP Map'),
       h('p', null, state.zip ? `${state.zip.size.toLocaleString()} rows from ${state.zipInfo.source}.` : 'Not loaded.'),
