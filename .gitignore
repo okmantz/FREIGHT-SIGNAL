@@ -1,0 +1,5 @@
+node_modules/
+*.private.json
+freight-signal-backup-*.json
+.DS_Store
+test-output/
