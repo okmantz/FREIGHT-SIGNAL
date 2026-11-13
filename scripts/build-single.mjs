@@ -26,20 +26,21 @@ const embed = `globalThis.__FS_EMBEDDED_ZIP=${JSON.stringify(zipGz)};globalThis.
 let html = rd('index.html').toString('utf8');
 html = html
   .replace(/<link rel="manifest"[^>]*>\n?/, '')
-  .replace('<link rel="icon" href="favicon.ico">', `<link rel="icon" href="${datauri('favicon.ico', 'image/x-icon')}">`)
-  .replace('<link rel="stylesheet" href="css/app.css">', `<style>${css}</style>`)
-  .replace('src="assets/logo-256.png"', `src="${datauri('assets/logo-256.png', 'image/png')}"`)
+  .replace('<link rel="icon" href="favicon.ico">', () => `<link rel="icon" href="${datauri('favicon.ico', 'image/x-icon')}">`)
+  .replace('<link rel="stylesheet" href="css/app.css">', () => `<style>${css}</style>`)
+  .replace('src="assets/logo-256.png"', () => `src="${datauri('assets/logo-256.png', 'image/png')}"`)
   // js/boot.js appears twice (head: before paint, body end: once #bg-art exists). Both become inline classic scripts.
   .replaceAll('<script src="js/boot.js"></script>', () => `<script>${rd('js/boot.js').toString('utf8').replace(/<\/script/gi, '<\\/script')}</script>`)
-  .replace('<script type="module" src="js/main.js"></script>', `<script>${embed}</script>\n<script>${js}</script>`);
+  // Function replacers on purpose: the bundled JS may contain "$'" or "$&", which String.replace would otherwise expand and corrupt the file.
+  .replace('<script type="module" src="js/main.js"></script>', () => `<script>${embed}</script>\n<script>${js}</script>`);
 // logo-mark used on HOME is referenced from JS: inline it
 const markUri = datauri('assets/logo-mark.png', 'image/png');
-html = html.replace(/assets\/logo-mark\.png/g, markUri);
-const body = html.replace(/assets\/logo-mark\.png/g, markUri);
+html = html.replace(/assets\/logo-mark\.png/g, () => markUri);
+const body = html.replace(/assets\/logo-mark\.png/g, () => markUri);
 const scripts = [...body.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 const style = body.match(/<style>([\s\S]*?)<\/style>/)[1];
-const csp = `default-src 'none'; script-src ${scripts.map(sha).join(' ')}; style-src ${sha(style)}; img-src data: blob:; connect-src https://api.weather.gov; object-src 'none'; base-uri 'none'; form-action 'none'`;
-html = body.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, `<meta http-equiv="Content-Security-Policy" content="${csp}">`);
+const csp = `default-src 'none'; script-src ${scripts.map(sha).join(' ')}; style-src ${sha(style)}; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'`;
+html = body.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, () => `<meta http-equiv="Content-Security-Policy" content="${csp}">`);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/freight-signal.html'), html);
 console.log('dist/freight-signal.html', (html.length / 1048576).toFixed(2), 'MB');
