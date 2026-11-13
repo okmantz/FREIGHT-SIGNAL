@@ -174,6 +174,9 @@ function menu(label, items) {
 }
 document.addEventListener('click', (e) => { document.querySelectorAll('details.menu[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); }); });
 
+/** Subtle target-rate chip, visible on collapsed and expanded loads alike. */
+const targetChip = (t) => t > 0 ? h('span', { class: 'meta targetchip', title: 'Target rate: the number carrier replies are judged against', 'data-act': 'target-chip' }, icon('target', 14), '$' + Math.round(t).toLocaleString('en-US'), h('em', null, 'target')) : null;
+
 /** The plain-language problem chips under a load's title. */
 function issuesStrip(r) {
   const chips = [];
@@ -242,6 +245,7 @@ function groupBox(r, collapsed, toggle) {
       h('div', { class: 'lanemain' },
         h('h3', { class: 'lane', onclick: toggle }, b.title),
         h('div', { class: 'metarow' }, meta,
+          targetChip(r.stats.target),
           h('span', { class: 'meta' }, `${b.members.length} posting${b.members.length === 1 ? '' : 's'}`),
           lane ? h('span', { class: 'meta' }, ({ local: 'Local', regional: 'Regional', long: 'Long-distance' })[lane] || lane) : null,
           rinfo.mode === 'own' ? h('span', { class: 'meta', title: 'Only these postings carry a rate on DAT; the rest post without one.' }, icon('target', 14), `DAT rate on ${rinfo.count} of ${rinfo.total}`) : null,
@@ -297,6 +301,11 @@ function groupBox(r, collapsed, toggle) {
     h('button', { class: 'btn', type: 'button', 'data-act': 'rateview', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 15), 'DAT RateView'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'csv-group', title: 'Download every posting of this load as a DAT CSV', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }, icon('download', 15), 'Download CSV'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'mark-covered', title: 'Log which posting and carrier covered it, then remove the load', onclick: () => coverModal(b) }, icon('check', 15), 'Mark covered'),
+    !single ? h('button', { class: 'btn', type: 'button', 'data-act': 'reshuffle', title: 'Replace the 8 nearby postings with new cities that have a better chance of getting covered (your target rate and DAT rates carry over)', onclick: async () => {
+      if (!(await confirmDialog('Reshuffle postings', 'The 8 nearby postings are replaced with new cities that have a higher chance of getting covered (ranked by cover history, inquiries and carrier density; cities already tried are skipped). The Original posting, target rate and any DAT rates stay.', 'Reshuffle'))) return;
+      const res = await actions.reshuffleMatrix(head.id);
+      if (!res.ok) return toast(res.error, 'err', 7000);
+      toast('Postings reshuffled. Download the DAT CSV again and re-upload it.', 'ok', 7000); } }, icon('refresh', 15), 'Reshuffle postings') : null,
     single ? h('button', { class: 'btn', type: 'button', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3×3 matrix') : null,
     menu('More actions for this load', [
       { label: 'View original details', act: 'view-lane-details', run: () => viewDetails(b) },

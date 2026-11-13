@@ -81,7 +81,7 @@ export function render() {
       steps(
         h('span', null, 'Create a folder called ', h('span', { class: 'kbd' }, 'FreightSignal'), ' inside Documents.'),
         h('span', null, 'In Freight Signal open ', h('b', null, 'System → Outlook connection'), ' and press ', h('b', null, 'Choose Outlook folder…'), '. Pick that folder and allow access.'),
-        h('span', null, 'In Outlook press ', h('span', { class: 'kbd' }, 'Alt+F11'), ', open ', h('b', null, 'ThisOutlookSession'), ', paste the contents of ', h('span', { class: 'kbd' }, 'outlook/Outlook_v5_ThisOutlookSession.txt'), ', save and restart Outlook.'),
+        h('span', null, 'In Outlook press ', h('span', { class: 'kbd' }, 'Alt+F11'), ', open ', h('b', null, 'ThisOutlookSession'), ', paste the contents of ', h('span', { class: 'kbd' }, 'outlook/Outlook_v6_ThisOutlookSession.txt'), ', save and restart Outlook.'),
         h('span', null, 'Run ', h('span', { class: 'kbd' }, 'FS_Diagnostics'), ' (Alt+F8). It lists the files it found and how many postings it can read. The System page then shows ', h('b', null, 'Outlook connected'), '.')),
       table(['When…', 'Outlook does this'], [
         ['A carrier asks about a posting', 'Matches the lane, drafts a reply with the load details and “best all-in rate? ETA?” and opens it for you.'],

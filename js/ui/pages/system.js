@@ -13,7 +13,7 @@ import { weekRangeText } from '../../core/coverlog.js';
 
 let est = null;
 const rerender = () => import('../../main.js').then(m => m.render());
-const MACRO_FILE = 'outlook/Outlook_v5_ThisOutlookSession.txt';
+const MACRO_FILE = 'outlook/Outlook_v6_ThisOutlookSession.txt';
 
 async function importZip() {
   const f = await pickFile('.csv');
@@ -67,10 +67,10 @@ const kbd = (t) => h('kbd', null, t);
 function outlookGuide() {
   const run = async (fn, okMsg) => { try { await fn(); if (okMsg) toast(okMsg, 'ok'); } catch (e) { if (e && e.name === 'AbortError') return; toast(String(e.message || e), 'err', 8000); } rerender(); };
   const on = bridge.connected, olOn = on && outlookConnected();
-  const v5 = olOn && /v5/i.test(String(bridge.outlook && bridge.outlook.macroVersion || ''));
+  const v5 = olOn && /v[56]/i.test(String(bridge.outlook && bridge.outlook.macroVersion || ''));
   const macroBtns = h('div', { class: 'toolbar' },
     h('button', { class: 'btn primary', type: 'button', 'data-act': 'macro-copy', onclick: async () => { try { await copyText(await macroText(), 'Macro copied. Now paste it into Outlook (step 5).'); } catch (e) { toast(e.message, 'err', 8000); } } }, icon('copy', 15), 'Copy the macro'),
-    h('button', { class: 'btn', type: 'button', 'data-act': 'macro-download', onclick: async () => { try { download('Outlook_v5_ThisOutlookSession.txt', await macroText(), 'text/plain;charset=utf-8'); } catch (e) { toast(e.message, 'err', 8000); } } }, icon('download', 15), 'Download as a .txt file'));
+    h('button', { class: 'btn', type: 'button', 'data-act': 'macro-download', onclick: async () => { try { download('Outlook_v6_ThisOutlookSession.txt', await macroText(), 'text/plain;charset=utf-8'); } catch (e) { toast(e.message, 'err', 8000); } } }, icon('download', 15), 'Download as a .txt file'));
   const steps = h('ol', { class: 'gsteps' },
     step(1, on, 'Make a folder for the two programs to share', h('p', null, 'In File Explorer open ', h('b', null, 'Documents'), ', right-click an empty spot, choose ', h('b', null, 'New → Folder'), ' and name it ', h('b', null, 'FreightSignal'), '. This one folder is the only thing the browser and Outlook share.'),
       h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: () => copyText('FreightSignal', 'Folder name copied.') }, 'Copy the name'))),
@@ -99,7 +99,7 @@ function outlookGuide() {
       h('div', { class: 'toolbar' }, h('button', { class: 'btn', type: 'button', 'data-act': 'bridge-poll', disabled: !on, onclick: () => run(async () => { const n = await pollNow(); toast(n ? `${n} Outlook update(s) applied.` : 'Checked.', n ? 'ok' : 'info'); }) }, icon('refresh', 15), 'Check Outlook now'))),
     step(8, v5 && bridge.draftsSaved > 0, 'Carrier outreach lands in your Outlook Drafts', h('p', null, 'With the folder connected, every outreach or truck-check draft made here is saved into the ', h('b', null, 'Drafts'), ' folder in Outlook. Nothing is ever sent for you: open the draft and press Send yourself.'),
       h('p', { class: 'muted' }, 'Outlook picks the drafts up when you click into Outlook, when a new e-mail arrives, or when it starts. To force it, press ', kbd('Alt'), ' + ', kbd('F8'), ', choose ', h('b', null, 'FS_DraftsNow'), ' and Run.'),
-      olOn && !v5 ? h('div', { class: 'banner err' }, `Outlook is still running the older macro (${bridge.outlook.macroVersion || 'v4'}). Repeat steps 4 and 5 to update it - drafts to Outlook need v5.`) : null),
+      olOn && !v5 ? h('div', { class: 'banner err' }, `Outlook is still running the older macro (${bridge.outlook.macroVersion || 'v4'}). Repeat steps 4 and 5 to update it - drafts to Outlook need v5 or newer, and auto-send needs v6.`) : null),
   );
   const fix = h('div', { class: 'trouble' },
     h('details', null, h('summary', null, 'Nothing happens after step 6 / the status never turns green'), h('ul', null,
@@ -161,7 +161,32 @@ function ladderSection(s) {
     tplField('book', 'Inside the booking band', 'Sent when the rate is acceptable.'),
     tplField('split', 'Split-the-difference counter', 'Sent when the rate is a little high.'),
     tplField('target', 'Counter at target', 'Sent when the rate is too high.'),
-    h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: async () => { const t = { ...(s.templates || {}) }; delete t.book; delete t.split; delete t.target; await actions.saveSettings({ templates: t }); toast('Reply wording reset to the defaults.', 'ok'); } }, 'Reset these three')));
+    tplField('askRate', 'Carrier asks "rate?"', 'Sent when a carrier asks what you are paying.', 2),
+    tplField('available', 'Carrier asks "still available?"', 'Sent when a carrier only asks about availability.', 2),
+    tplField('needRate', 'No rate given', 'Sent when a carrier replies without a rate.', 2),
+    tplField('needRateEta', 'No rate, no ETA', 'Sent when a carrier gives neither.', 2),
+    tplField('agreed', 'Carrier agrees to your rate', 'Sent when a carrier accepts your number.', 2),
+    h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: async () => { const t = { ...(s.templates || {}) }; for (const k of ['book', 'split', 'target', 'askRate', 'available', 'availableLead', 'needRate', 'needRateEta', 'agreed']) delete t[k]; await actions.saveSettings({ templates: t }); toast('Reply wording reset to the defaults.', 'ok'); } }, 'Reset reply wording')));
+}
+
+/** DANGER ZONE: let the Outlook macro SEND instead of saving drafts. Inbound and outbound are separate switches; both default to off. */
+function autoSendControls(s) {
+  const sw = (key, title, onText, offText, confirmText) => {
+    const cb = h('input', { type: 'checkbox', role: 'switch', checked: !!s[key], 'data-act': 'autosend-' + key });
+    cb.addEventListener('change', async () => {
+      if (cb.checked) {
+        if (!(await confirmDialog(title, confirmText, 'Turn on sending'))) { cb.checked = false; return; }
+        await actions.saveSettings({ [key]: true }); toast(title + ' is ON. The Outlook macro will send instead of saving drafts.', 'ok', 6000);
+      } else { await actions.saveSettings({ [key]: false }); toast(title + ' is off. Back to drafts only.', 'ok'); }
+    });
+    return h('label', { class: 'tgl dangerrow' }, cb, h('span', null, h('b', null, title), h('small', { class: 'muted' }, ' ' + (s[key] ? onText : offText))));
+  };
+  return h('div', { class: 'autosend' },
+    h('p', { class: 'muted' }, 'By default every e-mail is saved as a draft for you to review. These switches let the Outlook macro (v6) send instead. Only the macro can send; this app never does. Turn a switch off at any time and the next e-mail goes back to a draft.'),
+    sw('autoSendInbound', 'Auto-send replies to carriers', 'ON: replies to carrier e-mails are SENT when the app is certain it understood them. Anything unclear stays a draft and is flagged.', 'Off: replies are saved as drafts.',
+      'With this on, the Outlook macro SENDS replies to inbound carrier e-mails (rate counters, "how close can you come", ETA requests) without showing them to you first. Only e-mails the app fully understood are sent; anything unusual (a question, a pushback, several rates, a stop request) stays a draft. A cap of ' + (s.maxAutoSendsPerHour || 20) + ' sends per hour applies. Requires the v6 macro.'),
+    sw('autoSendOutbound', 'Auto-send outreach to carriers', 'ON: outreach drafts made here are SENT by Outlook instead of saved.', 'Off: outreach is saved as drafts.',
+      'With this on, outreach and truck-check e-mails you create here are SENT by Outlook as soon as they are queued, without a draft to review. Make sure your carrier list and wording are right first. Requires the v6 macro.'));
 }
 
 function truckSection(s) {
@@ -289,7 +314,7 @@ export function render() {
       est && !est.none ? h('p', { class: 'muted' }, `Browser storage used: ${((est.usage || 0) / 1048576).toFixed(1)} MB of ${((est.quota || 0) / 1048576).toFixed(0)} MB available.`) : null)),
     section('counters', 'Counters', 'Carry over numbers from Excel', h('div', null, h('p', { class: 'muted' }, 'The pace tracker counts from the Cover Log. These two counters are for your own reference (and for carrying over Excel numbers).'),
       h('div', { class: 'grid4' }, num2('Covers today', 'coversToday'), num2('Lifetime covers', 'lifetimeCovers')))),
-    section('danger', 'Danger zone', 'Erase all data', h('button', { class: 'btn danger', type: 'button', onclick: async () => { if (await confirmDialog('Erase all data', 'Delete ALL loads, carriers, customers, cover log, inquiries, drafts and spares from this browser? Download a backup first. The ZIP Map is kept.', 'Erase everything')) { await actions.wipe(); toast('All data erased.', 'ok'); } } }, 'Erase all data'), { tone: 'danger' }));
+    section('danger', 'Danger zone', 'Auto-send e-mail, erase all data', h('div', null, autoSendControls(s), h('button', { class: 'btn danger', type: 'button', onclick: async () => { if (await confirmDialog('Erase all data', 'Delete ALL loads, carriers, customers, cover log, inquiries, drafts and spares from this browser? Download a backup first. The ZIP Map is kept.', 'Erase everything')) { await actions.wipe(); toast('All data erased.', 'ok'); } } }, 'Erase all data')), { tone: 'danger' }));
 }
 
 function num2(label, key) {
