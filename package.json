@@ -10,7 +10,12 @@
     "test:e2e": "node tests/e2e/run.mjs",
     "build": "node scripts/build-single.mjs",
     "test:single": "node tests/e2e/single.mjs",
-    "serve": "node tests/e2e/server.mjs"
+    "serve": "node tests/e2e/server.mjs",
+    "test:cloud": "node tests/e2e/cloud.mjs",
+    "test:local": "node tests/e2e/local.mjs"
   },
-  "devDependencies": { "esbuild": "^0.25.0", "playwright": "^1.50.0" }
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "playwright": "^1.50.0"
+  }
 }

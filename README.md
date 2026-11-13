@@ -3,7 +3,9 @@
 A local-first browser application that replaces the Excel (ThisWorkbook VBA) + Outlook (ThisOutlookSession VBA) freight automation workbook: paste TQL loads, build the 3 × 3 DAT posting matrix from a ZIP Map, draft carrier outreach, track inquiries and carriers.
 
 * Plain HTML / CSS / JavaScript (ES modules). No frameworks, no runtime dependencies, no build step needed to run.
-* Data lives in **this browser's IndexedDB**. Nothing is uploaded. No telemetry, analytics, CDN, fonts or API calls (a CSP enforces it and a test checks it).
+* **Accounts (v9).** Everyone signs in with an e-mail and password. By default (no setup) accounts live on the computer: several people can each have their own account in the same browser, each with private data, and they can install it as a desktop app. Optionally:
+* **Cloud accounts:** with a free Firebase project connected ([docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md), 5 minutes), anyone with the link can create their own account; everything they enter is saved to it and follows them to any computer. Each person sees only their own data.
+* Without the cloud setup, data lives in **this browser's IndexedDB** (one database per account) and nothing is uploaded. No telemetry, analytics, CDN or fonts. The only outside calls are the optional weather lookup and, when cloud accounts are on, Firebase (a CSP enforces it and a test checks it).
 * **Never sends e-mail.** Every message is a draft you review: `.eml` file (opens in Outlook as an unsent draft), `mailto:` link, Outlook-on-the-web compose link, or clipboard.
 * Chrome / Edge. Works offline after first load.
 
@@ -29,15 +31,17 @@ A local-first browser application that replaces the Excel (ThisWorkbook VBA) + O
 
 ## Documentation
 
-`docs/` — [AUDIT](docs/AUDIT.md) · [OPEN-QUESTIONS](docs/OPEN-QUESTIONS.md) · [FEATURES](docs/FEATURES.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA-STORAGE](docs/DATA-STORAGE.md) · [SECURITY-IT-REVIEW](docs/SECURITY-IT-REVIEW.md) · [PARITY-CHECKLIST](docs/PARITY-CHECKLIST.md) · [TEST-RESULTS](docs/TEST-RESULTS.md) · [LIMITATIONS](docs/LIMITATIONS.md) · [TROUBLESHOOTING](docs/TROUBLESHOOTING.md)
+`docs/` — [CLOUD-SETUP](docs/CLOUD-SETUP.md) · [AUDIT](docs/AUDIT.md) · [OPEN-QUESTIONS](docs/OPEN-QUESTIONS.md) · [FEATURES](docs/FEATURES.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA-STORAGE](docs/DATA-STORAGE.md) · [SECURITY-IT-REVIEW](docs/SECURITY-IT-REVIEW.md) · [PARITY-CHECKLIST](docs/PARITY-CHECKLIST.md) · [TEST-RESULTS](docs/TEST-RESULTS.md) · [LIMITATIONS](docs/LIMITATIONS.md) · [TROUBLESHOOTING](docs/TROUBLESHOOTING.md)
 
 ## Tests
 
 ```
 npm install
-npm test                 # 43 unit tests (node:test)
+npm test                 # 116 unit tests (node:test)
 npx playwright install chromium   # or: PW_CHROME=/path/to/chrome
 npm run test:e2e         # 35 browser checks against a local server
+npm run test:local       # 16 browser checks of on-computer accounts (several people, upgrade, reset, delete)
+npm run test:cloud       # 30 browser checks of sign-up / sync / isolation against a fake Firebase
 npm run build && npm run test:single   # single-file build from file://
 ```
 

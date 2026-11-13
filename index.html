@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.weather.gov; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -28,6 +28,7 @@
     <div class="spacer"></div>
     <div class="hdr-actions">
       <a id="pace" class="pace-strip early" href="#/covers" aria-label="Cover pace"></a>
+      <span id="syncstat" class="pill" role="status" hidden></span>
       <span id="zipstat" class="pill"></span>
       <button id="themebtn" class="hdr-btn" type="button" title="Toggle dark / light"></button>
       <a id="appearbtn" class="hdr-btn square" href="#/account" title="Appearance and account settings" aria-label="Appearance and account settings"></a>
