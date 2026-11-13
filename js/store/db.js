@@ -1,4 +1,6 @@
-// IndexedDB wrapper. All company data stays in this browser profile. Nothing is sent anywhere.
+// IndexedDB wrapper: the on-device copy of the workspace (fast, works offline). With cloud accounts switched on, every write
+// is also announced through onWrite() so store/cloud.js can save it to the person's account; the database is then named per
+// user (setDbName) so two people on one computer never see each other's data.
 // Stores: postings, carriers, inquiries, outreach, spares, drafts, kv (settings/counters), zipmap (raw CSV text), handles (bridge folder).
 
 export const DB_NAME = 'freight-signal';
@@ -17,11 +19,25 @@ export const STORES = {
   handles: { keyPath: 'key' },   // v2: Outlook-bridge folder handle (never exported in backups)
 };
 
-const BACKUP_STORES = ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv', 'customers', 'coverLog'];
+export const BACKUP_STORES = ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv', 'customers', 'coverLog'];
 
 let dbPromise = null;
+let activeName = DB_NAME;
 
-export function openDb(factory = globalThis.indexedDB, name = DB_NAME) {
+/** Which database the rest of this module reads and writes. Switching closes the previous connection. */
+export function setDbName(name) {
+  if (name === activeName) return;
+  if (dbPromise) dbPromise.then((d) => d.close()).catch(() => {});
+  dbPromise = null; activeName = name;
+}
+export const currentDbName = () => activeName;
+
+/** Observers told after every committed write: fn(storeName). Used by the cloud sync; never throws into the writer. */
+const writeListeners = new Set();
+export const onWrite = (fn) => { writeListeners.add(fn); return () => writeListeners.delete(fn); };
+const notify = (store) => { for (const fn of writeListeners) { try { fn(store); } catch (e) { console.error(e); } } };
+
+export function openDb(factory = globalThis.indexedDB, name = activeName) {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     if (!factory) { reject(new Error('IndexedDB is not available in this browser context.')); return; }
@@ -53,13 +69,15 @@ const tx = async (store, mode, fn) => {
 
 export const getAll = (store) => tx(store, 'readonly', (s) => s.getAll());
 export const get = (store, key) => tx(store, 'readonly', (s) => s.get(key));
-export const put = (store, obj) => tx(store, 'readwrite', (s) => { s.put(obj); });
-export const putMany = (store, objs) => tx(store, 'readwrite', (s) => { for (const o of objs) s.put(o); });
-export const del = (store, key) => tx(store, 'readwrite', (s) => { s.delete(key); });
-export const clear = (store) => tx(store, 'readwrite', (s) => { s.clear(); });
+export const put = (store, obj) => tx(store, 'readwrite', (s) => { s.put(obj); }).then((r) => { notify(store); return r; });
+export const putMany = (store, objs) => tx(store, 'readwrite', (s) => { for (const o of objs) s.put(o); }).then((r) => { notify(store); return r; });
+export const del = (store, key) => tx(store, 'readwrite', (s) => { s.delete(key); }).then((r) => { notify(store); return r; });
+export const clear = (store) => tx(store, 'readwrite', (s) => { s.clear(); }).then((r) => { notify(store); return r; });
 
 /** Replace the whole contents of a store in ONE transaction (all-or-nothing). */
-export const replaceAll = (store, objs) => tx(store, 'readwrite', (s) => { s.clear(); for (const o of objs) s.put(o); });
+export const replaceAll = (store, objs) => tx(store, 'readwrite', (s) => { s.clear(); for (const o of objs) s.put(o); }).then((r) => { notify(store); return r; });
+/** Same, but NOT announced to onWrite(): used when the rows came FROM the cloud, so they are not sent straight back. */
+export const replaceAllQuiet = (store, objs) => tx(store, 'readwrite', (s) => { s.clear(); for (const o of objs) s.put(o); });
 
 export async function kvGet(key, fallback) {
   const r = await get('kv', key);
@@ -91,6 +109,36 @@ export async function importAll(snapshot, mode = 'replace') {
     if (!STORES[s]) continue;
     if (mode === 'replace') await replaceAll(s, snapshot.data[s]); else await putMany(s, snapshot.data[s]);
   }
+}
+
+/** Rows of the pre-accounts database ('freight-signal') if this browser has one, else null. Read-only; never creates it. */
+export async function readLegacyLocal(factory = globalThis.indexedDB) {
+  if (!factory || typeof factory.databases !== 'function') return null;
+  try { if (!(await factory.databases()).some((d) => d.name === DB_NAME)) return null; } catch { return null; }
+  let legacy;
+  try {
+    legacy = await new Promise((resolve, reject) => {
+      const req = factory.open(DB_NAME);
+      req.onupgradeneeded = () => { try { req.transaction.abort(); } catch { /* ignore */ } };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error('blocked'));
+    });
+  } catch { return null; }
+  try {
+    const out = {};
+    for (const s of BACKUP_STORES) {
+      if (!legacy.objectStoreNames.contains(s)) { out[s] = []; continue; }
+      out[s] = await new Promise((resolve, reject) => { const r = legacy.transaction(s, 'readonly').objectStore(s).getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    }
+    return out;
+  } catch { return null; } finally { legacy.close(); }
+}
+
+/** Delete a whole database (used by "sign out and remove this device's copy"). */
+export async function deleteDatabase(name, factory = globalThis.indexedDB) {
+  if (name === activeName && dbPromise) { try { (await dbPromise).close(); } catch { /* ignore */ } dbPromise = null; }
+  await new Promise((resolve) => { const r = factory.deleteDatabase(name); r.onsuccess = r.onerror = r.onblocked = () => resolve(); });
 }
 
 export async function wipeAll(includeZip = false) {

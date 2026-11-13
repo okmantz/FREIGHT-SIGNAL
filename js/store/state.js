@@ -43,8 +43,7 @@ async function guard(fn) {
   try { return await fn(); } catch (e) { state.persistError = String(e && e.message || e); console.error(e); throw e; }
 }
 
-export async function loadAll(zipFetcher) {
-  await db.openDb();
+async function loadStores() {
   state.settings = { ...DEFAULT_SETTINGS, ...(await db.kvGet('settings', {})) };
   state.counters = { ...state.counters, ...(await db.kvGet('counters', {})) };
   state.postings = (await db.getAll('postings')).sort((a, b) => a.order - b.order);
@@ -56,8 +55,19 @@ export async function loadAll(zipFetcher) {
   state.customers = await db.getAll('customers');
   state.coverLog = (await db.getAll('coverLog')).sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt)));
   state.carrierRev++;
+}
+
+export async function loadAll(zipFetcher) {
+  await db.openDb();
+  await loadStores();
   await loadZip(zipFetcher);
   state.ready = true;
+  emit();
+}
+
+/** Re-read every store from IndexedDB (after changes from another device were applied) and redraw. */
+export async function reloadStores() {
+  await loadStores();
   emit();
 }
 
