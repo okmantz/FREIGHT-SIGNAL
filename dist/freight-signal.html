@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-R1Sp6rpVlKEhSw1xZIYTrIchl68ninPrcbPD5LoINsE='; style-src 'sha256-aI1qKUgpb4isR1e9MN/pMxXdIUOFnll1PSr3f23NlQg='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-6AKp2GnwLccRxaY5patXJTfQ+tVDTugXEugJYL7lH5I='; style-src 'sha256-aI1qKUgpb4isR1e9MN/pMxXdIUOFnll1PSr3f23NlQg='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -1889,7 +1889,7 @@ html.locked #toasts { z-index: 270; }
   function fmt1(x) {
     return (Math.round((x + Number.EPSILON) * 10) / 10).toFixed(1);
   }
-  function formatCurrency02(x) {
+  function formatCurrency0(x) {
     const r = vbaRound(Math.abs(x), 0);
     const s = "$" + r.toLocaleString("en-US");
     return x < 0 ? "(" + s + ")" : s;
@@ -3080,15 +3080,15 @@ html.locked #toasts { z-index: 270; }
   function ladderReply(rate2, target, settings = DEFAULT_SETTINGS) {
     const st2 = ladderStage(rate2, target, settings);
     const tpls = templatesOf(settings);
-    const vars = { rate: formatCurrency02(safeNumeric(rate2)), target: formatCurrency02(safeNumeric(target)), split: st2.split ? formatCurrency02(st2.split) : "", pct: Math.abs(st2.pct).toFixed(1) + "%" };
+    const vars = { rate: formatCurrency0(safeNumeric(rate2)), target: formatCurrency0(safeNumeric(target)), split: st2.split ? formatCurrency0(st2.split) : "", pct: Math.abs(st2.pct).toFixed(1) + "%" };
     const key = st2.stage === "book" ? "book" : st2.stage === "split" ? "split" : "target";
     return { ...st2, text: fillTemplate(tpls[key], vars).replace(/\r?\n/g, "\r\n") };
   }
   function ladderAction(st2, rate2, target) {
     const pct2 = Math.abs(st2.pct).toFixed(1);
     if (st2.stage === "book") return st2.pct <= 0 ? `Rate at or under target (${pct2}% ${st2.pct < 0 ? "under" : "equal"}) - ETA confirmation drafted` : `Rate ${pct2}% over target (inside the booking band) - ETA confirmation drafted`;
-    if (st2.stage === "split") return `Rate ${pct2}% over target - split-the-difference counter drafted (${formatCurrency02(st2.split)})`;
-    return `Rate ${pct2}% over target - counter at ${formatCurrency02(safeNumeric(target))} drafted`;
+    if (st2.stage === "split") return `Rate ${pct2}% over target - split-the-difference counter drafted (${formatCurrency0(st2.split)})`;
+    return `Rate ${pct2}% over target - counter at ${formatCurrency0(safeNumeric(target))} drafted`;
   }
   var DEFAULT_TEMPLATES, TEMPLATE_VARS, roundTo;
   var init_ladder = __esm({
@@ -3517,7 +3517,7 @@ html.locked #toasts { z-index: 270; }
       case "mixed":
         return done(manual(FLAGS.unclear, "The carrier both declined and mentioned a rate: read it yourself.", { stageNext: "FOLLOWUP_FLAGGED" }));
       case "rate_unclear":
-        return done(manual(FLAGS.rateUnclear, a.rate.perMile ? "The carrier quoted a per-mile rate." : "The carrier mentioned more than one amount (" + a.rate.candidates.map(formatCurrency02).join(", ") + ").", { stageNext: "FOLLOWUP_FLAGGED" }));
+        return done(manual(FLAGS.rateUnclear, a.rate.perMile ? "The carrier quoted a per-mile rate." : "The carrier mentioned more than one amount (" + a.rate.candidates.map(formatCurrency0).join(", ") + ").", { stageNext: "FOLLOWUP_FLAGGED" }));
       case "pushback":
         return done(manual(FLAGS.pushback, "The carrier said the rate does not work.", { stageNext: "FOLLOWUP_FLAGGED" }));
       case "wants_call":
@@ -3528,13 +3528,13 @@ html.locked #toasts { z-index: 270; }
         return done(manual(FLAGS.unclear, "The reply was not clearly a rate, a question about the rate, an ETA or an answer.", { stageNext: "FOLLOWUP_FLAGGED" }));
       case "accepts": {
         const our = Number(state2.ourRate) || 0;
-        if (our > 0 && stage === "RATE_RESPONSE_SENT" && state2.ladderStage !== "book" && a.tags.givesEta) return done(manual(FLAGS.agreed + " (ETA GIVEN)", "The carrier agreed to " + formatCurrency02(our) + " and gave an ETA: book it.", { stageNext: "ETA_RECEIVED" }));
+        if (our > 0 && stage === "RATE_RESPONSE_SENT" && state2.ladderStage !== "book" && a.tags.givesEta) return done(manual(FLAGS.agreed + " (ETA GIVEN)", "The carrier agreed to " + formatCurrency0(our) + " and gave an ETA: book it.", { stageNext: "ETA_RECEIVED" }));
         if (!(our > 0) || !(stage === "RATE_RESPONSE_SENT") || state2.ladderStage === "book") return done(manual(FLAGS.unclear, '"Yes / ok" but there is no counter on the table to agree to.', { stageNext: "FOLLOWUP_FLAGGED" }));
         return done({
           kind: "agreed",
-          text: fillTemplate(tpl.agreed, { ourRate: formatCurrency02(our), target: formatCurrency02(t2) }),
+          text: fillTemplate(tpl.agreed, { ourRate: formatCurrency0(our), target: formatCurrency0(t2) }),
           flag: FLAGS.agreed,
-          reason: "The carrier agreed to " + formatCurrency02(our) + ".",
+          reason: "The carrier agreed to " + formatCurrency0(our) + ".",
           stageNext: "AGREED",
           ladderNext: "book",
           ourRateNext: our,
@@ -3543,8 +3543,8 @@ html.locked #toasts { z-index: 270; }
       }
       case "rate": {
         const r = a.rate.rate;
-        if (!(t2 > 0)) return done(manual(FLAGS.noTarget, "Carrier rate " + formatCurrency02(r) + " received, but this posting has no target rate to compare it with.", { stageNext: "FOLLOWUP_RECEIVED", rate: r }));
-        if (r < t2 * 0.5 || r > t2 * 3) return done(manual(FLAGS.rateWrong, "Carrier rate " + formatCurrency02(r) + " is far from the " + formatCurrency02(t2) + " target: check it is a real quote.", { stageNext: "FOLLOWUP_RECEIVED", rate: r }));
+        if (!(t2 > 0)) return done(manual(FLAGS.noTarget, "Carrier rate " + formatCurrency0(r) + " received, but this posting has no target rate to compare it with.", { stageNext: "FOLLOWUP_RECEIVED", rate: r }));
+        if (r < t2 * 0.5 || r > t2 * 3) return done(manual(FLAGS.rateWrong, "Carrier rate " + formatCurrency0(r) + " is far from the " + formatCurrency0(t2) + " target: check it is a real quote.", { stageNext: "FOLLOWUP_RECEIVED", rate: r }));
         const lad = ladderReply(r, t2, settings);
         const flag = lad.stage === "book" ? "RATE RECEIVED - REVIEW / ETA" : lad.stage === "split" ? "RATE RECEIVED - SPLIT COUNTER DRAFTED" : "";
         const our = lad.stage === "split" ? lad.split : lad.stage === "target" ? t2 : r;
@@ -3552,7 +3552,7 @@ html.locked #toasts { z-index: 270; }
           kind: "ladder",
           text: lad.text,
           flag,
-          reason: "Carrier rate " + formatCurrency02(r) + " vs target " + formatCurrency02(t2) + " (" + (lad.pct >= 0 ? "+" : "") + lad.pct.toFixed(1) + "%).",
+          reason: "Carrier rate " + formatCurrency0(r) + " vs target " + formatCurrency0(t2) + " (" + (lad.pct >= 0 ? "+" : "") + lad.pct.toFixed(1) + "%).",
           stageNext: "RATE_RESPONSE_SENT",
           ladderNext: lad.stage,
           ourRateNext: our,
@@ -3566,7 +3566,7 @@ html.locked #toasts { z-index: 270; }
         const lead = a.tags.asksAvail ? tpl.availableLead + " " : "";
         return done({
           kind: "asks_rate",
-          text: lead + fillTemplate(tpl.askRate, { target: formatCurrency02(t2) }),
+          text: lead + fillTemplate(tpl.askRate, { target: formatCurrency0(t2) }),
           flag: "",
           reason: "The carrier asked what the rate is: answered with your target.",
           stageNext: "RATE_RESPONSE_SENT",
@@ -3744,7 +3744,7 @@ html.locked #toasts { z-index: 270; }
       if (a.intent === "stop" || a.intent === "decline") return { action: "ignored", reason: "The carrier is not interested, so no reply was drafted.", intent: a.intent };
       const target = safeNumeric(m.posting.targetRate);
       const askRate = a.intent === "asks_rate" && target > 0;
-      const ask = askRate ? fillTemplate(tpl.askRate, { target: formatCurrency02(target) }) + CRLF + "What is your ETA to pickup?" : "What is your best all-in rate? ETA to pickup?";
+      const ask = askRate ? fillTemplate(tpl.askRate, { target: formatCurrency0(target) }) + CRLF + "What is your ETA to pickup?" : "What is your best all-in rate? ETA to pickup?";
       const draft = mkDraft(m.details + CRLF + CRLF + ask, { display: true, kind: "Inquiry reply", autoSendSafe: m.score % 1e3 >= 220 && a.intent !== "wants_call" && a.intent !== "pushback" });
       const count3 = safeNumeric(m.posting.inquiryCount) + 1;
       return {
@@ -3809,10 +3809,10 @@ html.locked #toasts { z-index: 270; }
       patch.lastAction = ladderAction({ ...plan.ladder }, plan.rate, targetRate);
     } else if (plan.kind === "asks_rate") {
       patch.rateResponseSent = "YES";
-      patch.lastAction = "Carrier asked for the rate - answered with your target (" + formatCurrency02(targetRate) + ")";
+      patch.lastAction = "Carrier asked for the rate - answered with your target (" + formatCurrency0(targetRate) + ")";
     } else if (plan.kind === "agreed") {
       patch.rateResponseSent = "YES";
-      patch.lastAction = "Carrier agreed to " + formatCurrency02(plan.ourRateNext) + " - ETA requested";
+      patch.lastAction = "Carrier agreed to " + formatCurrency0(plan.ourRateNext) + " - ETA requested";
     } else if (plan.kind === "available") patch.lastAction = "Carrier asked if the load is available - confirmed and asked for a rate";
     else patch.lastAction = "Carrier gave no rate - asked for it";
     patch.flag = flag;
@@ -6475,7 +6475,7 @@ html.locked #toasts { z-index: 270; }
   function rateWords(st2) {
     const r = st2.rateInfo || { mode: "none", count: 0, total: st2.postings || 0 };
     if (r.mode === "own") return `a rate on ${r.count} of ${r.total} postings`;
-    if (r.mode === "target") return `${formatCurrency02(st2.target)} on all ${r.total} postings`;
+    if (r.mode === "target") return `${formatCurrency0(st2.target)} on all ${r.total} postings`;
     return "no rate on any posting";
   }
   function memCompare(st2) {
@@ -6483,8 +6483,8 @@ html.locked #toasts { z-index: 270; }
     const last2 = st2.mem.last.rate;
     const d = st2.target - last2;
     const pct2 = Math.abs(d) / last2 * 100;
-    if (pct2 < 2) return `Your ${formatCurrency02(st2.target)} is in line with the last cover on this lane (${formatCurrency02(last2)}).`;
-    return `Your ${formatCurrency02(st2.target)} is ${pct2.toFixed(0)}% ${d < 0 ? "under" : "over"} the last cover on this lane (${formatCurrency02(last2)}).`;
+    if (pct2 < 2) return `Your ${formatCurrency0(st2.target)} is in line with the last cover on this lane (${formatCurrency0(last2)}).`;
+    return `Your ${formatCurrency0(st2.target)} is ${pct2.toFixed(0)}% ${d < 0 ? "under" : "over"} the last cover on this lane (${formatCurrency0(last2)}).`;
   }
   function slotNote(st2, extra, now, ctx2) {
     const T = st2.ageHours;
@@ -6506,18 +6506,18 @@ html.locked #toasts { z-index: 270; }
         slot,
         title: `${mark} check: ${quotes.length} quote${quotes.length === 1 ? "" : "s"} on the table`,
         detail: R([
-          `Best quote on ${lane} is ${formatCurrency02(best)}${over !== null ? ` (${over}% over target)` : ""}. Reply to that carrier first and ask whether ${formatCurrency02(st2.target || best)} works if you can confirm today.`,
+          `Best quote on ${lane} is ${formatCurrency0(best)}${over !== null ? ` (${over}% over target)` : ""}. Reply to that carrier first and ask whether ${formatCurrency0(st2.target || best)} works if you can confirm today.`,
           `${quotes.length} carrier${quotes.length === 1 ? " has" : "s have"} quoted so far (${n} replies total). Call the lowest quote now: a phone conversation closes the last 3-5% faster than another email.`,
           `Still no deal at ${mark}. Carriers who quoted early move on fast. Send the best one a firm answer, yes or a specific number, so they stop shopping the load.`
         ])
       };
     }
     if (n === 0) {
-      const mem = st2.mem ? `This lane last covered at ${formatCurrency02(st2.mem.last.rate)}. ` : "";
+      const mem = st2.mem ? `This lane last covered at ${formatCurrency0(st2.mem.last.rate)}. ` : "";
       const pool2 = [
         { t: "Refresh and confirm the post is live", d: `${lane} (${kind}, ${pickup}) has been live ${mark} with no inquiries. Refresh DAT and your inbox (including Junk), and confirm every posting is still showing.`, a: { type: "csv", label: "Re-post (download CSV)" } },
         { t: "Silence at 1 hour: check, then reach out", d: `${mark} with nothing on ${lane}. ${depth ? `Draft outreach to the ${Math.min(depth, extra.wave || 5)} best-matched of ${depth} carriers in your database.` : "Your database has no carriers for this lane yet, so search DAT Find Trucks and call two."}`, a: depth && !st2.outreachSent ? { type: "outreach", label: "Draft first wave" } : null },
-        { t: "Compare your rate with the market", d: `${mem}${st2.target > 0 ? memCompare(st2) + " " : ""}Open RateView for ${lane}: if the posted rate is below the market average, a ${rp ? formatCurrency02(rp.step) + " raise to " + formatCurrency02(rp.to) : "raise"} is the likeliest fix.`, a: rp && did.reprice < 3 ? { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency02(rp.to)}` } : null },
+        { t: "Compare your rate with the market", d: `${mem}${st2.target > 0 ? memCompare(st2) + " " : ""}Open RateView for ${lane}: if the posted rate is below the market average, a ${rp ? formatCurrency0(rp.step) + " raise to " + formatCurrency0(rp.to) : "raise"} is the likeliest fix.`, a: rp && did.reprice < 3 ? { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` } : null },
         { t: "Widen the reach", d: unused > 0 ? `${mark} live. ${unused} more carrier${unused === 1 ? "" : "s"} that fit ${lane} have not heard about it. Send the second wave.` : `${mark} live. Everyone in your database that fits ${lane} has been contacted, so search DAT Find Trucks for new names.`, a: unused > 0 && did.wave2 < 2 ? { type: "wave2", label: "Draft second wave" } : null },
         { t: "Change what trucks see", d: `Trucks searching near ${st2.head.originCity || "the origin"} may never see these postings. Rebuild the nearby cities with fresh high-traffic markets so ${lane} appears in more searches.`, a: did.recities < 3 ? { type: "recities", label: "Reshuffle postings" } : null },
         { t: "Pick up the phone", d: `${mark} without a single inquiry on ${lane}. Call the three carriers who ran ${kind} freight most recently; a direct ask beats waiting on the post.`, a: { type: "call", label: "Call list" } },
@@ -6531,9 +6531,9 @@ html.locked #toasts { z-index: 270; }
     const pool = [
       `${n} inquir${n === 1 ? "y" : "ies"} on ${lane} after ${mark} (${heat} interest${lastAgo !== null ? `, latest ${hm(lastAgo)} ago` : ""}). Make sure every one has been answered and asked for an all-in rate and ETA.`,
       calm ? `Nothing new on ${lane} for ${hm(lastAgo)}. Phone the carriers who e-mailed without a rate: a spoken number is faster than another round of email.` : `Interest on ${lane} is still arriving (${n} so far). Do not touch the price; chase the carriers who have not given a rate yet.`,
-      heat === "light" ? `Only ${n} inquir${n === 1 ? "y" : "ies"} in ${mark} on ${lane}. ${rp ? `A ${formatCurrency02(rp.step)} raise to ${formatCurrency02(rp.to)} could turn browsers into quotes.` : "Consider a small rate raise."}` : `${heat === "strong" ? "Strong" : "Steady"} demand on ${lane}: ${n} inquiries and still no rate. Ask directly for "best all-in rate and ETA" in your next reply.`
+      heat === "light" ? `Only ${n} inquir${n === 1 ? "y" : "ies"} in ${mark} on ${lane}. ${rp ? `A ${formatCurrency0(rp.step)} raise to ${formatCurrency0(rp.to)} could turn browsers into quotes.` : "Consider a small rate raise."}` : `${heat === "strong" ? "Strong" : "Steady"} demand on ${lane}: ${n} inquiries and still no rate. Ask directly for "best all-in rate and ETA" in your next reply.`
     ];
-    return { slot, title: `${mark} check: ${n} inquir${n === 1 ? "y" : "ies"}, no rate yet`, detail: R(pool), action: heat === "light" && rp && did.reprice < 3 ? { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency02(rp.to)}` } : null };
+    return { slot, title: `${mark} check: ${n} inquir${n === 1 ? "y" : "ies"}, no rate yet`, detail: R(pool), action: heat === "light" && rp && did.reprice < 3 ? { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` } : null };
   }
   function nextSteps(st2, extra = {}) {
     const now = extra.now || /* @__PURE__ */ new Date();
@@ -6556,7 +6556,7 @@ html.locked #toasts { z-index: 270; }
     const T = st2.ageHours;
     if (!st2.rateSet) {
       const memRate = st2.mem ? st2.mem.last.rate : 0;
-      add("setrate", "Set a target rate", memRate ? `No target rate yet. ${lane} last covered at ${formatCurrency02(memRate)}. The target judges carrier replies; it does not have to be posted on every posting.` : "Enter the target rate for this load so carrier replies can be judged. It does not have to be posted on every posting.", memRate ? { type: "setRate", rate: memRate, label: `Use ${formatCurrency02(memRate)}` } : null, true);
+      add("setrate", "Set a target rate", memRate ? `No target rate yet. ${lane} last covered at ${formatCurrency0(memRate)}. The target judges carrier replies; it does not have to be posted on every posting.` : "Enter the target rate for this load so carrier replies can be judged. It does not have to be posted on every posting.", memRate ? { type: "setRate", rate: memRate, label: `Use ${formatCurrency0(memRate)}` } : null, true);
       level = "act";
       phase = "unpriced";
     }
@@ -6567,12 +6567,12 @@ html.locked #toasts { z-index: 270; }
     if (quotes.length && st2.target > 0) {
       const best = st2.inquiries.bestQuote, lad = st2.inquiries.stage;
       if (lad && lad.stage === "book") {
-        add("book", "Book it", `A carrier quoted ${formatCurrency02(best)} on ${lane} - ${lad.pct <= 0 ? "at or under" : lad.pct.toFixed(1) + "% over"} your ${formatCurrency02(st2.target)} target. Confirm the ETA and book.`, { type: "cover", label: "Mark covered\u2026" }, true);
+        add("book", "Book it", `A carrier quoted ${formatCurrency0(best)} on ${lane} - ${lad.pct <= 0 ? "at or under" : lad.pct.toFixed(1) + "% over"} your ${formatCurrency0(st2.target)} target. Confirm the ETA and book.`, { type: "cover", label: "Mark covered\u2026" }, true);
         level = "urgent";
         phase = "booking";
         headline = "Rate is inside your booking band";
       } else if (lad && lad.stage === "split") {
-        add("split", "Let the split counter work", `Best quote ${formatCurrency02(best)} is ${lad.pct.toFixed(1)}% over target; a counter at ${formatCurrency02(lad.split)} was drafted. If there is no reply in about 30 minutes, call the carrier.`, null, true);
+        add("split", "Let the split counter work", `Best quote ${formatCurrency0(best)} is ${lad.pct.toFixed(1)}% over target; a counter at ${formatCurrency0(lad.split)} was drafted. If there is no reply in about 30 minutes, call the carrier.`, null, true);
         if (level === "ok") level = "watch";
         phase = "negotiating";
         headline = "Negotiating - close to your number";
@@ -6580,12 +6580,12 @@ html.locked #toasts { z-index: 270; }
         const hi = st2.inquiries.avgQuote > 0 && (st2.inquiries.avgQuote - st2.target) / st2.target * 100 > st2.splitPct;
         if (quotes.length >= 2 && hi && rp) {
           const to = round25(Math.max(rp.to, (st2.datRate || 0) + (st2.inquiries.avgQuote - st2.target) / 2));
-          add("market", "Carriers are asking more than your target", `${quotes.length} quotes on ${lane} average ${formatCurrency02(st2.inquiries.avgQuote)} against a ${formatCurrency02(st2.target)} target. The market is telling you the rate is light - raise it toward ${formatCurrency02(to)} or push the customer.`, { type: "reprice", to, label: `Raise DAT rate to ${formatCurrency02(to)}` }, true);
+          add("market", "Carriers are asking more than your target", `${quotes.length} quotes on ${lane} average ${formatCurrency0(st2.inquiries.avgQuote)} against a ${formatCurrency0(st2.target)} target. The market is telling you the rate is light - raise it toward ${formatCurrency0(to)} or push the customer.`, { type: "reprice", to, label: `Raise DAT rate to ${formatCurrency0(to)}` }, true);
           level = "act";
           phase = "underpriced";
           headline = "Quotes are running above target";
         } else {
-          add("counter", "Hold at target", `Best quote ${formatCurrency02(best)} is ${lad.pct.toFixed(1)}% over target. Counter drafts are asking for ${formatCurrency02(st2.target)}; give carriers time to come down before moving.`, null, !steps2.length);
+          add("counter", "Hold at target", `Best quote ${formatCurrency0(best)} is ${lad.pct.toFixed(1)}% over target. Counter drafts are asking for ${formatCurrency0(st2.target)}; give carriers time to come down before moving.`, null, !steps2.length);
           if (level === "ok") level = "watch";
           phase = "negotiating";
         }
@@ -6608,7 +6608,7 @@ html.locked #toasts { z-index: 270; }
         phase = "engaged";
         headline = "Engaged but no rate yet";
         if (level === "ok") level = "watch";
-        if (!wait && st2.ageHours >= s.staleHours * 1.5 && rp && since(st2, "reprice", now) > cooldown * 2) add("nudge", `Small bump: +${formatCurrency02(rp.step)}`, `Interest is thin after ${hm(st2.ageHours)} live. A small raise to ${formatCurrency02(rp.to)} can turn inquiries into quotes.`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency02(rp.to)}` });
+        if (!wait && st2.ageHours >= s.staleHours * 1.5 && rp && since(st2, "reprice", now) > cooldown * 2) add("nudge", `Small bump: +${formatCurrency0(rp.step)}`, `Interest is thin after ${hm(st2.ageHours)} live. A small raise to ${formatCurrency0(rp.to)} can turn inquiries into quotes.`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` });
       }
     }
     if (n === 0 && phase === "posted") {
@@ -6678,7 +6678,7 @@ html.locked #toasts { z-index: 270; }
           const can = (k) => k === "outreach" ? true : k === "reprice" ? did.reprice < 3 && rp && r.mode !== "none" : k === "wave2" ? did.wave2 < 2 && extra.unusedDepth > 0 : k === "recities" ? did.recities < 2 : k === "call" ? did.call < 2 : false;
           const mk3 = (k, primary) => {
             if (k === "outreach") add("outreach", `Draft outreach to ${extra.wave || 5} ranked carriers`, `Nobody has been contacted about ${lane} and ${extra.depth} carrier${extra.depth === 1 ? "" : "s"} fit it.`, { type: "outreach", label: "Draft first wave" }, primary);
-            else if (k === "reprice") add("reprice", `Raise the rate +${formatCurrency02(rp.step)}`, `${hm(T)} live with no inquiries${did.reprice ? ` and ${did.reprice} earlier raise${did.reprice === 1 ? "" : "s"} (the next one is bigger)` : ""}. ${formatCurrency02(rp.from || rp.to - rp.step)} \u2192 ${formatCurrency02(rp.to)} (${rp.basis}). Re-post after.`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency02(rp.to)}` }, primary);
+            else if (k === "reprice") add("reprice", `Raise the rate +${formatCurrency0(rp.step)}`, `${hm(T)} live with no inquiries${did.reprice ? ` and ${did.reprice} earlier raise${did.reprice === 1 ? "" : "s"} (the next one is bigger)` : ""}. ${formatCurrency0(rp.from || rp.to - rp.step)} \u2192 ${formatCurrency0(rp.to)} (${rp.basis}). Re-post after.`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` }, primary);
             else if (k === "wave2") add("wave2", `Second wave: ${extra.wave || 5} more carriers`, `${extra.unusedDepth} carrier${extra.unusedDepth === 1 ? "" : "s"} that fit ${lane} have not been contacted for this load yet.`, { type: "wave2", label: "Draft second wave" }, primary);
             else if (k === "recities") add("recities", "Swap the alternate cities", `Rebuild the 3 \xD7 3 with fresh high-traffic markets${did.recities ? " (different from the last try)" : ""} so ${lane} shows up in other trucks' searches.`, { type: "recities", label: "Rebuild cities" }, primary);
             else if (k === "call") add("call", "Start calling out", `Phone the best-matched carriers for ${lane}. A call beats an unanswered post on a load that has been live ${hm(T)}.`, { type: "call", label: "Call list" }, primary);
@@ -8862,7 +8862,7 @@ Download anyway?`, "Download anyway");
               if (c) toast("Carrier added/updated in the Carrier Database.", "ok");
             }));
             if (k === "dateCounted" || k === "dateAdded") return h("td", null, fmtDate(i[k]));
-            if (k === "lastCarrierRate" && i[k] !== "" && i[k] !== void 0) return h("td", { class: "num" }, formatCurrency02(Number(i[k])));
+            if (k === "lastCarrierRate" && i[k] !== "" && i[k] !== void 0) return h("td", { class: "num" }, formatCurrency0(Number(i[k])));
             return h("td", null, i[k] ?? "");
           })
         )) : h("tr", null, h("td", { colspan: 20, class: "muted" }, "No inquiries logged.")))
@@ -11276,8 +11276,8 @@ Download anyway?`, "Download anyway");
     };
     const ex = (target, rate2) => {
       const st2 = ladderStage(rate2, target, s);
-      const label2 = st2.stage === "book" ? "book it (ETA)" : st2.stage === "split" ? `split at ${formatCurrency02(st2.split)}` : `counter at ${formatCurrency02(target)}`;
-      return h("tr", null, h("td", null, formatCurrency02(target)), h("td", null, formatCurrency02(rate2)), h("td", null, (st2.pct >= 0 ? "+" : "") + st2.pct.toFixed(1) + "%"), h("td", null, h("b", null, label2)));
+      const label2 = st2.stage === "book" ? "book it (ETA)" : st2.stage === "split" ? `split at ${formatCurrency0(st2.split)}` : `counter at ${formatCurrency0(target)}`;
+      return h("tr", null, h("td", null, formatCurrency0(target)), h("td", null, formatCurrency0(rate2)), h("td", null, (st2.pct >= 0 ? "+" : "") + st2.pct.toFixed(1) + "%"), h("td", null, h("b", null, label2)));
     };
     return h(
       "div",
