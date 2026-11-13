@@ -20,7 +20,7 @@ const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const css = rd('css/app.css').toString('utf8').replace(/^[^\n{}]*\{[^{}]*url\("\.\.\/assets\/backgrounds\/[^)]*\)[^{}]*\}\s*$/gm, '');
 const zipGz = zlib.gzipSync(rd('data/uszips.csv'), { level: 9 }).toString('base64');
 const sample = rd('data/sample/sample-backup.json').toString('utf8');
-const macroText = rd('outlook/Outlook_v5_ThisOutlookSession.txt').toString('utf8');
+const macroText = rd('outlook/Outlook_v6_ThisOutlookSession.txt').toString('utf8');
 const embed = `globalThis.__FS_EMBEDDED_ZIP=${JSON.stringify(zipGz)};globalThis.__FS_SAMPLE=${JSON.stringify(sample)};globalThis.__FS_MACRO=${JSON.stringify(macroText)};`;
 
 let html = rd('index.html').toString('utf8');
