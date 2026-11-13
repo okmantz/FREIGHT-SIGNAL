@@ -1,0 +1,404 @@
+{
+ "own": "Pickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715",
+ "cases": [
+  {
+   "name": "bare rate?",
+   "body": "rate?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "Rate with outlook history",
+   "body": "rate?\n\nFrom: Owen Mantz <owen@t58.example>\nSent: Friday, November 13, 2026 12:29 PM\nTo: carrier@x.example\nSubject: RE: Chicago, IL to Atlanta, GA\n\nPickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715\nWhat is your best all-in rate? ETA to pickup?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "Rate with gmail history",
+   "body": "Rate\n\nOn Fri, Nov 13, 2026 at 12:29 PM Owen Mantz <owen@t58.example> wrote:\n\n> Pickup: Chicago, IL 60601\n> Rate posted 1200 all in\n> What is your best all-in rate? ETA to pickup?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "whats the rate",
+   "body": "What's the rate?\n\nThanks,\nJohn Smith\nDispatcher\nSwift Haul LLC\n(312) 555-0147\nMC 123456",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "what are you paying",
+   "body": "what are you paying on this",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "how much",
+   "body": "how much?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "whats it paying",
+   "body": "what's it paying",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "send rate",
+   "body": "Please send rate and details",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "rate on this load",
+   "body": "Rate on this load?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "still available",
+   "body": "Is this still available?",
+   "intent": "asks_available"
+  },
+  {
+   "name": "still available hist",
+   "body": "still available?\n\nFrom: Owen Mantz <owen@t58.example>\nSent: Friday, November 13, 2026 12:29 PM\nTo: carrier@x.example\nSubject: RE: Chicago, IL to Atlanta, GA\n\nPickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715\nWhat is your best all-in rate? ETA to pickup?",
+   "intent": "asks_available"
+  },
+  {
+   "name": "available both",
+   "body": "Is this still available? What is the rate?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "plain dollar",
+   "body": "I can do $1,350 all in",
+   "intent": "rate",
+   "rate": 1350
+  },
+  {
+   "name": "dollar no comma",
+   "body": "I can do $1350",
+   "intent": "rate",
+   "rate": 1350
+  },
+  {
+   "name": "all in suffix",
+   "body": "1400 all in",
+   "intent": "rate",
+   "rate": 1400
+  },
+  {
+   "name": "do it for",
+   "body": "We can do it for 1250.",
+   "intent": "rate",
+   "rate": 1250
+  },
+  {
+   "name": "rate is",
+   "body": "my rate is 1600\n\nThanks,\nJohn Smith\nDispatcher\nSwift Haul LLC\n(312) 555-0147\nMC 123456",
+   "intent": "rate",
+   "rate": 1600
+  },
+  {
+   "name": "k notation",
+   "body": "can do 1.4k",
+   "intent": "rate",
+   "rate": 1400
+  },
+  {
+   "name": "bare number",
+   "body": "1450",
+   "intent": "rate",
+   "rate": 1450
+  },
+  {
+   "name": "bare dollar",
+   "body": "$1,450",
+   "intent": "rate",
+   "rate": 1450
+  },
+  {
+   "name": "rate with history ignoring quoted",
+   "body": "I can do $1,350\n\nFrom: Owen Mantz <owen@t58.example>\nSent: Friday, November 13, 2026 12:29 PM\nTo: carrier@x.example\nSubject: RE: Chicago, IL to Atlanta, GA\n\nPickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715\nWhat is your best all-in rate? ETA to pickup?",
+   "intent": "rate",
+   "rate": 1350
+  },
+  {
+   "name": "rate with gmail history",
+   "body": "Looking for 1500\n\nOn Fri, Nov 13, 2026 at 12:29 PM Owen Mantz <owen@t58.example> wrote:\n\n> Pickup: Chicago, IL 60601\n> Rate posted 1200 all in\n> What is your best all-in rate? ETA to pickup?",
+   "intent": "rate",
+   "rate": 1500
+  },
+  {
+   "name": "quoted rate only",
+   "body": "ok let me check\n\nOn Fri, Nov 13, 2026 at 12:29 PM Owen Mantz <owen@t58.example> wrote:\n\n> Pickup: Chicago, IL 60601\n> Rate posted 1200 all in\n> What is your best all-in rate? ETA to pickup?",
+   "intent": "unclear"
+  },
+  {
+   "name": "two rates",
+   "body": "I can do 1500 but 1400 if I load Friday",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "per mile",
+   "body": "I need $2.50 per mile",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "per mile rpm",
+   "body": "2.25 rpm",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "weight number is not a rate",
+   "body": "what is the weight? 42000 lbs?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "time not rate",
+   "body": "can pick up at 1500",
+   "intent": "gives_eta"
+  },
+  {
+   "name": "zip not rate",
+   "body": "I am in 60601",
+   "intent": "unclear"
+  },
+  {
+   "name": "phone not rate",
+   "body": "call me 312-555-0147",
+   "intent": "wants_call"
+  },
+  {
+   "name": "year not rate",
+   "body": "need to know by 2026",
+   "intent": "unclear"
+  },
+  {
+   "name": "miles not rate",
+   "body": "total miles 715?",
+   "intent": "empty"
+  },
+  {
+   "name": "decline",
+   "body": "No thanks, not interested",
+   "intent": "decline"
+  },
+  {
+   "name": "decline cant",
+   "body": "can't do this one",
+   "intent": "decline"
+  },
+  {
+   "name": "decline covered",
+   "body": "already covered",
+   "intent": "decline"
+  },
+  {
+   "name": "stop",
+   "body": "please remove me from your list",
+   "intent": "stop"
+  },
+  {
+   "name": "unsubscribe",
+   "body": "unsubscribe",
+   "intent": "stop"
+  },
+  {
+   "name": "declined with rate",
+   "body": "can't do 1200, need 1500",
+   "intent": "mixed"
+  },
+  {
+   "name": "pushback",
+   "body": "that's too low",
+   "intent": "pushback"
+  },
+  {
+   "name": "pushback2",
+   "body": "that rate wont work",
+   "intent": "pushback"
+  },
+  {
+   "name": "gives eta",
+   "body": "I can be there by 2pm tomorrow",
+   "intent": "gives_eta"
+  },
+  {
+   "name": "eta word",
+   "body": "ETA 3pm",
+   "intent": "gives_eta"
+  },
+  {
+   "name": "truck",
+   "body": "I have a dry van empty in Joliet",
+   "intent": "gives_truck"
+  },
+  {
+   "name": "truck2",
+   "body": "got a truck in Gary",
+   "intent": "gives_truck"
+  },
+  {
+   "name": "asks weight",
+   "body": "what is the weight",
+   "intent": "needs_info"
+  },
+  {
+   "name": "asks stops",
+   "body": "how many stops?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "asks appt",
+   "body": "is there an appointment",
+   "intent": "needs_info"
+  },
+  {
+   "name": "asks commodity",
+   "body": "what commodity",
+   "intent": "needs_info"
+  },
+  {
+   "name": "quickpay",
+   "body": "do you offer quick pay",
+   "intent": "needs_info"
+  },
+  {
+   "name": "call me",
+   "body": "give me a call at 312-555-0147",
+   "intent": "wants_call"
+  },
+  {
+   "name": "accepts ok",
+   "body": "ok",
+   "intent": "accepts"
+  },
+  {
+   "name": "accepts deal",
+   "body": "Deal, thanks",
+   "intent": "accepts"
+  },
+  {
+   "name": "accepts sounds good",
+   "body": "sounds good\n\nFrom: Owen Mantz <owen@t58.example>\nSent: Friday, November 13, 2026 12:29 PM\nTo: carrier@x.example\nSubject: RE: Chicago, IL to Atlanta, GA\n\nPickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715\nWhat is your best all-in rate? ETA to pickup?",
+   "intent": "accepts"
+  },
+  {
+   "name": "conditional ok",
+   "body": "ok but need 1500",
+   "intent": "rate",
+   "rate": 1500
+  },
+  {
+   "name": "hello",
+   "body": "hello?",
+   "intent": "unclear"
+  },
+  {
+   "name": "any update",
+   "body": "any update?",
+   "intent": "unclear"
+  },
+  {
+   "name": "empty with history",
+   "body": "From: Owen Mantz <owen@t58.example>\nSent: Friday, November 13, 2026 12:29 PM\nTo: carrier@x.example\nSubject: RE: Chicago, IL to Atlanta, GA\n\nPickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715\nWhat is your best all-in rate? ETA to pickup?",
+   "intent": "empty"
+  },
+  {
+   "name": "empty",
+   "body": "   ",
+   "intent": "empty"
+  },
+  {
+   "name": "own echo only",
+   "body": "What is your best all-in rate? ETA to pickup?",
+   "intent": "empty"
+  },
+  {
+   "name": "inline copy of details",
+   "body": "Pickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nWeight: 42,000 lbs\nTotal miles 715\nrate?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "rate word with miles number",
+   "body": "total miles 715 so rate is 1650",
+   "intent": "rate",
+   "rate": 1650
+  },
+  {
+   "name": "military time",
+   "body": "can load at 1500",
+   "intent": "gives_eta"
+  },
+  {
+   "name": "signature phone",
+   "body": "sounds good\n\nThanks\nBob\n(312) 555-0147",
+   "intent": "accepts"
+  },
+  {
+   "name": "phone in sig after thanks",
+   "body": "what is the rate\n\nThanks,\nJohn Smith\nDispatcher\nSwift Haul LLC\n(312) 555-0147\nMC 123456",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "reefer temp",
+   "body": "what temp?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "just thanks",
+   "body": "thanks",
+   "intent": "empty"
+  },
+  {
+   "name": "comma list",
+   "body": "rate 1,650",
+   "intent": "rate",
+   "rate": 1650
+  },
+  {
+   "name": "dollars word",
+   "body": "1500 dollars",
+   "intent": "rate",
+   "rate": 1500
+  },
+  {
+   "name": "range",
+   "body": "1400-1500",
+   "intent": "unclear"
+  },
+  {
+   "name": "five digit non rate",
+   "body": "ref 12345",
+   "intent": "unclear"
+  },
+  {
+   "name": "outlook iphone sig",
+   "body": "Rate?\n\nSent from my iPhone\n\nFrom: Owen Mantz <owen@t58.example>\nSent: Friday, November 13, 2026 12:29 PM\nTo: carrier@x.example\nSubject: RE: Chicago, IL to Atlanta, GA\n\nPickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715\nWhat is your best all-in rate? ETA to pickup?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "ok with eta after counter",
+   "body": "ok, can be there by 2pm",
+   "intent": "accepts"
+  },
+  {
+   "name": "yes with truck",
+   "body": "yes I have a truck in Gary",
+   "intent": "accepts"
+  },
+  {
+   "name": "ok let me check",
+   "body": "ok let me check",
+   "intent": "unclear"
+  },
+  {
+   "name": "leading thanks then question",
+   "body": "Thanks\nwhat is the rate?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "whats it paying 2",
+   "body": "what's it pay",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "what is it commodity",
+   "body": "what is it?",
+   "intent": "needs_info"
+  }
+ ]
+}
