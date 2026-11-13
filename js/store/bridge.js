@@ -106,7 +106,7 @@ export async function pollNow() {
         lastDoneSig = dsig;
         const done = parseDraftsDone(dn.text);
         const results = [];
-        for (const d of state.drafts) { const r = d.outlook === 'queued' ? done.get(d.id) : null; if (r) results.push({ id: d.id, ok: r.ok, detail: r.detail }); }
+        for (const d of state.drafts) { const r = d.outlook === 'queued' ? done.get(d.id) : null; if (r) results.push({ id: d.id, ok: r.ok, sent: r.sent, detail: r.detail }); }
         if (results.length) { await actions.markDraftsDone(results); bridge.draftsSaved += results.filter(r => r.ok).length; applied += results.length; await writeOutbox(true); }
       }
     }

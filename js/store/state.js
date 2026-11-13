@@ -355,32 +355,45 @@ export const actions = {
     const p = state.postings.find(x => x.id === id); if (!p) return 0;
     const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
     let n = 0;
+    // v8: when postings carry their own DAT rate, ONLY those move (the target is the goal and stays put). With no DAT rates, the target is what is posted, so it moves.
+    const ownRates = members.some(m => Number(cleanRate(m.datRate)) > 0);
     for (const m of members) {
       const t = Number(cleanRate(m.targetRate)), d = Number(cleanRate(m.datRate));
-      if (t > 0) m.targetRate = String(Math.max(1, t + Math.round(step)));
-      if (d > 0) m.datRate = String(Math.max(1, d + Math.round(step)));
-      if (t > 0 || d > 0) n++;
+      if (ownRates) { if (d > 0) { m.datRate = String(Math.max(1, d + Math.round(step))); n++; } }
+      else if (t > 0) { m.targetRate = String(Math.max(1, t + Math.round(step))); n++; }
     }
     const head = members.find(m => m.variant === 'Original') || members[0];
     head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'reprice', at: new Date().toISOString(), detail: (step >= 0 ? '+$' : '-$') + Math.abs(Math.round(step)) }].slice(-40);
     await savePostings(); emit(); return n;
   },
   /** Delete the alternates and rebuild the 3x3 with different cities (the first picks are excluded). Returns the new plan or an error. */
+  /** Reshuffle: the same as rebuilding, named for the board button. */
+  async reshuffleMatrix(id) { return actions.rebuildMatrix(id); },
   async rebuildMatrix(id) {
     const p = state.postings.find(x => x.id === id); if (!p) return { ok: false, error: 'Posting not found.' };
     const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
     const head = members.find(m => m.variant === 'Original') || members[0];
-    const exclude = [];
-    for (const m of members) { if (m.variant === 'Original') continue; exclude.push(normalizeText(m.originCity) + '|' + normalizeText(m.originState), normalizeText(m.destCity) + '|' + normalizeText(m.destState)); }
+    const current = [];
+    for (const m of members) { if (m.variant === 'Original') continue; current.push(normalizeText(m.originCity) + '|' + normalizeText(m.originState), normalizeText(m.destCity) + '|' + normalizeText(m.destState)); }
+    // v8 reshuffle: remember every city already tried for this load so repeated reshuffles keep finding NEW markets (the ranking still
+    // favours cities with cover history, inquiries and carrier density). If the unused pool runs dry, fall back to excluding only today's picks.
+    const tried = Array.isArray(head.triedCities) ? head.triedCities : [];
+    const ownRates = new Map(members.filter(m => m.variant !== 'Original' && Number(cleanRate(m.datRate)) > 0).map(m => [m.variant, m.datRate]));
     const ids = new Set(members.filter(m => m.variant !== 'Original').map(m => m.id));
     const copy = JSON.parse(JSON.stringify(head));
-    const plan = planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, exclude });
+    const run = (exclude) => planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, exclude });
+    let plan = run([...new Set([...current, ...tried])]);
+    let recycled = false;
+    if (!plan.ok) { plan = run(current); recycled = true; }
     if (!plan.ok) return plan;
     state.postings = state.postings.filter(x => !ids.has(x.id));
     head.groupId = ''; head.status = 'Active';
     const rows = await actions.createMatrix(head.id, plan);
     const h2 = state.postings.find(x => x.id === head.id);
     const oldOps = Array.isArray(head.ops) ? head.ops : [];
+    if (h2) h2.triedCities = recycled ? current : [...new Set([...tried, ...current])].slice(-120);
+    // keep each posting's own DAT rate by grid position (A-A stays on the Original; nearby pairings keep theirs)
+    for (const m of state.postings) { if (m.groupId && m.groupId === h2?.groupId && m.variant !== 'Original' && ownRates.has(m.variant)) m.datRate = ownRates.get(m.variant); }
     if (h2) h2.ops = [...oldOps, { type: 'recities', at: new Date().toISOString(), detail: plan.origins.slice(1).concat(plan.dests.slice(1)).map(l => l.city).join(', ') }].slice(-40);
     await savePostings(); emit();
     return { ...plan, rows };
@@ -504,6 +517,9 @@ export const actions = {
     if (!state.hooks.sendToOutlook) return 0;
     const set = new Set(ids); const list = state.drafts.filter(d => set.has(d.id) && d.to);
     if (!list.length) return 0;
+    // DANGER ZONE switches (default off): the macro SENDS instead of saving a draft. Inbound replies additionally need autoSendSafe.
+    const inboundKinds = ['Inquiry reply', 'Rate response', 'Carrier reply'];
+    for (const d of list) d.send = inboundKinds.includes(d.kind) ? !!(state.settings.autoSendInbound && d.autoSendSafe) : !!state.settings.autoSendOutbound;
     const n = await state.hooks.sendToOutlook(list);
     for (const d of list) d.outlook = 'queued';
     await guard(() => db.putMany('drafts', list)); emit(); return n;
@@ -511,7 +527,7 @@ export const actions = {
   /** Called by the bridge when the macro reports back which outbox drafts it created or failed. */
   async markDraftsDone(results) {
     const touched = [];
-    for (const r of results) { const d = state.drafts.find(x => x.id === r.id); if (d && d.outlook !== (r.ok ? 'saved' : 'error')) { d.outlook = r.ok ? 'saved' : 'error'; d.outlookDetail = r.detail || ''; touched.push(d); } }
+    for (const r of results) { const d = state.drafts.find(x => x.id === r.id); if (d && d.outlook !== (r.ok ? (r.sent ? 'sent' : 'saved') : 'error')) { d.outlook = r.ok ? (r.sent ? 'sent' : 'saved') : 'error'; d.outlookDetail = r.detail || ''; touched.push(d); } }
     if (touched.length) { await guard(() => db.putMany('drafts', touched)); emit(); }
     return touched.length;
   },
