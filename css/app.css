@@ -1022,3 +1022,13 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 7px; }
 /* v8: subtle target-rate chip in the load header (visible when collapsed) */
 .metarow .targetchip{color:var(--accent,#2f6f5e);background:color-mix(in srgb,var(--accent,#2f6f5e) 9%,transparent);border-radius:999px;padding:1px 9px 1px 7px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .metarow .targetchip em{font-style:normal;font-weight:500;opacity:.6;margin-left:4px;font-size:.85em}
+
+
+/* v9: cloud accounts */
+.sync-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.sync-row input{min-width:min(280px,100%);flex:1 1 220px}
+.warnText{color:var(--warn)}
+.authcard .seg{align-self:center;margin:2px 0 10px}
+/* dialogs and toasts opened from the sign-in screen (forgot password, messages) must sit above it */
+html.locked .overlay { z-index: 260; }
+html.locked #toasts { z-index: 270; }
