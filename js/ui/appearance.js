@@ -243,7 +243,7 @@ function startScene(a, mode) {
 
 function schedulePersist() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { if (persistFn) Promise.resolve(persistFn(current)).catch((e) => console.error('Could not save appearance', e)); }, 250);
+  saveTimer = setTimeout(() => { saveTimer = 0; if (persistFn) Promise.resolve(persistFn(current)).catch((e) => console.error('Could not save appearance', e)); }, 250);
 }
 
 /** Wire persistence. `read()` returns the stored object (or null), `write(obj)` saves it. */
@@ -259,8 +259,17 @@ export function initAppearance({ read, write }) {
   }
 }
 
-/** Called when the stored settings were replaced from outside (backup restore): apply them if they differ. */
+/**
+ * Called on every state change with the stored appearance. It only acts when the STORED value itself changed (a backup restore, or the first
+ * call at start-up): the app re-renders for many reasons (weather, replies, timers), and re-applying an unchanged stored look on each one
+ * would undo a skin or background the person just picked while it is still being saved.
+ */
+let lastStored;
 export function syncFromStore(stored) {
+  const key = JSON.stringify(stored || null);
+  if (key === lastStored) return;
+  lastStored = key;
+  if (saveTimer) return;                                       // a change made here is still being saved: it wins
   // Nothing saved in the database = this browser never customised the look. Use the current defaults (this also moves people who were
   // only ever shown the old default scene, via the localStorage mirror, onto the Clean default).
   const next = normalize(stored || null);

@@ -59,6 +59,7 @@ export function getEquipmentCode(text) {
   if (t.includes('reefer') && !t.includes('van')) return team ? 'RM' : 'R';   // RM = reefer team
   if (t.includes('flat')) return 'F';
   if (t.includes('step')) return 'SD';
+  if (/straight\s*(?:box|truck)|box\s*truck|\bsb\b/.test(t)) return 'SB';   // straight box truck
   return team ? 'VM' : 'V';                                                  // VM = van team
 }
 

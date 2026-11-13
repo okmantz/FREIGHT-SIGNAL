@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-SeXS1/N6JC1OdrZ0xdQ1PYaqU1JMzR6xqblbt5qzMgk=' 'sha256-6cMxxQcnf+xgATMXrIlHEvPJe24EVfkAVoebHLwLHI8='; style-src 'sha256-OvXJNukJpQ3VffjFpTsc/7ciL7DNCInMZ16A6kHJU9Y='; img-src data: blob:; connect-src https://api.weather.gov; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-SeXS1/N6JC1OdrZ0xdQ1PYaqU1JMzR6xqblbt5qzMgk=' 'sha256-1BTZ1IiE7DUb1zpCBmFMIIJ8nk5L/K2IccyCJtVp6qo='; style-src 'sha256-zQElIN757Q8IIUkXdcDKBgwpKmBYDjTmsk9pZrcSX1Y='; img-src data: blob:; connect-src https://api.weather.gov; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -349,7 +349,7 @@ input:hover, select:hover, textarea:hover { border-color: color-mix(in srgb, var
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }
 input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--muted) 75%, transparent); }
-input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; padding: 0; vertical-align: -3px; cursor: pointer; }
+input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; padding: 0; vertical-align: -3px; cursor: pointer; }
 input[type="range"] { accent-color: var(--accent); padding: 0; height: 22px; cursor: pointer; }
 input[type="color"] { padding: 2px; height: 36px; width: 52px; cursor: pointer; border-radius: var(--r-sm); }
 input[type="number"] { font-variant-numeric: tabular-nums; }
@@ -812,10 +812,10 @@ html.locked #app, html.locked header.top, html.locked nav.side { display: none !
 .dfield.rate input.cell { width: 104px; font-weight: 800; font-size: 1.08em; text-align: right; border-color: rgba(var(--accent-rgb), .65); }
 .dfield.rate .ratehint { max-width: 220px; }
 .tgl { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: .86em; font-weight: 600; user-select: none; }
-.tgl input { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--input); position: relative; cursor: pointer; flex: none; padding: 0; transition: background .15s, border-color .15s; }
-.tgl input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
-.tgl input:checked { background: rgba(var(--accent-rgb), .3); border-color: var(--accent); }
-.tgl input:checked::after { transform: translateX(14px); background: var(--accent); }
+.tgl input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--input); position: relative; cursor: pointer; flex: none; padding: 0; transition: background .15s, border-color .15s; }
+.tgl input[type="checkbox"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.tgl input[type="checkbox"]:checked { background: rgba(var(--accent-rgb), .3); border-color: var(--accent); }
+.tgl input[type="checkbox"]:checked::after { transform: translateX(14px); background: var(--accent); }
 .laneact { padding: 10px 18px; gap: 8px; border-bottom: 1px solid var(--line); }
 .laneact .menu { margin-left: auto; }
 
@@ -971,6 +971,61 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
 .tour-foot { display: flex; justify-content: flex-end; gap: 8px; }
 .tour-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
 @media print { .tour-layer, #confetti, .goal-banner { display: none !important; } }
+
+
+/* =====================================================================================================================
+   v7: checkboxes that match the rest of the controls, the DAT-average strip, a calmer priority frame, the Home tour card.
+   ===================================================================================================================== */
+
+/* ---- checkboxes: same radius, border and accent as the inputs and buttons (switches keep their own .tgl look) */
+input[type="checkbox"]:not([role="switch"]) { -webkit-appearance: none; appearance: none; position: relative; flex: none; width: 18px; height: 18px; margin: 0; padding: 0; vertical-align: -4px; cursor: pointer;
+  border-radius: 6px; border: 1.5px solid color-mix(in srgb, var(--muted) 50%, var(--line)); background: var(--input);
+  transition: background .16s, border-color .16s, box-shadow .16s, transform .12s var(--ease); }
+input[type="checkbox"]:not([role="switch"]):hover { border-color: rgba(var(--accent-rgb), .8); background: color-mix(in srgb, var(--accent) 8%, var(--input)); }
+input[type="checkbox"]:not([role="switch"]):focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .32); border-color: var(--accent); }
+input[type="checkbox"]:not([role="switch"]):active { transform: scale(.9); }
+input[type="checkbox"]:not([role="switch"]):checked, input[type="checkbox"]:not([role="switch"]):indeterminate { border-color: transparent; background: linear-gradient(180deg, var(--btn-a), var(--btn-b)); box-shadow: 0 4px 12px -5px rgba(var(--accent-rgb), .95); }
+input[type="checkbox"]:not([role="switch"])::after { content: ""; position: absolute; left: 50%; top: 47%; width: 27%; height: 52%; border: solid var(--on-btn); border-width: 0 2.3px 2.3px 0; border-radius: 1px; transform: translate(-50%, -58%) rotate(45deg) scale(0); transition: transform .18s var(--ease); }
+input[type="checkbox"]:not([role="switch"]):checked::after { transform: translate(-50%, -58%) rotate(45deg) scale(1); }
+input[type="checkbox"]:not([role="switch"]):indeterminate::after { width: 52%; height: 0; top: 50%; border-width: 0 0 2.3px 0; transform: translate(-50%, -50%) scale(1); }
+input[type="checkbox"]:not([role="switch"]):disabled { opacity: .45; cursor: not-allowed; }
+input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 7px; }
+.lanebox tr.lrow:has(input.bigchk:checked) td { background: rgba(var(--accent-rgb), .1); }
+
+/* ---- "DAT avg" strip at the top of each matrix */
+.suggest { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 18px 8px; padding: 6px 8px 6px 12px; border-radius: 11px; border: 1px dashed color-mix(in srgb, var(--muted) 35%, var(--line)); background: color-mix(in srgb, var(--panel2) 55%, transparent); font-size: .88em; }
+.suggest.set { border-style: solid; border-color: rgba(var(--accent-rgb), .3); background: rgba(var(--accent-rgb), .06); }
+.sg-k { display: inline-flex; align-items: center; gap: 6px; font-size: .76em; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.suggest.set .sg-k { color: var(--accent); }
+.suggest input.sgin { width: 76px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; border-color: var(--line); background: var(--input); }
+.sg-note { flex: 1 1 160px; min-width: 0; color: var(--muted); }
+.sg-act { display: inline-flex; gap: 6px; margin-left: auto; }
+
+/* ---- priority frame: one hairline in the priority colour, a soft tint from the top, a fading edge line. Low = green, Medium = amber, High = red. */
+.lanebox { --pri: var(--good); position: relative; border: 1px solid color-mix(in srgb, var(--pri) 26%, var(--line)); border-radius: calc(var(--r-lg) + 4px);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--pri) 8%, transparent), transparent 150px);
+  box-shadow: var(--shadow), 0 22px 46px -36px var(--pri); }
+.lanebox.p-Medium { --pri: var(--warn); } .lanebox.p-High { --pri: var(--bad); }
+.lanebox.p-Medium, .lanebox.p-High { border-left-color: color-mix(in srgb, var(--pri) 26%, var(--line)); }
+.lanebox:hover { border-color: color-mix(in srgb, var(--pri) 48%, var(--line)); box-shadow: var(--shadow), 0 24px 50px -30px var(--pri); }
+.lanebox::before { height: 2px; margin: 0 14px; border-radius: 0 0 3px 3px; background: linear-gradient(90deg, transparent, var(--pri) 18%, var(--pri) 55%, transparent); opacity: .9; }
+.lanebox.p-Medium::before, .lanebox.p-High::before { background: linear-gradient(90deg, transparent, var(--pri) 18%, var(--pri) 55%, transparent); }
+
+/* collapsed: the same colour, but as a left-to-right wash and a rail, so priority still reads at a glance */
+.lanebox.collapsed { border-color: color-mix(in srgb, var(--pri) 38%, var(--line));
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--pri) 24%, transparent) 0%, color-mix(in srgb, var(--pri) 9%, transparent) 34%, transparent 72%); }
+.lanebox.collapsed::before { position: absolute; inset: 0 auto 0 0; width: 4px; height: auto; margin: 0; border-radius: 0; background: var(--pri); opacity: 1; }
+.lanebox.collapsed .lanehead { padding-left: 22px; }
+.lanebox.collapsed:hover { border-color: color-mix(in srgb, var(--pri) 60%, var(--line)); }
+
+/* ---- Home: the tour card */
+.tourcard { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-bottom: var(--gap); border-radius: var(--r-lg); border: 1px solid rgba(var(--accent-rgb), .36);
+  background: linear-gradient(100deg, rgba(var(--accent-rgb), .15), rgba(var(--accent-rgb), .035) 58%, transparent), var(--panel); box-shadow: var(--shadow); }
+.tc-ico { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; color: var(--on-btn); background: linear-gradient(180deg, var(--btn-a), var(--btn-b)); box-shadow: 0 8px 20px -10px rgba(var(--accent-rgb), .95); }
+.tc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tc-text b { font-size: 1.05em; letter-spacing: -.005em; }
+.tc-text span { color: var(--muted); font-size: .92em; }
+@media (max-width: 640px) { .tourcard { flex-wrap: wrap; } .tourcard .btn { width: 100%; } .sg-act { margin-left: 0; } }
 </style>
 <script>/* Runs before first paint (classic script, loaded in <head>): replays the last saved appearance from localStorage so the
  * theme, accent and background never flash. The real engine is js/ui/appearance.js; this file only reads what it wrote. */
@@ -1367,7 +1422,7 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
   });
 
   // js/core/defaults.js
-  var DEFAULT_SETTINGS, DAT_COLUMNS, EQUIPMENT, CUSTOMER_HEADERS, CUSTOMER_KEYS, CARRIER_HEADERS, CARRIER_KEYS, INQUIRY_HEADERS, INQUIRY_KEYS, VENTUSKY_URL, RATEVIEW_BASE;
+  var DEFAULT_SETTINGS, DAT_COLUMNS, EQUIPMENT, CUSTOMER_HEADERS, CUSTOMER_KEYS, CARRIER_HEADERS, CARRIER_KEYS, INQUIRY_HEADERS, INQUIRY_KEYS, VENTUSKY_URL, RATEVIEW_BASE, FINDTRUCK_URL;
   var init_defaults = __esm({
     "js/core/defaults.js"() {
       DEFAULT_SETTINGS = {
@@ -1487,7 +1542,9 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
         { code: "F", label: "Flatbed", rateView: "Flatbed" },
         { code: "SD", label: "Step Deck", rateView: "Flatbed" },
         { code: "VM", label: "Van Team", rateView: "Van" },
-        { code: "RM", label: "Reefer Team", rateView: "Reefer" }
+        { code: "RM", label: "Reefer Team", rateView: "Reefer" },
+        { code: "SB", label: "Straight Box Truck", rateView: "Van" }
+        // DAT has no box-truck RateView word: Van is the closest
       ];
       CUSTOMER_HEADERS = [
         "Company",
@@ -1601,6 +1658,7 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
       ];
       VENTUSKY_URL = "https://www.ventusky.com/";
       RATEVIEW_BASE = "https://iq.dat.com/rateview/";
+      FINDTRUCK_URL = "https://one.dat.com/search-trucks";
     }
   });
 
@@ -1996,6 +2054,9 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
       destZip: "",
       targetRate: "",
       // Z
+      datAvg: "",
+      datAvgAt: "",
+      // v7: average DAT RateView rate for this lane (typed once per load) and when it was entered
       details: "",
       // AB AutoReplyDetails (raw TQL text)
       notes: "",
@@ -2197,6 +2258,7 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
     if (t2.includes("reefer") && !t2.includes("van")) return team ? "RM" : "R";
     if (t2.includes("flat")) return "F";
     if (t2.includes("step")) return "SD";
+    if (/straight\s*(?:box|truck)|box\s*truck|\bsb\b/.test(t2)) return "SB";
     return team ? "VM" : "V";
   }
   function extractLastZipAfterLabel(text2, label2) {
@@ -3146,6 +3208,8 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
             return ["flat", "f"];
           case "SD":
             return ["step", "sd", "flat"];
+          case "SB":
+            return ["straight", "box", "sb"];
           default:
             return ["van", "v", "vm", "dry"];
         }
@@ -3603,6 +3667,21 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
           await savePostings();
           emit();
           return n;
+        },
+        /** The average DAT RateView rate for this load's lane, typed once and kept on every posting of the load ('' clears it). */
+        async setDatAvg(id, rate2) {
+          const p = state.postings.find((x) => x.id === id);
+          if (!p) return 0;
+          const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+          const r = cleanRate(rate2);
+          const at = r ? (/* @__PURE__ */ new Date()).toISOString() : "";
+          for (const m of members) {
+            m.datAvg = r;
+            m.datAvgAt = at;
+          }
+          await savePostings();
+          emit();
+          return members.length;
         },
         /** Back to "target rate on every posting": clears the DAT rate on every posting of the box that contains `id`. */
         async clearDatRates(id) {
@@ -4420,6 +4499,14 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return VENTUSKY_URL;
     return `${VENTUSKY_URL}?p=${lat.toFixed(3)};${lng.toFixed(3)};8&l=temperature-2m`;
   }
+  function findTruckInfo(p) {
+    const oc = String(p.originCity ?? "").trim(), os = String(p.originState ?? "").trim().toUpperCase();
+    const dc = String(p.destCity ?? "").trim(), ds = String(p.destState ?? "").trim().toUpperCase();
+    if (!oc || !os || !dc || !ds) return { ok: false, error: "This load is missing an origin or destination." };
+    const code = String(p.equip ?? "").trim().toUpperCase();
+    const e = EQUIPMENT.find((x) => x.code === code);
+    return { ok: true, url: FINDTRUCK_URL, origin: `${oc}, ${os}`, dest: `${dc}, ${ds}`, equipment: e ? e.label : code || "Van", pickup: String(p.pickupEarliest ?? "").trim() };
+  }
   var init_links = __esm({
     "js/core/links.js"() {
       init_defaults();
@@ -4918,6 +5005,13 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; v
         metric("activity", "Active loads", m.activeLoads, "load groups on the board"),
         metric("check", "Covers today", m.coversToday, "counted when status = Covered"),
         metric("inquiry", "Inquiries", m.totalInquiries, "in the Inquiry Log")
+      ),
+      h(
+        "div",
+        { class: "tourcard" },
+        h("span", { class: "tc-ico" }, icon("play", 20)),
+        h("div", { class: "tc-text" }, h("b", null, "The 60-second tour"), h("span", null, "Setting up Outlook, posting your first load, the carrier database and logging a cover. Replay it any time.")),
+        h("button", { class: "btn primary", type: "button", "data-act": "take-tour-card", onclick: () => startTour() }, icon("play", 15), "Start the tour")
       ),
       h("div", { class: "tiles" }, TILES.map(([id, ic, t2, s, c]) => h("a", { class: "tile", href: "#/" + id }, h("span", { class: "t-ico" }, icon(ic, 20)), h("b", null, t2), h("span", null, s), h("i", null, c)))),
       !state.zip ? h("div", { class: "banner err" }, "The ZIP Map is not loaded. Matrix building needs it: open System and import uszips.csv.") : null,
@@ -6546,6 +6640,66 @@ ${d.body}`) }, "Copy"),
     if (!r.ok) return toast(r.error, "warn");
     openExternal(r.url);
   }
+  async function findCarriers(p) {
+    const f = findTruckInfo(p);
+    if (!f.ok) return toast(f.error, "warn");
+    openExternal(f.url);
+    const text2 = `${f.origin} to ${f.dest} | ${f.equipment}${f.pickup ? " | pickup " + f.pickup : ""}`;
+    await copyText(`${f.origin}`, `DAT Find Trucks opened. Origin "${f.origin}" is copied. Then: ${f.dest}, ${f.equipment}${f.pickup ? ", " + f.pickup : ""}.`);
+    return text2;
+  }
+  function suggestStrip(b, r, rate2) {
+    const head = b.head;
+    const ids = b.members.map((m) => m.id);
+    const avg = Number(String(head.datAvg ?? "").replace(/[^0-9.]/g, "")) || 0;
+    const target = Number(String(rate2 ?? "").replace(/[^0-9.]/g, "")) || 0;
+    const miles = Number(r.stats.miles) || 0;
+    const input = h("input", {
+      class: "cell sgin",
+      size: 6,
+      value: avg ? String(Math.round(avg)) : "",
+      placeholder: "$ avg",
+      inputmode: "decimal",
+      "aria-label": "Average DAT rate for this lane",
+      "data-fk": `${b.key}:datavg`,
+      title: "The average rate DAT RateView shows for this lane. Type it once; it stays with this load."
+    });
+    input.addEventListener("change", async () => {
+      await actions.setDatAvg(head.id, input.value);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        input.blur();
+      }
+    });
+    const mem = r.stats.mem && r.stats.mem.last ? r.stats.mem.last.rate : 0;
+    const bits = [];
+    if (avg && miles) bits.push("$" + (avg / miles).toFixed(2) + "/mi");
+    if (avg && head.datAvgAt) bits.push(`entered ${agoText(head.datAvgAt)}`);
+    if (avg && target) {
+      const pct2 = Math.round((target / avg - 1) * 100);
+      bits.push(pct2 === 0 ? "target matches the average" : `target ${pct2 > 0 ? "+" : ""}${pct2}% vs average`);
+    }
+    if (!avg && mem) bits.push(`last covered ${money2(mem)}`);
+    const useBtn = avg && Math.round(avg) !== Math.round(target) ? h("button", { class: "btn small", type: "button", "data-act": "use-dat-avg", title: "Set the load's target rate to the DAT average", onclick: async () => {
+      await actions.setTargetRate(ids, String(Math.round(avg)));
+      toast(`Target rate set to ${money2(avg)} for ${b.title}.`, "ok");
+    } }, "Use as target") : null;
+    return h(
+      "div",
+      { class: "suggest" + (avg ? " set" : "") },
+      h("span", { class: "sg-k" }, icon("trendup", 14), "DAT avg"),
+      input,
+      h("span", { class: "sg-note" }, bits.join("  \xB7  ") || "Open RateView and type the lane average here"),
+      h(
+        "span",
+        { class: "sg-act" },
+        useBtn,
+        h("button", { class: "btn small ghost", type: "button", "data-act": "rateview-strip", title: "Open DAT RateView for this lane in a new tab", onclick: () => rateLink(head) }, icon("rateview", 14), "RateView")
+      )
+    );
+  }
   async function downloadDat(kind, list, what) {
     const rows = datPostings(list);
     if (!rows.length) return toast("Nothing to download.", "warn");
@@ -6787,6 +6941,7 @@ Download anyway?`, "Download anyway");
         if (x) summaryOutreach(x);
       } }, icon("send", 15), "Carrier outreach"),
       h("button", { class: "btn", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted TQL text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 15), "Copy load details"),
+      h("button", { class: "btn", type: "button", "data-act": "find-carriers", title: "Open DAT Find Trucks for this load (the lane is copied so you can paste it in)", onclick: () => findCarriers(head) }, icon("search", 15), "Find more carriers"),
       h("button", { class: "btn", type: "button", "data-act": "rateview", title: "Open DAT RateView for this lane in a new tab", onclick: () => rateLink(head) }, icon("rateview", 15), "DAT RateView"),
       h("button", { class: "btn", type: "button", "data-act": "csv-group", title: "Download every posting of this load as a DAT CSV", onclick: () => downloadDat(single ? "one" : "group", b.members, "Load") }, icon("download", 15), "Download CSV"),
       h("button", { class: "btn", type: "button", "data-act": "mark-covered", title: "Log which posting and carrier covered it, then remove the load", onclick: () => coverModal(b) }, icon("check", 15), "Mark covered"),
@@ -6805,6 +6960,7 @@ Download anyway?`, "Download anyway");
       "section",
       { class: "lanebox p-" + (head.priority || "Low"), ...attrs },
       header,
+      suggestStrip(b, r, rate2),
       loadDetailsBar(details, opts2),
       acts,
       guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? "one" : "group", b.members, "Load") }),
@@ -6988,7 +7144,7 @@ Download anyway?`, "Download anyway");
       })) : emptyState({ icon: "board", title: state.postings.length ? "No loads match" : "No loads yet", text: state.postings.length ? "Clear the search or pick another broker tab." : "Paste TQL load text above. The loads appear here right away." })
     );
   }
-  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, datOpts, DAT_RATE_COL, EQ_TITLE, loadDetailsBar;
+  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, agoText, datOpts, DAT_RATE_COL, EQ_TITLE, loadDetailsBar;
   var init_board = __esm({
     "js/ui/pages/board.js"() {
       init_dom();
@@ -7022,6 +7178,12 @@ Download anyway?`, "Download anyway");
       setCollapsed = (keys) => {
         saveUi({ collapsed: [...keys] });
         rerender();
+      };
+      agoText = (iso) => {
+        const t2 = Date.parse(iso);
+        if (!t2) return "";
+        const d = Math.floor((Date.now() - t2) / 864e5);
+        return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
       };
       datOpts = () => ({ targetAsRate: state.settings.postTargetOnDat !== false, all: state.postings });
       DAT_RATE_COL = DAT_COLUMNS.findIndex((c) => c.key === "datRate");
@@ -8004,7 +8166,8 @@ Download anyway?`, "Download anyway");
           ["Download one lane", "Download CSV in the lane box."],
           ["Download some postings", "Tick them, then Download selected."],
           ["Download one posting", "The \u22EF menu at the end of that row, then Download this posting."],
-          ["See the market rate", "DAT RateView on the load (or the chart button on a row, for that posting\u2019s own cities) opens RateView in a new tab."]
+          ["See the market rate", "DAT RateView on the load (or the chart button on a row, for that posting\u2019s own cities) opens RateView in a new tab. Type the lane average it shows into the DAT avg strip at the top of the load: it stays with the load, shows the rate per mile, and Use as target copies it into the target rate."],
+          ["Find more carriers", "Find more carriers opens DAT Find Trucks and copies the load\u2019s origin. Paste it in, then enter the destination, equipment and pickup date (shown in the confirmation). DAT does not allow a link to fill that search in for you."]
         ]),
         note("The file is DAT\u2019s bulk template exactly: the same 24 columns in the same order, header row and one line per posting, with no instruction rows. If a required field is missing you are told which postings DAT would reject before the file downloads."),
         h("h4", null, "Equipment codes"),
@@ -9344,6 +9507,7 @@ Download anyway?`, "Download anyway");
   function schedulePersist() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
+      saveTimer = 0;
       if (persistFn) Promise.resolve(persistFn(current)).catch((e) => console.error("Could not save appearance", e));
     }, 250);
   }
@@ -9365,6 +9529,10 @@ Download anyway?`, "Download anyway");
     }
   }
   function syncFromStore(stored) {
+    const key = JSON.stringify(stored || null);
+    if (key === lastStored) return;
+    lastStored = key;
+    if (saveTimer) return;
     const next = normalize(stored || null);
     if (JSON.stringify(next) !== JSON.stringify(current)) {
       current = next;
@@ -9423,7 +9591,7 @@ Download anyway?`, "Download anyway");
       fr.readAsDataURL(file);
     });
   }
-  var MIRROR_KEY, DEFAULTS, SKINS, ACCENTS, BACKGROUNDS, LEGACY_BG, DENSITIES, RADII, SIZES, FONTS, oneOf, hex6, num2, bool, hexToRgb, rgbToHex, lum, clamp3, ratio, current, persistFn, saveTimer, listeners2, mq, getAppearance, onAppearance, resolvedMode, root, APPLIED_VARS;
+  var MIRROR_KEY, DEFAULTS, SKINS, ACCENTS, BACKGROUNDS, LEGACY_BG, DENSITIES, RADII, SIZES, FONTS, oneOf, hex6, num2, bool, hexToRgb, rgbToHex, lum, clamp3, ratio, current, persistFn, saveTimer, listeners2, mq, getAppearance, onAppearance, resolvedMode, root, APPLIED_VARS, lastStored;
   var init_appearance = __esm({
     "js/ui/appearance.js"() {
       init_scenes();

@@ -18,6 +18,7 @@ export function blankPosting(over = {}) {
     // P..T lane (+ derived destination ZIP, not exported)
     originCity: '', originState: '', originZip: '', destCity: '', destState: '', destZip: '',
     targetRate: '',           // Z
+    datAvg: '', datAvgAt: '', // v7: average DAT RateView rate for this lane (typed once per load) and when it was entered
     details: '',              // AB AutoReplyDetails (raw TQL text)
     notes: '',                // AC AutoReplyNotes
     inquiryCount: '',         // AD

@@ -122,3 +122,25 @@ test('tour: 7-10 steps, unique ids, every step has a route, title and body', () 
   const text = TOUR_STEPS.map(s => s.title + s.body).join(' ').toLowerCase();
   for (const k of ['outlook', 'carrier', 'post']) assert.ok(text.includes(k), `mentions ${k}`);
 });
+
+// ---------------------------------------------------------------- v7
+import { EQUIPMENT } from '../../js/core/defaults.js';
+import { getEquipmentCode } from '../../js/core/parser.js';
+import { rateViewUrl, findTruckInfo } from '../../js/core/links.js';
+
+test('equipment: straight box truck (SB) is in the list, parsed from TQL text, and uses the Van RateView', () => {
+  assert.ok(EQUIPMENT.some(e => e.code === 'SB' && /straight box/i.test(e.label)));
+  assert.equal(getEquipmentCode('Straight Box Truck'), 'SB');
+  assert.equal(getEquipmentCode('26ft Box Truck'), 'SB');
+  assert.equal(getEquipmentCode('Dry Van'), 'V');
+  assert.equal(getEquipmentCode('Reefer Team'), 'RM');
+  assert.match(rateViewUrl(mk({ equip: 'SB' })).url, /~Van$/);
+  assert.equal(datRow(mk({ equip: 'SB' }))[DAT_COLUMNS.findIndex(c => c.key === 'equip')], 'SB');
+});
+test('find more carriers: DAT Find Trucks link with the lane, equipment and pickup ready to paste', () => {
+  const f = findTruckInfo(mk({ equip: 'SB', pickupEarliest: '11/16/2026' }));
+  assert.equal(f.ok, true); assert.match(f.url, /^https:\/\/one\.dat\.com\//);
+  assert.equal(f.origin, 'Chicago, IL'); assert.equal(f.dest, 'Atlanta, GA'); assert.equal(f.equipment, 'Straight Box Truck'); assert.equal(f.pickup, '11/16/2026');
+  assert.equal(findTruckInfo(mk({ destCity: '' })).ok, false);
+});
+test('DAT avg fields exist on a new posting and start blank', () => { const p = mk(); assert.equal(p.datAvg, ''); assert.equal(p.datAvgAt, ''); });

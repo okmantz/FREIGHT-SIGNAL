@@ -73,8 +73,8 @@ test('file names: all / group / single', () => {
   assert.match(datFileName('one', [P({ variant: 'Nearby 3' })], d), /Nearby-3/);
 });
 
-test('equipment codes: Step Deck, Flatbed, Van Team, Reefer Team', () => {
-  assert.deepEqual(EQUIPMENT.map(e => e.code), ['V', 'R', 'F', 'SD', 'VM', 'RM']);
+test('equipment codes: Step Deck, Flatbed, Van Team, Reefer Team, Straight Box Truck', () => {
+  assert.deepEqual(EQUIPMENT.map(e => e.code), ['V', 'R', 'F', 'SD', 'VM', 'RM', 'SB']);
   assert.equal(getEquipmentCode('Dry Van Team'), 'VM');
   assert.equal(getEquipmentCode('Reefer Team'), 'RM');
   assert.equal(getEquipmentCode('Reefer'), 'R');

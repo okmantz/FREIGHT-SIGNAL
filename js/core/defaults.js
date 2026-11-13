@@ -122,6 +122,7 @@ export const EQUIPMENT = [
   { code: 'SD', label: 'Step Deck', rateView: 'Flatbed' },
   { code: 'VM', label: 'Van Team', rateView: 'Van' },
   { code: 'RM', label: 'Reefer Team', rateView: 'Reefer' },
+  { code: 'SB', label: 'Straight Box Truck', rateView: 'Van' },   // DAT has no box-truck RateView word: Van is the closest
 ];
 
 export const CUSTOMER_HEADERS = [
@@ -158,3 +159,5 @@ export const PRIORITY_COLORS = { High: '#FFC7CE', Medium: '#FFEB9C', Low: '#DAF2
 
 export const VENTUSKY_URL = 'https://www.ventusky.com/';
 export const RATEVIEW_BASE = 'https://iq.dat.com/rateview/';
+/** DAT One "Find Trucks" (carrier search). DAT publishes no deep link that pre-fills the form, so the app opens this page and copies the lane. */
+export const FINDTRUCK_URL = 'https://one.dat.com/search-trucks';

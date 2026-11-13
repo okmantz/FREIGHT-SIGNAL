@@ -142,6 +142,14 @@ export const actions = {
     for (const p of state.postings) if (set.has(p.id)) { p.targetRate = r; n++; }
     await savePostings(); emit(); return n;
   },
+  /** The average DAT RateView rate for this load's lane, typed once and kept on every posting of the load ('' clears it). */
+  async setDatAvg(id, rate) {
+    const p = state.postings.find(x => x.id === id); if (!p) return 0;
+    const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+    const r = cleanRate(rate); const at = r ? new Date().toISOString() : '';
+    for (const m of members) { m.datAvg = r; m.datAvgAt = at; }
+    await savePostings(); emit(); return members.length;
+  },
   /** Back to "target rate on every posting": clears the DAT rate on every posting of the box that contains `id`. */
   async clearDatRates(id) {
     const p = state.postings.find(x => x.id === id); if (!p) return 0;

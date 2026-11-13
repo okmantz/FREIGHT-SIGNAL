@@ -85,7 +85,7 @@ try {
   check('the box holds all 9 postings labelled A-A .. C-C', (await page.locator('.lanebox tbody tr').count()) === 9 && (await page.textContent('.lanebox tbody')).includes('A-A') && (await page.textContent('.lanebox tbody')).includes('C-C'));
   // equipment is one control per load (applies to all 9)
   const eqSel = page.locator('.lanebox .loaddetails select');
-  check('equipment select offers V R F SD VM RM', JSON.stringify((await eqSel.locator('option').allTextContents()).map(x => x.split(' ')[0])) === JSON.stringify(['V', 'R', 'F', 'SD', 'VM', 'RM']));
+  check('equipment select offers V R F SD VM RM SB', JSON.stringify((await eqSel.locator('option').allTextContents()).map(x => x.split(' ')[0])) === JSON.stringify(['V', 'R', 'F', 'SD', 'VM', 'RM', 'SB']));
   const eqLabels = (await eqSel.locator('option').allTextContents()).join('|');
   check('equipment options are named (SD, F, VM, RM)', /SD . Step Deck/.test(eqLabels) && /F . Flatbed/.test(eqLabels) && /VM . Van Team/.test(eqLabels) && /RM . Reefer Team/.test(eqLabels), eqLabels);
   await eqSel.selectOption('SD');
@@ -383,6 +383,47 @@ try {
   await page.keyboard.press('Escape');
   await page.waitForSelector('.tour-layer', { state: 'detached', timeout: 4000 });
   check('Escape closes the tour', (await page.locator('.tour-layer').count()) === 0);
+
+  // --- v7: SB equipment, native checkboxes, DAT-average strip, Find more carriers, priority frame, Home tour card
+  await go('board'); await page.click('.tabs .tab[data-fk="tab:__all"]'); await page.waitForSelector('.lanebox tbody tr');
+  check('Straight Box Truck (SB) is in the equipment list', (await page.locator('.lanebox .loaddetails select option[value="SB"]').count()) >= 1);
+  const cbOk = await page.waitForFunction(() => { const e = document.querySelector('.lanebox tbody input.bigchk'); if (!e || !e.isConnected) return false; const c = getComputedStyle(e); return c.appearance === 'none' && parseFloat(c.borderTopLeftRadius) >= 5; }, null, { timeout: 4000 }).then(() => true).catch(() => false);
+  check('checkboxes use the app\'s own look (custom, rounded) instead of the browser default', cbOk);
+  await page.locator('.lanebox tbody input.bigchk').first().check();
+  check('a ticked checkbox fills with the accent', await page.waitForFunction(() => { const e = document.querySelector('.lanebox tbody input.bigchk:checked'); return !!e && getComputedStyle(e).backgroundImage.includes('gradient'); }, null, { timeout: 4000 }).then(() => true).catch(() => false));
+  await page.locator('.lanebox tbody input.bigchk').first().uncheck();
+  check('the switches (lane scan, toggles) are not turned into checkboxes', await page.waitForFunction(() => { const e = document.querySelector('.lanebox input[role="switch"]'); return !!e && e.isConnected && parseFloat(getComputedStyle(e).width) > 28; }, null, { timeout: 4000 }).then(() => true).catch(() => false));
+
+  const avgIn = page.locator('.lanebox .suggest input.sgin').first();
+  check('each matrix has a DAT avg strip at the top', (await page.locator('.lanebox .suggest').count()) === (await page.locator('.lanebox').count()) && (await page.locator('.lanebox .suggest [data-act="rateview-strip"]').count()) >= 1);
+  await avgIn.fill('2150'); await avgIn.press('Enter');
+  await page.waitForFunction(async () => { const st = (await import('/js/store/state.js')).state; return st.postings.length && st.postings.filter(p => p.datAvg === '2150').length === st.postings.length; });
+  check('the DAT avg is kept on every posting of the load and shows $/mile', /\$\d+\.\d\d\/mi/.test(await page.locator('.lanebox .suggest .sg-note').first().innerText()));
+  if (await page.locator('.lanebox [data-act="use-dat-avg"]').count()) { await page.locator('.lanebox [data-act="use-dat-avg"]').first().click(); await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings.every(p => String(p.targetRate) === '2150')); }
+  check('Use as target copies the DAT avg into the target rate', await page.evaluate(async () => (await import('/js/store/state.js')).state.postings.every(p => String(p.targetRate) === '2150')));
+
+  await page.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(u); return {}; }; });
+  await page.locator('.lanebox [data-act="find-carriers"]').first().click();
+  await page.waitForFunction(() => window.__opened.length === 1);
+  const opened = await page.evaluate(() => window.__opened[0]);
+  check('Find more carriers opens DAT Find Trucks', /^https:\/\/one\.dat\.com\//.test(opened), opened);
+  const clipLane = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  check('the load\'s origin is on the clipboard for the search form', /,\s*[A-Z]{2}$/.test(clipLane.trim()), clipLane);
+
+  const stripe = await page.locator('.lanebox').first().evaluate(e => getComputedStyle(e).borderTopColor);
+  check('the matrix frame is a single hairline (not a thick coloured border)', parseFloat(await page.locator('.lanebox').first().evaluate(e => getComputedStyle(e).borderLeftWidth)) <= 1.01, stripe);
+  await page.click('.boardbar .menu summary'); await page.click('[data-act="collapse-all"]');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox.collapsed').length >= 1);
+  const wash = await page.locator('.lanebox.collapsed').first().evaluate(e => getComputedStyle(e).backgroundImage);
+  check('a collapsed load keeps its priority colour as a gradient', wash.includes('gradient'), wash.slice(0, 60));
+  await page.click('.boardbar .menu summary'); await page.click('[data-act="expand-all"]');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9);
+
+  await go('home');
+  check('the 60-second tour is a clear card on the Home page and starts the tour', (await page.locator('.tourcard [data-act="take-tour-card"]').count()) === 1);
+  await page.click('.tourcard [data-act="take-tour-card"]'); await page.waitForSelector('.tour-card', { timeout: 5000 });
+  await page.keyboard.press('Escape'); await page.waitForSelector('.tour-layer', { state: 'detached' });
+  await go('board'); await page.click('.tabs .tab[data-fk="tab:__all"]'); await page.waitForSelector('.lanebox', { timeout: 8000 });
   await go('board'); await page.click('.tabs .tab[data-fk="tab:__all"]'); await page.waitForSelector('.lanebox', { timeout: 8000 });
   check('the All tab shows everything and offers the whole-board CSV', (await page.locator('.lanebox').count()) >= 1 && (await page.locator('[data-act="csv-all"]').count()) === 1);
 
@@ -444,7 +485,7 @@ try {
 
   // --- theme toggle persists
   await page.click('#themebtn'); await page.waitForTimeout(400);
-  check('light theme applies', (await page.getAttribute('html', 'data-theme')) === 'light');
+  const themeNow = await page.getAttribute('html', 'data-theme'); check('light theme applies', themeNow === 'light', 'data-theme=' + themeNow);
   await page.reload(); await page.waitForSelector('#nav a');
   check('theme persists after reload', (await page.getAttribute('html', 'data-theme')) === 'light');
 
@@ -459,7 +500,7 @@ try {
   for (const id of ['theme', 'background']) await page.click(`#acct-${id} > summary`);
   await page.click('.skin-tile:has-text("Obsidian Gold")'); await page.click('.bg-tile:has-text("Sakura Reverie")'); await page.click('.swatch[title="Violet"]');
   await page.waitForTimeout(500);
-  check('skin + background apply live', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura-reverie');
+  const sk = await page.getAttribute('html', 'data-skin'), bgv = await page.getAttribute('html', 'data-bg'); check('skin + background apply live', sk === 'obsidian-gold' && bgv === 'sakura-reverie', sk + ' / ' + bgv);
   await page.waitForTimeout(500); await page.reload(); await page.waitForSelector('#nav a');
   check('skin + background persist after reload', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura-reverie');
 

@@ -1,6 +1,6 @@
 import { h, toast, modal, confirmDialog, copyText, openExternal, field, inputEl, selectEl, download } from '../dom.js';
 import { state, actions } from '../../store/state.js';
-import { rateViewUrl, ventuskyUrl } from '../../core/links.js';
+import { rateViewUrl, ventuskyUrl, findTruckInfo } from '../../core/links.js';
 import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
 import { PRIORITIES, laneBoxes, gridLabel, targetForPriority } from '../../core/model.js';
 import { datTsv, datCsv, datRows, datProblems, datPostings, datFileName, loadRateInfo } from '../../core/dat.js';
@@ -81,6 +81,46 @@ function rateLink(p) {
   const r = rateViewUrl(p);
   if (!r.ok) return toast(r.error, 'warn');
   openExternal(r.url);
+}
+
+/** "Find more carriers": open DAT One Find Trucks and put the lane on the clipboard (DAT cannot be pre-filled from a link). */
+async function findCarriers(p) {
+  const f = findTruckInfo(p);
+  if (!f.ok) return toast(f.error, 'warn');
+  openExternal(f.url);
+  const text = `${f.origin} to ${f.dest} | ${f.equipment}${f.pickup ? ' | pickup ' + f.pickup : ''}`;
+  await copyText(`${f.origin}`, `DAT Find Trucks opened. Origin "${f.origin}" is copied. Then: ${f.dest}, ${f.equipment}${f.pickup ? ', ' + f.pickup : ''}.`);
+  return text;
+}
+
+const agoText = (iso) => { const t = Date.parse(iso); if (!t) return ''; const d = Math.floor((Date.now() - t) / 86400000); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`; };
+
+/**
+ * The quiet "DAT avg" strip at the top of each matrix. DAT has no public rate feed, so the average is typed once from RateView (the button
+ * beside it opens that lane) and kept with the load. With it set, the strip shows $/mile and offers it as the target rate.
+ */
+function suggestStrip(b, r, rate) {
+  const head = b.head; const ids = b.members.map(m => m.id);
+  const avg = Number(String(head.datAvg ?? '').replace(/[^0-9.]/g, '')) || 0;
+  const target = Number(String(rate ?? '').replace(/[^0-9.]/g, '')) || 0;
+  const miles = Number(r.stats.miles) || 0;
+  const input = h('input', { class: 'cell sgin', size: 6, value: avg ? String(Math.round(avg)) : '', placeholder: '$ avg', inputmode: 'decimal', 'aria-label': 'Average DAT rate for this lane', 'data-fk': `${b.key}:datavg`,
+    title: 'The average rate DAT RateView shows for this lane. Type it once; it stays with this load.' });
+  input.addEventListener('change', async () => { await actions.setDatAvg(head.id, input.value); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+  const mem = r.stats.mem && r.stats.mem.last ? r.stats.mem.last.rate : 0;
+  const bits = [];
+  if (avg && miles) bits.push('$' + (avg / miles).toFixed(2) + '/mi');
+  if (avg && head.datAvgAt) bits.push(`entered ${agoText(head.datAvgAt)}`);
+  if (avg && target) { const pct = Math.round((target / avg - 1) * 100); bits.push(pct === 0 ? 'target matches the average' : `target ${pct > 0 ? '+' : ''}${pct}% vs average`); }
+  if (!avg && mem) bits.push(`last covered ${money(mem)}`);
+  const useBtn = avg && Math.round(avg) !== Math.round(target)
+    ? h('button', { class: 'btn small', type: 'button', 'data-act': 'use-dat-avg', title: 'Set the load\'s target rate to the DAT average', onclick: async () => { await actions.setTargetRate(ids, String(Math.round(avg))); toast(`Target rate set to ${money(avg)} for ${b.title}.`, 'ok'); } }, 'Use as target') : null;
+  return h('div', { class: 'suggest' + (avg ? ' set' : '') },
+    h('span', { class: 'sg-k' }, icon('trendup', 14), 'DAT avg'), input,
+    h('span', { class: 'sg-note' }, bits.join('  \u00b7  ') || 'Open RateView and type the lane average here'),
+    h('span', { class: 'sg-act' }, useBtn,
+      h('button', { class: 'btn small ghost', type: 'button', 'data-act': 'rateview-strip', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 14), 'RateView')));
 }
 
 /** `all` = every posting on the board, so a single posting downloaded alone still knows whether its siblings carry their own DAT rates. */
@@ -253,6 +293,7 @@ function groupBox(r, collapsed, toggle) {
   const acts = h('div', { class: 'laneact' },
     h('button', { class: 'btn primary', type: 'button', 'data-act': 'outreach', title: 'Draft carrier outreach for this load, best-matched carriers first (nothing is sent)', onclick: async () => { const x = await actions.runOutreach(head.id); if (x) summaryOutreach(x); } }, icon('send', 15), 'Carrier outreach'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy load details'),
+    h('button', { class: 'btn', type: 'button', 'data-act': 'find-carriers', title: 'Open DAT Find Trucks for this load (the lane is copied so you can paste it in)', onclick: () => findCarriers(head) }, icon('search', 15), 'Find more carriers'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'rateview', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 15), 'DAT RateView'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'csv-group', title: 'Download every posting of this load as a DAT CSV', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }, icon('download', 15), 'Download CSV'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'mark-covered', title: 'Log which posting and carrier covered it, then remove the load', onclick: () => coverModal(b) }, icon('check', 15), 'Mark covered'),
@@ -264,7 +305,7 @@ function groupBox(r, collapsed, toggle) {
       { label: single ? 'Delete this load' : 'Delete all postings', act: 'del-group', danger: true, run: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }]));
 
   return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), ...attrs },
-    header, loadDetailsBar(details, opts), acts,
+    header, suggestStrip(b, r, rate), loadDetailsBar(details, opts), acts,
     guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
     h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable' },
       h('thead', null, h('tr', null, [['', ''], ['Post', 'A-A is the original. Other cells are nearby origin/destination pairings.'], ['Origin', ''], ['', ''], ['Destination', ''], ['DAT rate', 'The rate you post on DAT for this posting. Fill it on only some postings and the rest post without a rate.'], ['Replies / sent', 'Carrier replies received / outreach drafts created'], ['', '']].map(([x, t]) => h('th', { title: t || null }, x)))),

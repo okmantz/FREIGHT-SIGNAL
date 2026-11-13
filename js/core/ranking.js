@@ -22,7 +22,7 @@ function dist(zip, aCity, aState, bCity, bState) {
 }
 
 const equipWords = (code) => {
-  switch (String(code || '').toUpperCase()) { case 'R': case 'RM': return ['reefer', 'r', 'rm']; case 'F': return ['flat', 'f']; case 'SD': return ['step', 'sd', 'flat']; default: return ['van', 'v', 'vm', 'dry']; }
+  switch (String(code || '').toUpperCase()) { case 'R': case 'RM': return ['reefer', 'r', 'rm']; case 'F': return ['flat', 'f']; case 'SD': return ['step', 'sd', 'flat']; case 'SB': return ['straight', 'box', 'sb']; default: return ['van', 'v', 'vm', 'dry']; }
 };
 
 /** How well a carrier's lane fits a load. Returns { tier, tierLabel, geo, why } or null when it does not fit at all. */
