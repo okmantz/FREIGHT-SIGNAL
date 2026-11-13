@@ -1,4 +1,5 @@
 import { h } from '../dom.js';
+import { enabled as cloudEnabled } from '../../store/cloud.js';
 import { EQUIPMENT } from '../../core/defaults.js';
 import { startTour } from '../tour.js';
 
@@ -95,7 +96,7 @@ export function render() {
 
     sec('safety', 8, 'Backup and safety',
       h('div', { class: 'man-cards' },
-        card('Everything stays local', 'Loads, carriers and logs live in this browser only. The Outlook folder holds postings, the rate window and your inbound blocklist.'),
+        card(cloudEnabled() ? 'Saved to your account' : 'Everything stays local', (cloudEnabled() ? 'Loads, carriers, customers and settings are saved to your own private account and cached on this device, so they follow you to any computer. ' : 'Loads, carriers and logs live in this browser only. ') + 'The Outlook folder holds postings, the rate window and your inbound blocklist.'),
         card('Nothing is sent for you', 'Every e-mail, by the app or by Outlook, is a draft until you press Send.'),
         card('Back up often', 'System → Download backup. Clearing browser data erases the board.'))),
 

@@ -4,6 +4,7 @@ import { state, actions } from '../../store/state.js';
 import { CUSTOMER_HEADERS, CUSTOMER_KEYS } from '../../core/defaults.js';
 import { toDelimited } from '../../core/csv.js';
 import { tableToRecords } from '../importer.js';
+import { storedWhere } from '../../store/cloud.js';
 
 let q = '';
 const DAY = 86400000;
@@ -54,7 +55,7 @@ export function render() {
   search.addEventListener('input', () => { q = search.value; });
   search.addEventListener('keydown', (e) => { if (e.key === 'Enter') import('../../main.js').then(m => m.render()); });
   return h('div', null,
-    pageHead({ icon: 'customers', title: 'Customer Database', sub: 'Shippers and customer contacts. Import them from Excel the same way as carriers. Stored only in this browser.' }),
+    pageHead({ icon: 'customers', title: 'Customer Database', sub: 'Shippers and customer contacts. Import them from Excel the same way as carriers. ' + storedWhere() }),
     overview(),
     h('div', { class: 'toolbar' }, search,
       h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add customer'),

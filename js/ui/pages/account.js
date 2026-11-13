@@ -1,6 +1,6 @@
 // Account Settings: profile + full appearance control. Every control updates the app live and in place (no page re-render),
 // so sliders can be dragged smoothly and the preview is the app itself.
-import { h, toast, confirmDialog, download, pickFile, readFileText, field } from '../dom.js';
+import { h, toast, modal, confirmDialog, download, pickFile, readFileText, field, copyText } from '../dom.js';
 import { actions, state } from '../../store/state.js';
 import { icon } from '../icons.js';
 import { pageHead, paint } from '../chrome.js';
@@ -10,6 +10,8 @@ import {
 } from '../appearance.js';
 import { TABS } from '../../main.js';
 import * as auth from '../../store/auth.js';
+import * as cloud from '../../store/cloud.js';
+import * as local from '../../store/localacct.js';
 
 const A = () => getAppearance();
 
@@ -68,7 +70,7 @@ export function render() {
 
   /* ------------------------------------------------------------------------------------------- profile */
   const pf = { name: '', title: '', company: '', startPage: 'home', ...(state.settings.profile || {}) };
-  const savedHint = h('small', { class: 'muted' }, 'Stored only in this browser. Used for the greeting on Home and the header chip.');
+  const savedHint = h('small', { class: 'muted' }, cloud.storedWhere() + ' Used for the greeting on Home and the header chip.');
   let t = 0;
   const saveProfile = (patch) => {
     Object.assign(pf, patch);
@@ -94,50 +96,87 @@ export function render() {
 
   /* ----------------------------------------------------------------------------------------- sign-in */
   const signinBody = h('div', null);
-  const paintSignin = () => {
+  /* Local accounts (no cloud set up): each person has an account on THIS computer, with their own private data. */
+  const installRow = () => row('Install on this computer', 'Opens Freight Signal in its own window with a desktop icon, and keeps working offline.', h('button', { class: 'btn', type: 'button', onclick: async () => {
+    const inst = await import('../install.js');
+    if (inst.isInstalled()) { toast('Freight Signal is already installed on this computer.', 'info'); return; }
+    if (inst.canInstall()) { if (await inst.install()) toast('Installed. Look for Freight Signal in your Start menu or Applications.', 'ok', 7000); return; }
+    toast('In Chrome or Edge, open the browser menu and choose Install Freight Signal (under Save and share, Apps or Cast, save, and share). Or open dist/freight-signal.html from disk.', 'info', 12000);
+  } }, icon('download', 15), 'Install app'));
+  const paintLocal = () => {
     signinBody.textContent = '';
-    const a = auth.account();
-    if (!a) {
-      const email = h('input', { type: 'email', autocomplete: 'email', placeholder: 'you@company.com', 'data-fk': 'acct-email' });
-      const pw = h('input', { type: 'password', autocomplete: 'new-password', placeholder: 'At least ' + auth.MIN_PASSWORD + ' characters', 'data-fk': 'acct-pw' });
-      const err = h('p', { class: 'autherr', role: 'alert' });
-      signinBody.append(
-        h('p', { class: 'muted' }, 'No sign-in is set up. Add an e-mail and password so this workspace asks for them when it opens.'),
-        h('div', { class: 'grid2' }, field('E-mail', email), field('Password', pw)), err,
-        h('button', { class: 'btn primary', type: 'button', 'data-act': 'create-account', onclick: async () => {
-          err.textContent = '';
-          try { await auth.createAccount(email.value, pw.value, true); toast('Sign-in created.', 'ok'); paintSignin(); rerenderPage(); } catch (e) { err.textContent = e.message || String(e); }
-        } }, icon('lock', 15), 'Create sign-in'));
-      return;
-    }
+    const u = local.user(); if (!u) return;
+    const doSignOut = () => { local.signOut(); location.reload(); };
     signinBody.append(
-      row('E-mail', 'The e-mail this workspace is tied to.', h('b', { class: 'mono' }, a.email)),
-      row('Change e-mail', 'Needs your password.', h('button', { class: 'btn', type: 'button', onclick: async () => {
-        const next = h('input', { type: 'email', value: a.email, 'data-live': '' });
-        const { modal } = await import('../dom.js');
-        modal({ title: 'Change e-mail', body: h('div', null, field('New e-mail', next)), actions: [{ label: 'Cancel' }, { label: 'Next', kind: 'primary', onClick: async () => {
-          if (!auth.isEmail(next.value)) { toast('Enter a valid e-mail address.', 'warn'); return false; }
-          const pw = await askPassword('Confirm with your password', 'Enter your password to change the e-mail.');
-          if (pw === null) return false;
-          try { await auth.changeEmail(pw, next.value); toast('E-mail changed.', 'ok'); paintSignin(); rerenderPage(); } catch (e) { toast(e.message, 'err'); return false; }
-        } }] });
-      } }, 'Change')),
+      row('Signed in as', 'An account on this computer. Anyone else who uses this browser creates their own.', h('b', { class: 'mono' }, u.email)),
+      row('Where your data is', 'Saved in this browser on this computer only, under this account. Download a backup (System page) to keep a copy or move to another computer.', h('a', { class: 'btn', href: '#/system' }, icon('database', 15), 'Backup')),
+      installRow(),
       row('Change password', 'At least ' + auth.MIN_PASSWORD + ' characters.', h('button', { class: 'btn', type: 'button', onclick: async () => {
-        const cur = h('input', { type: 'password', autocomplete: 'current-password' }); const nw = h('input', { type: 'password', autocomplete: 'new-password' });
-        const { modal } = await import('../dom.js');
+        const cur = h('input', { type: 'password', autocomplete: 'current-password', 'data-live': '' }); const nw = h('input', { type: 'password', autocomplete: 'new-password', 'data-live': '' });
         modal({ title: 'Change password', body: h('div', null, field('Current password', cur), field('New password', nw)), actions: [{ label: 'Cancel' }, { label: 'Change', kind: 'primary', onClick: async () => {
-          try { await auth.changePassword(cur.value, nw.value); toast('Password changed.', 'ok'); } catch (e) { toast(e.message, 'err'); return false; }
+          try { await local.changePassword(cur.value, nw.value); toast('Password changed.', 'ok'); } catch (e) { toast(e.message, 'err'); return false; }
         } }] });
       } }, 'Change')),
-      row('Sign out', 'Locks the workspace until you sign in again.', h('button', { class: 'btn', type: 'button', onclick: () => { auth.signOut(); location.reload(); } }, icon('logout', 15), 'Sign out')),
-      row('Remove sign-in', 'Stop asking for a password on this computer. Your data is kept.', h('button', { class: 'btn danger', type: 'button', onclick: async () => {
-        const pw = await askPassword('Remove sign-in', 'Enter your password to remove the sign-in.'); if (pw === null) return;
-        try { await auth.removeAccount(pw); toast('Sign-in removed.', 'ok'); paintSignin(); rerenderPage(); } catch (e) { toast(e.message, 'err'); }
-      } }, 'Remove')),
-      h('p', { class: 'muted small' }, 'The sign-in is stored only in this browser (the password is salted and hashed, never sent anywhere) and is included in backups. It is a door lock for this computer, not a vault: your data is not encrypted, and it does not follow you to other devices.'));
+      row('Sign out', 'Returns to the sign-in screen. Your data stays on this computer.', h('button', { class: 'btn', type: 'button', onclick: doSignOut }, icon('logout', 15), 'Sign out')),
+      row('Delete my account', 'Permanently removes this account and all of its data from this computer. This cannot be undone.', h('button', { class: 'btn danger', type: 'button', onclick: async () => {
+        const pw = await askPassword('Delete account', 'This permanently deletes this account and all of its loads, carriers, customers and settings from this computer. Download a backup first if you might need them. Enter your password to confirm.'); if (pw === null) return;
+        try { await local.deleteAccount(pw); toast('Account deleted.', 'ok'); setTimeout(() => location.reload(), 800); } catch (e) { toast(e.message, 'err', 8000); }
+      } }, 'Delete')),
+      h('p', { class: 'muted small' }, 'The password is kept only as a salted hash and is never sent anywhere. It keeps other people at this keyboard out of your workspace, but it is a door lock, not a vault: the data itself is not encrypted. Want accounts that follow you across computers? See docs/CLOUD-SETUP.md.'));
+  };
+  /* Cloud accounts (js/config.js is filled in): a real account, saved to the cloud, shareable by link. */
+  let unsubStatus = null;
+  const paintCloud = () => {
+    signinBody.textContent = '';
+    const u = cloud.user(); if (!u) return;
+    const statEl = h('b', null);
+    const paintStat = () => {
+      const st = cloud.getStatus();
+      const when = st.lastSync ? ' Last checked ' + new Date(st.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.' : '';
+      statEl.textContent = st.status === 'synced' ? 'Saved to your account.' + when : st.status === 'saving' ? 'Saving…' : st.status === 'offline' ? 'Offline. ' + st.detail : st.status === 'error' ? 'Problem: ' + st.detail : 'Starting…';
+      statEl.className = st.status === 'error' || st.status === 'offline' ? 'warnText' : '';
+    };
+    paintStat();
+    if (unsubStatus) unsubStatus();
+    unsubStatus = cloud.onStatus(() => { if (statEl.isConnected) paintStat(); });
+    const link = h('input', { value: cloud.shareUrl(), readOnly: true, 'aria-label': 'Invite link', 'data-live': '', onfocus: (e) => e.target.select() });
+    const syncBtn = h('button', { class: 'btn', type: 'button', onclick: async () => { syncBtn.disabled = true; await cloud.syncNow(); syncBtn.disabled = false; paintStat(); } }, icon('refresh', 15), 'Sync now');
+    const doSignOut = async (clearDevice) => {
+      toast('Saving your changes, then signing out…', 'info', 6000);
+      try { await cloud.signOut({ clearDevice }); } catch (e) { toast(e.message || String(e), 'err', 9000); return; }
+      location.reload();
+    };
+    signinBody.append(
+      row('Signed in as', 'Your own private account.', h('b', { class: 'mono' }, u.email)),
+      row('Cloud sync', 'Every change is saved to your account automatically and also kept on this device, so the app works offline.', h('div', { class: 'sync-row' }, statEl, ' ', syncBtn)),
+      row('Invite people', 'Send this link. Each person creates their own account; their loads, carriers, customers and settings stay private to them.',
+        h('div', { class: 'sync-row' }, link, ' ', h('button', { class: 'btn primary', type: 'button', onclick: () => copyText(link.value, 'Invite link copied.') }, icon('copy', 15), 'Copy link'))),
+      installRow(),
+      row('Change password', 'At least ' + auth.MIN_PASSWORD + ' characters.', h('button', { class: 'btn', type: 'button', onclick: async () => {
+        const cur = h('input', { type: 'password', autocomplete: 'current-password', 'data-live': '' }); const nw = h('input', { type: 'password', autocomplete: 'new-password', 'data-live': '' });
+        modal({ title: 'Change password', body: h('div', null, field('Current password', cur), field('New password', nw)), actions: [{ label: 'Cancel' }, { label: 'Change', kind: 'primary', onClick: async () => {
+          try { await cloud.changePassword(cur.value, nw.value); toast('Password changed. Other devices will ask you to sign in again.', 'ok', 7000); } catch (e) { toast(e.message, 'err'); return false; }
+        } }] });
+      } }, 'Change')),
+      row('Forgot your password?', 'Sends a reset link to ' + u.email + '.', h('button', { class: 'btn', type: 'button', onclick: async () => {
+        try { await cloud.sendReset(u.email); toast('Reset link sent. Check your inbox (and spam).', 'ok', 7000); } catch (e) { toast(e.message, 'err'); }
+      } }, 'E-mail me a link')),
+      row('Sign out', 'Uploads anything unsaved, then returns to the sign-in screen.', h('button', { class: 'btn', type: 'button', onclick: () => doSignOut(false) }, icon('logout', 15), 'Sign out')),
+      row('Sign out and remove this device\'s copy', 'Use on a shared or public computer. Your data stays safe in your account.', h('button', { class: 'btn', type: 'button', onclick: async () => {
+        if (await confirmDialog('Remove this device\'s copy?', 'This signs you out and deletes the copy of your data cached in this browser. Nothing is lost from your account.', 'Sign out and remove')) doSignOut(true);
+      } }, 'Sign out and remove')),
+      row('Delete my account', 'Permanently deletes the account and everything saved in it. This cannot be undone.', h('button', { class: 'btn danger', type: 'button', onclick: async () => {
+        const pw = await askPassword('Delete account', 'This permanently deletes your account and all of your saved loads, carriers, customers and settings. Enter your password to confirm.'); if (pw === null) return;
+        try { await cloud.deleteAccount(pw); toast('Account deleted.', 'ok'); setTimeout(() => location.reload(), 800); } catch (e) { toast(e.message, 'err', 8000); }
+      } }, 'Delete')),
+      h('p', { class: 'muted small' }, 'Your data lives in this site\'s Firebase project, behind your sign-in: the database only lets you open your own account\'s data. If you edit the same list on two devices at the same moment, the most recent save wins.'));
+  };
+  const paintSignin = () => {
+    if (cloud.enabled()) { paintCloud(); return; }
+    paintLocal();
   };
   paintSignin();
-  const signin = card('signin', 'lock', 'Sign-in & e-mail', auth.account() ? 'Signed in as ' + auth.account().email : 'Tie this workspace to your e-mail and a password.', signinBody);
+  const signin = card('signin', 'lock', cloud.enabled() ? 'Account & sync' : 'Account', cloud.enabled() ? (cloud.user() ? 'Signed in as ' + cloud.user().email : '') : (local.user() ? 'Signed in as ' + local.user().email : ''), signinBody);
 
   /* --------------------------------------------------------------------------------------------- theme */
   const skinTiles = SKINS.map(s => {

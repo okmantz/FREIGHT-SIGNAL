@@ -3,6 +3,7 @@ import { pageHead } from '../chrome.js';
 import { icon } from '../icons.js';
 import { state, actions, importZipCsv } from '../../store/state.js';
 import * as db from '../../store/db.js';
+import { storedWhere as cloudWhere } from '../../store/cloud.js';
 import { bridge, connect, reconnect, disconnect, writeNow, pollNow, outlookConnected } from '../../store/bridge.js';
 import { refreshWeather, weatherStatus } from '../../store/weather.js';
 import { DEFAULT_TEMPLATES, TEMPLATE_VARS, templatesOf, ladderStage, fillTemplate } from '../../core/ladder.js';
@@ -292,7 +293,7 @@ export function render() {
   const { area } = mk(s);
   const olOn = bridge.connected && outlookConnected();
   return h('div', null,
-    pageHead({ icon: 'system', title: 'System', sub: 'Settings, backup and data. All stored in this browser only. Click a section to open it.', actions: [h('a', { class: 'btn', href: '#/account' }, icon('palette', 15), 'Themes & appearance')] }),
+    pageHead({ icon: 'system', title: 'System', sub: 'Settings, backup and data. ' + cloudWhere() + ' Click a section to open it.', actions: [h('a', { class: 'btn', href: '#/account' }, icon('palette', 15), 'Themes & appearance')] }),
     state.persistError ? h('div', { class: 'banner err' }, 'Storage problem: ' + state.persistError) : null,
     section('outlook', 'Connect to Outlook', olOn ? 'Connected' : bridge.connected ? 'Folder connected, waiting for Outlook' : 'Not connected - step-by-step guide inside', outlookGuide(), { open: !olOn, tone: olOn ? 'good' : 'warn' }),
     section('ladder', 'Counter ladder and reply wording', `Book within ${s.ladderBookPct}%, split within ${s.ladderSplitPct}% of target`, ladderSection(s)),
