@@ -17,7 +17,7 @@ function overview() {
   const states = new Set(cs.map(c => String(c.state || '').trim().toUpperCase()).filter(Boolean)).size;
   const touched = cs.filter(c => { const t = Date.parse(c.lastContacted); return Number.isFinite(t) && now - t < 30 * DAY; }).length;
   const stale = cs.filter(c => { const t = Date.parse(c.lastContacted); return !Number.isFinite(t) || now - t >= 90 * DAY; }).length;
-  return statTiles([[cs.length, 'Contacts'], [companies, 'Companies'], [active, 'Active', 'ok'], [withEmail, 'With e-mail'], [withPhone, 'With phone'], [states, 'States'], [touched, 'Contacted in 30 days'], [stale, 'Not contacted in 90+ days', stale ? 'act' : '']]);
+  return statTiles([[cs.length, 'Contacts'], [companies, 'Companies'], [touched, 'Contacted in 30 days'], [stale, 'Not contacted in 90+ days', stale ? 'act' : '']]);
 }
 
 function edit(c) {

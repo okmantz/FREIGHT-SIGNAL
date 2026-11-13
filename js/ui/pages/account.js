@@ -9,6 +9,7 @@ import {
   getAppearance, setAppearance, resetAppearance, exportAppearance, importAppearance, imageFileToDataUrl, resolvedMode,
 } from '../appearance.js';
 import { TABS } from '../../main.js';
+import * as auth from '../../store/auth.js';
 
 const A = () => getAppearance();
 
@@ -42,8 +43,23 @@ function slider(min, max, get, set, unit = '', step = 1) {
 
 const row = (title, hint, control) => h('div', { class: 'set-row' }, h('div', { class: 'sl' }, h('b', null, title), hint ? h('small', { class: 'muted' }, hint) : null), control);
 const sub = (t) => h('div', { class: 'set-sub' }, t);
-const card = (id, ic, title, text, ...kids) => h('section', { class: 'set-card', id: 'acct-' + id },
-  h('header', null, h('span', { class: 'si' }, icon(ic, 21)), h('div', null, h('h3', null, title), h('p', null, text))), ...kids);
+/** Settings sections are collapsed <details>; which ones are open is remembered while the app stays open. */
+const openSecs = new Set();
+const card = (id, ic, title, text, ...kids) => {
+  const d = h('details', { class: 'set-card', id: 'acct-' + id, open: openSecs.has(id) },
+    h('summary', null, h('span', { class: 'si' }, icon(ic, 21)), h('div', { class: 'st' }, h('h3', null, title), h('p', null, text)), h('span', { class: 'sect-ch' }, icon('chevdown', 18))),
+    h('div', { class: 'set-body' }, ...kids));
+  d.addEventListener('toggle', () => { if (d.open) openSecs.add(id); else openSecs.delete(id); });
+  return d;
+};
+
+const rerenderPage = () => import('../../main.js').then(m => { m.render(); m.renderChrome && m.renderChrome(); });
+const askPassword = (title, text, label = 'Password') => new Promise((resolve) => {
+  const pw = h('input', { type: 'password', autocomplete: 'current-password', 'data-live': '' });
+  import('../dom.js').then(({ modal }) => modal({ title, body: h('div', null, h('p', { class: 'muted' }, text), field(label, pw)),
+    actions: [{ label: 'Cancel', onClick: () => resolve(null) }, { label: 'Continue', kind: 'primary', onClick: () => resolve(pw.value) }], onClose: () => resolve(null) }));
+  setTimeout(() => pw.focus(), 60);
+});
 
 export function render() {
   const live = [];                   // controls that need refreshing when the user resets / imports
@@ -75,6 +91,53 @@ export function render() {
         field('Name', nameIn), field('Role / title', txt('title', 'e.g. Freight Broker')),
         field('Company', txt('company', 'Optional')), field('Open the app on', startSel),
         h('div', { class: 'wide' }, savedHint))));
+
+  /* ----------------------------------------------------------------------------------------- sign-in */
+  const signinBody = h('div', null);
+  const paintSignin = () => {
+    signinBody.textContent = '';
+    const a = auth.account();
+    if (!a) {
+      const email = h('input', { type: 'email', autocomplete: 'email', placeholder: 'you@company.com', 'data-fk': 'acct-email' });
+      const pw = h('input', { type: 'password', autocomplete: 'new-password', placeholder: 'At least ' + auth.MIN_PASSWORD + ' characters', 'data-fk': 'acct-pw' });
+      const err = h('p', { class: 'autherr', role: 'alert' });
+      signinBody.append(
+        h('p', { class: 'muted' }, 'No sign-in is set up. Add an e-mail and password so this workspace asks for them when it opens.'),
+        h('div', { class: 'grid2' }, field('E-mail', email), field('Password', pw)), err,
+        h('button', { class: 'btn primary', type: 'button', 'data-act': 'create-account', onclick: async () => {
+          err.textContent = '';
+          try { await auth.createAccount(email.value, pw.value, true); toast('Sign-in created.', 'ok'); paintSignin(); rerenderPage(); } catch (e) { err.textContent = e.message || String(e); }
+        } }, icon('lock', 15), 'Create sign-in'));
+      return;
+    }
+    signinBody.append(
+      row('E-mail', 'The e-mail this workspace is tied to.', h('b', { class: 'mono' }, a.email)),
+      row('Change e-mail', 'Needs your password.', h('button', { class: 'btn', type: 'button', onclick: async () => {
+        const next = h('input', { type: 'email', value: a.email, 'data-live': '' });
+        const { modal } = await import('../dom.js');
+        modal({ title: 'Change e-mail', body: h('div', null, field('New e-mail', next)), actions: [{ label: 'Cancel' }, { label: 'Next', kind: 'primary', onClick: async () => {
+          if (!auth.isEmail(next.value)) { toast('Enter a valid e-mail address.', 'warn'); return false; }
+          const pw = await askPassword('Confirm with your password', 'Enter your password to change the e-mail.');
+          if (pw === null) return false;
+          try { await auth.changeEmail(pw, next.value); toast('E-mail changed.', 'ok'); paintSignin(); rerenderPage(); } catch (e) { toast(e.message, 'err'); return false; }
+        } }] });
+      } }, 'Change')),
+      row('Change password', 'At least ' + auth.MIN_PASSWORD + ' characters.', h('button', { class: 'btn', type: 'button', onclick: async () => {
+        const cur = h('input', { type: 'password', autocomplete: 'current-password' }); const nw = h('input', { type: 'password', autocomplete: 'new-password' });
+        const { modal } = await import('../dom.js');
+        modal({ title: 'Change password', body: h('div', null, field('Current password', cur), field('New password', nw)), actions: [{ label: 'Cancel' }, { label: 'Change', kind: 'primary', onClick: async () => {
+          try { await auth.changePassword(cur.value, nw.value); toast('Password changed.', 'ok'); } catch (e) { toast(e.message, 'err'); return false; }
+        } }] });
+      } }, 'Change')),
+      row('Sign out', 'Locks the workspace until you sign in again.', h('button', { class: 'btn', type: 'button', onclick: () => { auth.signOut(); location.reload(); } }, icon('logout', 15), 'Sign out')),
+      row('Remove sign-in', 'Stop asking for a password on this computer. Your data is kept.', h('button', { class: 'btn danger', type: 'button', onclick: async () => {
+        const pw = await askPassword('Remove sign-in', 'Enter your password to remove the sign-in.'); if (pw === null) return;
+        try { await auth.removeAccount(pw); toast('Sign-in removed.', 'ok'); paintSignin(); rerenderPage(); } catch (e) { toast(e.message, 'err'); }
+      } }, 'Remove')),
+      h('p', { class: 'muted small' }, 'The sign-in is stored only in this browser (the password is salted and hashed, never sent anywhere) and is included in backups. It is a door lock for this computer, not a vault: your data is not encrypted, and it does not follow you to other devices.'));
+  };
+  paintSignin();
+  const signin = card('signin', 'lock', 'Sign-in & e-mail', auth.account() ? 'Signed in as ' + auth.account().email : 'Tie this workspace to your e-mail and a password.', signinBody);
 
   /* --------------------------------------------------------------------------------------------- theme */
   const skinTiles = SKINS.map(s => {
@@ -133,7 +196,7 @@ export function render() {
   track({ refresh: refreshDrop }); refreshDrop();
 
   const bgTiles = groups.map(g => h('div', null, sub(g), h('div', { class: 'tile-grid' }, BACKGROUNDS.filter(b => b.group === g).map(b => {
-    const prev = h('div', { class: 'bg-prev' }, h('div', { class: 'bg-art art-' + b.id }), b.fx ? h('span', { class: 'bg-lock' }, 'Animated') : null);
+    const prev = h('div', { class: 'bg-prev' }, b.photo === false ? h('div', { class: 'bg-art art-' + b.id }) : h('div', { class: 'bg-thumb t-' + b.id }), b.fx ? h('span', { class: 'bg-lock' }, 'Animated') : null);
     const tile = h('button', { type: 'button', class: 'bg-tile', 'aria-pressed': 'false', onclick: () => { if (b.id === 'image' && !A().image) return chooseImage(); setAppearance({ bg: b.id }); refreshAll(); } },
       prev, h('span', { class: 'cap' }, h('b', null, b.label), h('small', { class: 'muted' }, b.blurb)));
     tile.refresh = () => tile.setAttribute('aria-pressed', String(A().bg === b.id));
@@ -153,7 +216,7 @@ export function render() {
     h('div', { class: 'grad-row' }, field('Start', gradA), field('End', gradB), field('Angle', gradAngle)),
     sub('Your image'), drop,
     sub('Fine tuning'),
-    row('Animated scenes', 'Moving stars, rain, aurora and more. Pauses when the tab is hidden; off for reduced-motion.', track(toggle(() => A().motion, (v) => setAppearance({ motion: v })))),
+    row('Animated scenes', 'Falling leaves, snow, petals, rain and more over the photo. Pauses when the tab is hidden; off for reduced-motion.', track(toggle(() => A().motion, (v) => setAppearance({ motion: v })))),
     row('Dim the background', 'Darker backgrounds make text easier to read.', track(slider(0, 85, () => A().dim, (v) => setAppearance({ dim: v }), '%'))),
     row('Blur the background', 'Soften the scene behind the app.', track(slider(0, 14, () => A().blur, (v) => setAppearance({ blur: v }), 'px'))),
     row('Panel opacity', 'Lower values let more of the background show through.', track(slider(40, 100, () => A().glass, (v) => setAppearance({ glass: v }), '%'))),
@@ -187,11 +250,11 @@ export function render() {
       h('a', { class: 'btn', href: '#/system' }, icon('system', 15), 'Open System')));
 
   /* --------------------------------------------------------------------------------------------- page */
-  const sections = [['profile', 'user', 'Profile'], ['theme', 'palette', 'Theme & colour'], ['background', 'image', 'Background'], ['layout', 'layers', 'Layout & type'], ['backup', 'database', 'Backup & reset']];
+  const sections = [['signin', 'lock', 'Sign-in'], ['profile', 'user', 'Profile'], ['theme', 'palette', 'Theme & colour'], ['background', 'image', 'Background'], ['layout', 'layers', 'Layout & type'], ['backup', 'database', 'Backup & reset']];
   const toc = h('div', { class: 'acct-toc' }, sections.map(([id, ic, label]) =>
-    h('button', { type: 'button', onclick: () => { const el = document.getElementById('acct-' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, icon(ic, 15), label)));
+    h('button', { type: 'button', onclick: () => { const el = document.getElementById('acct-' + id); if (el) { el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } } }, icon(ic, 15), label)));
 
   return h('div', null,
-    pageHead({ icon: 'palette', title: 'Account Settings', sub: 'Make Freight Signal yours: theme, colours, backgrounds and layout. Changes apply instantly and are saved in this browser.' }),
-    toc, profile, theme, background, layout, backup);
+    pageHead({ icon: 'palette', title: 'Account Settings', sub: 'Sign-in, profile and look. Open a section to change it; changes apply instantly.' }),
+    toc, signin, profile, theme, background, layout, backup);
 }

@@ -13,6 +13,9 @@
     for (var p in v) if (Object.prototype.hasOwnProperty.call(v, p) && /^--[a-z0-9-]+$/.test(p)) el.style.setProperty(p, String(v[p]));
     // This file is included twice: in <head> (attributes, before paint) and at the end of <body> (the artwork element exists by then).
     var art = document.getElementById('bg-art');
-    if (art && /^[a-z-]+$/.test(a['data-bg'] || '')) art.className = 'bg-art art-' + a['data-bg'];
+    var legacy = { mountains: 'midnight-ocean', aurora: 'cosmic-drift', sakura: 'sakura-reverie', neural: 'cosmic-drift', grid: 'plain' };
+    var bg = legacy[a['data-bg']] || a['data-bg'];
+    if (a['data-bg'] && legacy[a['data-bg']]) el.setAttribute('data-bg', bg);
+    if (art && /^[a-z-]+$/.test(bg || '')) art.className = 'bg-art art-' + bg;
   } catch (e) { /* first visit or storage blocked: the defaults in index.html apply */ }
 })();

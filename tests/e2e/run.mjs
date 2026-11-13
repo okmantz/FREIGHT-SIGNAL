@@ -14,6 +14,12 @@ const { srv, url } = await startServer();
 const browser = await chromium.launch(process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {});
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 900 }, acceptDownloads: true });
 const page = await ctx.newPage();
+// First run: a brand-new browser profile must be asked for an e-mail and a password before anything else.
+{ const fresh = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
+  await fresh.goto(url + '#/home'); await fresh.waitForSelector('.authgate');
+  check('first launch asks to create an account (e-mail, password, confirm) before the app', (await fresh.locator('.authgate input[type=email]').count()) === 1 && (await fresh.locator('.authgate .pw input').count()) === 2 && (await fresh.locator('#nav a:visible').count()) === 0);
+  await fresh.close(); }
+
 // The only third-party request the app may make is the optional NWS alert lookup (coordinates only). Stub it so the suite is offline-safe.
 const weatherCalls = [];
 await ctx.route('https://api.weather.gov/**', (route) => { weatherCalls.push(route.request().url()); route.fulfill({ status: 200, contentType: 'application/geo+json', body: JSON.stringify({ features: [{ properties: { event: 'Winter Storm Warning', severity: 'Severe', status: 'Actual', headline: 'E2E test storm' } }] }) }); });
@@ -21,7 +27,12 @@ const errors = []; const external = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('request', (r) => { if (!r.url().startsWith(url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && !r.url().startsWith('https://api.weather.gov/')) external.push(r.url()); });
-const go = async (tab) => { await page.goto(url + '#/' + tab); await page.waitForSelector('#nav a', { timeout: 20000 }); };
+const go = async (tab) => {
+  await page.goto(url + '#/' + tab);
+  await page.waitForSelector('#nav a, .authgate', { state: 'attached', timeout: 20000 });
+  if (await page.locator('.authgate').count()) { await page.click('.authgate >> text=Skip for now'); }
+  await page.waitForSelector('#nav a', { timeout: 20000 });
+};
 // Click something that triggers a CSV download; if DAT's "incomplete postings" confirm shows up, accept it.
 // System page sections are collapsible: open one before using its controls.
 const openSys = async (id) => { const d = page.locator(`details[data-sect="${id}"]`); await d.waitFor(); if (!(await d.evaluate(e => e.open))) await d.locator('summary').first().click(); };
@@ -69,26 +80,30 @@ try {
   // --- lane box + DAT CSV + rates + equipment + city->ZIP
   check('one lane box with the lane header', (await page.locator('.lanebox').count()) === 1 && /^.+, [A-Z]{2} \u2192 .+, [A-Z]{2}$/.test((await page.textContent('.lanebox h3.lane')).trim()), await page.textContent('.lanebox h3.lane'));
   check('the box holds all 9 postings labelled A-A .. C-C', (await page.locator('.lanebox tbody tr').count()) === 9 && (await page.textContent('.lanebox tbody')).includes('A-A') && (await page.textContent('.lanebox tbody')).includes('C-C'));
-  const eqLegend = await page.textContent('.legend');
-  check('equipment legend lists SD, F, VM, RM', /SD = Step Deck/.test(eqLegend) && /F = Flatbed/.test(eqLegend) && /VM = Van Team/.test(eqLegend) && /RM = Reefer Team/.test(eqLegend));
-  const eqSel = page.locator('.lanebox tbody tr').first().locator('select.eq');
-  check('equipment select offers V R F SD VM RM', JSON.stringify(await eqSel.locator('option').allTextContents()) === JSON.stringify(['V', 'R', 'F', 'SD', 'VM', 'RM']));
+  // equipment is one control per load (applies to all 9)
+  const eqSel = page.locator('.lanebox .loaddetails select');
+  check('equipment select offers V R F SD VM RM', JSON.stringify((await eqSel.locator('option').allTextContents()).map(x => x.split(' ')[0])) === JSON.stringify(['V', 'R', 'F', 'SD', 'VM', 'RM']));
+  const eqLabels = (await eqSel.locator('option').allTextContents()).join('|');
+  check('equipment options are named (SD, F, VM, RM)', /SD . Step Deck/.test(eqLabels) && /F . Flatbed/.test(eqLabels) && /VM . Van Team/.test(eqLabels) && /RM . Reefer Team/.test(eqLabels), eqLabels);
   await eqSel.selectOption('SD');
   await page.waitForTimeout(250);
-  check('equipment SD sticks', (await page.locator('.lanebox tbody tr').first().locator('select.eq').inputValue()) === 'SD');
-  await page.locator('.lanebox tbody tr').first().locator('select.eq').selectOption('V');
+  const eqAll = await page.evaluate(async () => (await import('/js/store/state.js')).state.postings.map(p => p.equip));
+  check('equipment SD applies to every posting of the load', eqAll.length === 9 && eqAll.every(e => e === 'SD'), JSON.stringify(eqAll));
+  await page.locator('.lanebox .loaddetails select').selectOption('V');
 
-  // bulk DAT rate for the whole box, then one posting with its own rate; target rate stays separate
-  await page.fill('.laneact input.datrate', '$1,800');
-  await page.click('[data-act="rate-all"]');
-  await page.waitForFunction(() => [...document.querySelectorAll('.lanebox tbody input.datrate')].every(i => i.value === '1800'));
-  check('DAT rate for all sets every posting in the box', true);
+  // ONE target rate per matrix: sets every posting, posted on DAT, never a per-row field
+  check('there is exactly one target-rate field per load and no per-row rate inputs', (await page.locator('.lanebox .dfield.rate input').count()) === 1 && (await page.locator('.lanebox tbody input.datrate').count()) === 0);
+  const rateIn = page.locator('.lanebox .dfield.rate input');
+  await rateIn.fill('$1,800'); await rateIn.press('Enter');
+  await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings.every(p => String(p.targetRate) === '1800'));
+  check('Target rate sets every posting in the box', true);
+  // a per-posting DAT override still exists in the Edit dialog
   const row3 = page.locator('.lanebox tbody tr').nth(3);
-  await row3.locator('input.datrate').fill('2100'); await row3.locator('input.datrate').press('Tab');
-  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr')[3].querySelector('input.datrate').value === '2100');
-  const tgtInput = page.locator('.lanebox tbody tr').first().locator('input[placeholder="$"]').nth(1);
-  await tgtInput.fill('1500'); await tgtInput.press('Tab');
-  await page.waitForTimeout(250);
+  await row3.locator('.menu summary').click();
+  await row3.locator('.menu-item:has-text("Edit every field")').click();
+  await page.locator('.modal .field', { hasText: 'DAT Loadboard Rate' }).locator('input').fill('2100');
+  await page.click('.modal >> text=Save');
+  await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings[3].datRate === '2100');
 
   const grp = await downloadVia(() => page.click('[data-act="csv-group"]'));
   const gtxt = grp.buf.toString('utf8');
@@ -97,8 +112,11 @@ try {
   check('lane CSV has header + 9 postings, LF endings, no BOM', glines.length === 10 && !gtxt.includes('\r') && grp.buf[0] !== 0xEF && !gtxt.startsWith('\ufeff'));
   check('lane CSV file name carries the lane', /^freight-signal-dat-.+-to-.+-\d{4}-\d{2}-\d{2}\.csv$/.test(grp.name), grp.name);
   const col = (line, i) => line.split(',')[i];
-  check('DAT rates land in "DAT Loadboard Rate" (1800 x8, 2100 x1)', glines.slice(1).filter(l => col(l, 11) === '1800').length === 8 && glines.slice(1).filter(l => col(l, 11) === '2100').length === 1);
-  check('target rate is NOT in the CSV', !gtxt.includes('1500'));
+  check('target rate is posted as the DAT rate (1800 x8, per-posting override 2100 x1)', glines.slice(1).filter(l => col(l, 11) === '1800').length === 8 && glines.slice(1).filter(l => col(l, 11) === '2100').length === 1);
+  await page.locator('.boardbar .tgl input').uncheck(); await page.waitForTimeout(200);
+  const noRate = (await downloadVia(() => page.click('[data-act="csv-group"]'))).buf.toString('utf8').split('\n').filter(Boolean).slice(1);
+  check('with "Post target rate on DAT" off, only the override posts a rate', noRate.filter(l => col(l, 11) === '1800').length === 0 && noRate.filter(l => col(l, 11) === '2100').length === 1);
+  await page.locator('.boardbar .tgl input').check(); await page.waitForTimeout(200);
   check('destination ZIP column is filled', glines.slice(1).every(l => /^\d{5}$/.test(col(l, 20))), glines[1]);
 
   const all = await downloadVia(() => page.click('[data-act="csv-all"]'));
@@ -109,7 +127,7 @@ try {
   const sel = await downloadVia(() => page.click('[data-act="csv-sel"]'));
   check('Download selected exports just the ticked posting', sel.buf.toString('utf8').split('\n').filter(Boolean).length === 2);
   await page.click('.selbar >> text=Clear');
-  const one = await downloadVia(() => page.locator('.lanebox tbody tr').nth(4).locator('[data-act="csv-one"]').click());
+  const one = await downloadVia(async () => { await page.locator('.lanebox tbody tr').nth(4).locator('.menu summary').click(); await page.locator('.lanebox tbody tr').nth(4).locator('[data-act="csv-one"]').click(); });
   check('single-posting CSV has header + 1 row', one.buf.toString('utf8').split('\n').filter(Boolean).length === 2);
 
   // city -> ZIP, driven like a real user (type, Tab)
@@ -151,7 +169,7 @@ try {
 
   // --- outreach drafts (never sent)
   await go('board');
-  await page.locator('button:has-text("Outreach")').first().click();
+  await page.locator('[data-act="outreach"]').first().click();
   await page.waitForSelector('.modal .draft');
   const draftTxt = await page.textContent('.modal-body');
   check('outreach creates drafts for matching carriers', draftTxt.includes('e2e@carrier.example'));
@@ -191,18 +209,18 @@ try {
   check('board survives reload', (await page.locator('tbody tr').count()) === 9);
 
   // --- priority -> target outreach, with the select focused like a real user (regression: stale display)
-  const priSel = page.locator('.lanehead select').first();
-  const tgtPill = page.locator('.lanehead .pill.tgt');
+  const priSel = page.locator('.lanebox .laneopts select').first();
+  const tgtOf = () => page.evaluate(async () => { const m = await import('/js/store/state.js'); return m.state.postings[0].outreachTarget; });
   await priSel.focus(); await priSel.selectOption('Medium');
-  await page.waitForFunction(() => /Target outreach: 10/.test(document.querySelector('.lanehead .pill.tgt').textContent));
-  check('Medium priority shows target outreach 10', true);
-  await page.locator('.lanehead select').first().selectOption('High');
-  await page.waitForFunction(() => /Target outreach: 15/.test(document.querySelector('.lanehead .pill.tgt').textContent));
-  check('High priority shows target outreach 15', true);
-  await page.locator('.lanehead select').first().selectOption('Low');
-  await page.waitForFunction(() => /Target outreach: 5\b/.test(document.querySelector('.lanehead .pill.tgt').textContent));
-  check('Low priority shows target outreach 5', true);
-  await page.locator('.lanehead select').first().selectOption('High');
+  await page.waitForFunction(() => /Medium . 10/.test(document.querySelector('.lanebox .laneopts select').selectedOptions[0].textContent));
+  check('Medium priority shows target outreach 10', (await tgtOf()) === 10);
+  await page.locator('.lanebox .laneopts select').first().selectOption('High');
+  await page.waitForTimeout(250);
+  check('High priority shows target outreach 15', (await tgtOf()) === 15);
+  await page.locator('.lanebox .laneopts select').first().selectOption('Low');
+  await page.waitForTimeout(250);
+  check('Low priority shows target outreach 5', (await tgtOf()) === 5);
+  await page.locator('.lanebox .laneopts select').first().selectOption('High');
   await page.waitForTimeout(300);
   const stored = await page.evaluate(async () => { const m = await import('/js/store/state.js'); return m.state.postings.map(p => [p.priority, p.outreachTarget]); });
   check('priority + target stored on all 9 postings', stored.length === 9 && stored.every(([pr, t]) => pr === 'High' && t === 15), JSON.stringify(stored));
@@ -252,8 +270,8 @@ try {
   await page.fill('.modal input[placeholder="$ paid / agreed"]', '1650');
   await page.waitForFunction(() => { const q = (p) => document.querySelector(`.modal input[placeholder="${p}"]`); return q('Carrier name').value === 'E2E Freight' && q('$ paid / agreed').value === '1650'; }, null, { timeout: 5000 }).catch(() => {});
   await page.click('.modal >> text=Log cover and remove');
-  await page.waitForFunction(() => !document.querySelector('tbody tr .rowact'));
-  check('Covered removes the entire group', (await page.locator('tbody tr .rowact').count()) === 0);
+  await page.waitForFunction(() => !document.querySelector('tbody tr .rowmenu'));
+  check('Covered removes the entire group', (await page.locator('tbody tr .rowmenu').count()) === 0);
   await go('covers');
   await page.waitForFunction(() => /E2E Freight/.test((document.querySelector('.tablewrap') || {}).textContent || ''), null, { timeout: 8000 }).catch(() => {});
   const logTxt = await page.textContent('.tablewrap') + ' || ' + JSON.stringify(await page.evaluate(async () => (await import('/js/store/state.js')).state.coverLog.map(e => e.carrier)));
@@ -284,7 +302,7 @@ try {
   // --- delete: one posting, a ticked selection, a whole group; the Outlook feed follows
   await go('board');
   const feedCount = async () => (await readFeed('freight-signal-postings.tsv')).split('\r\n').filter(Boolean).length - 2;
-  await page.locator('.lanebox tbody tr').nth(1).locator('[data-act="del-one"]').click();
+  await page.locator('.lanebox tbody tr').nth(1).locator('.menu summary').click(); await page.locator('.lanebox tbody tr').nth(1).locator('[data-act="del-one"]').click();
   await page.click('.modal-foot >> text=Delete');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 8);
   check('delete one posting removes only that posting', true);
@@ -295,7 +313,7 @@ try {
   await page.click('[data-act="del-sel"]'); await page.click('.modal-foot >> text=Delete');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 6);
   check('delete selected removes the ticked postings', true);
-  await page.click('[data-act="del-group"]'); await page.click('.modal-foot >> text=Delete');
+  await page.click('.laneact .menu summary'); await page.click('[data-act="del-group"]'); await page.click('.modal-foot >> text=Delete');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox').length === 0);
   check('delete group removes the whole box', true);
   await restoreBackupFile('/tmp/e2e-backup.json');
@@ -303,19 +321,19 @@ try {
   check('restore after delete tests brings the 9 postings back', (await page.locator('tbody tr').count()) === 9, String(await page.locator('tbody tr').count()));
 
   await go('board');
-  await page.waitForSelector('.lanebox .flag:has-text("Winter Storm")', { timeout: 15000 }).catch(async () => { await page.reload(); await page.waitForSelector('.lanebox .flag:has-text("Winter Storm")', { timeout: 20000 }).catch(() => {}); });
-  check('weather flag appears on a load whose pickup lane has a severe alert', (await page.locator('.lanebox .flag:has-text("Winter Storm")').count()) >= 1);
+  await page.waitForSelector('.lanebox .issue:has-text("Winter Storm")', { timeout: 15000 }).catch(async () => { await page.reload(); await page.waitForSelector('.lanebox .issue:has-text("Winter Storm")', { timeout: 20000 }).catch(() => {}); });
+  check('weather flag appears on a load whose pickup lane has a severe alert', (await page.locator('.lanebox .issue:has-text("Winter Storm")').count()) >= 1);
 
 
   // --- v2 features: collapsible lane boxes, brokers, customers, truck check, auto-expiry, collapsible System sections
   await go('board');
-  await page.click('[data-act="collapse-all"]');
+  await page.click('.boardbar .menu summary'); await page.click('[data-act="collapse-all"]');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox.collapsed').length >= 1 && !document.querySelector('.lanebox tbody tr'));
   check('collapse all hides the rows of every load group', (await page.locator('.lanebox tbody tr').count()) === 0);
-  await page.click('[data-act="expand-all"]');
+  await page.click('.boardbar .menu summary'); await page.click('[data-act="expand-all"]');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9);
   check('expand all brings the rows back', true);
-  check('overview strip and the ranked worklist are on the Freight Signal page', (await page.locator('.ovstrip .ovtile').count()) >= 8 && (await page.locator('.worklist .wl li').count()) >= 1);
+  check('overview strip and the ranked worklist are on the Freight Signal page', (await page.locator('.ovstrip .ovtile').count()) === 4 && (await page.locator('.worklist .wl li').count()) >= 1);
   check('each load shows a next-step guidance panel', (await page.locator('.lanebox .guide').count()) >= 1);
   await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.addBroker('Sam Rivers'); });
   await page.waitForSelector('.tabs .tab:has-text("Sam Rivers")');
@@ -395,12 +413,34 @@ try {
   const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
   check('Copy load details puts the original TQL text on the clipboard', /Pickup:/i.test(clip) && clip.length > 40, clip.slice(0, 60));
   await go('account');
-  check('Account Settings page renders', (await page.locator('.set-card').count()) >= 5);
-  await page.click('.skin-tile:has-text("Obsidian Gold")'); await page.click('.bg-tile:has-text("Sakura")'); await page.click('.swatch[title="Violet"]');
+  check('Account Settings page renders with every section collapsed', (await page.locator('details.set-card').count()) >= 6 && (await page.locator('details.set-card[open]').count()) === 0);
+  for (const id of ['theme', 'background']) await page.click(`#acct-${id} > summary`);
+  await page.click('.skin-tile:has-text("Obsidian Gold")'); await page.click('.bg-tile:has-text("Sakura Reverie")'); await page.click('.swatch[title="Violet"]');
   await page.waitForTimeout(500);
-  check('skin + background apply live', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura');
+  check('skin + background apply live', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura-reverie');
   await page.waitForTimeout(500); await page.reload(); await page.waitForSelector('#nav a');
-  check('skin + background persist after reload', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura');
+  check('skin + background persist after reload', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura-reverie');
+
+  // --- email sign-in: first-run gate, create, keep signed in, sign out, wrong password, sign back in
+  await go('account');
+  await page.click('#acct-signin > summary');
+  await page.fill('[data-fk="acct-email"]', 'Owen@Example.com'); await page.fill('[data-fk="acct-pw"]', 'short');
+  await page.click('[data-act="create-account"]');
+  check('a too-short password is refused with a clear message', /at least 8/i.test(await page.textContent('#acct-signin .autherr')));
+  await page.fill('[data-fk="acct-pw"]', 'correct horse 42'); await page.click('[data-act="create-account"]');
+  await page.waitForSelector('#acct-signin :text("owen@example.com")');
+  check('creating the sign-in saves the e-mail in Account Settings', true);
+  await page.reload(); await page.waitForSelector('#nav a');
+  check('kept signed in: no gate after a reload', (await page.locator('.authgate').count()) === 0);
+  await page.click('#signoutbtn'); await page.waitForSelector('.authgate');
+  check('signing out shows the sign-in form', (await page.locator('.authgate input[type=email]').count()) === 1);
+  await page.fill('.authgate input[type=email]', 'owen@example.com'); await page.fill('.authgate .pw input', 'wrong password!');
+  await page.click('.authgate button[type=submit]');
+  await page.waitForFunction(() => /do not match/i.test(document.querySelector('.authgate .autherr').textContent));
+  check('a wrong password is refused and the app stays locked', (await page.locator('#nav a:visible').count()) === 0);
+  await page.fill('.authgate .pw input', 'correct horse 42'); await page.click('.authgate button[type=submit]');
+  await page.waitForSelector('#nav a');
+  check('the right password opens the app again', (await page.locator('.authgate').count()) === 0);
 
   // --- offline: core functions without network
   await page.waitForTimeout(800);

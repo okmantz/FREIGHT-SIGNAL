@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Same-origin GETs only; nothing leaves the browser.
-const CACHE = 'freight-signal-v4';
+const CACHE = 'freight-signal-v5';
 const SHELL = ['./', 'index.html', 'css/app.css', 'favicon.ico', 'manifest.webmanifest', 'assets/logo-256.png', 'assets/logo-mark.png', 'js/boot.js', 'js/main.js'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

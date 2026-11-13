@@ -17,6 +17,8 @@ import { startWeather } from './store/weather.js';
 import { paceStats } from './core/coverlog.js';
 import { icon } from './ui/icons.js';
 import { initials } from './ui/chrome.js';
+import { needsGate, hasAccount, account as signedAccount, signOut } from './store/auth.js';
+import { showGate } from './ui/auth.js';
 import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode, toggleMode, onAppearance } from './ui/appearance.js';
 
 // group = heading in the sidebar. `icon` = ui/icons.js name.
@@ -67,10 +69,13 @@ export function renderChrome() {
   const ab = document.getElementById('appearbtn'); if (!ab.firstChild) ab.appendChild(icon('palette', 17));
   const nt = document.getElementById('navtoggle'); if (!nt.firstChild) nt.appendChild(icon('menu', 18));
   const pf = state.settings.profile || {};
+  const acct = signedAccount();
   const chip = document.getElementById('profilechip'); clear(chip);
-  const ini = initials(pf.name);
+  const ini = initials(pf.name) || (acct ? acct.email[0].toUpperCase() : '');
   chip.append(h('span', { class: 'avatar' }, ini || icon('user', 16)),
-    h('span', { class: 'who' }, h('b', null, pf.name || 'Account'), h('small', null, pf.title || 'Settings and themes')));
+    h('span', { class: 'who' }, h('b', null, pf.name || (acct ? acct.email.split('@')[0] : 'Account')), h('small', null, pf.title || (acct ? acct.email : 'Settings and themes'))));
+  const so = document.getElementById('signoutbtn');
+  if (so) { so.hidden = !hasAccount(); if (!so.firstChild) so.appendChild(icon('logout', 17)); }
 }
 
 /** Top-right cover pace tracker: covers today, covers this week, and where the week is heading against the floor. */
@@ -148,6 +153,9 @@ async function boot() {
   }
   // The stored appearance wins over the localStorage mirror used for the flash-free first paint.
   syncFromStore(state.settings.appearance);
+  // First visit: ask for an e-mail and a password. Later visits: sign in. (Skipped when the person chose "Skip for now".)
+  if (needsGate()) await showGate();
+  document.getElementById('signoutbtn').addEventListener('click', () => { signOut(); location.reload(); });
   document.getElementById('themebtn').addEventListener('click', () => { toggleMode(); });
   onAppearance(() => renderChrome());
   document.getElementById('navtoggle').addEventListener('click', () => document.getElementById('app').classList.toggle('nav-open'));

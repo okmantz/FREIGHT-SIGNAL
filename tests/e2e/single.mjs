@@ -12,7 +12,9 @@ const errs = []; const ext = [];
 pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); pg.on('pageerror', (e) => errs.push(e.message));
 pg.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && !r.url().startsWith('https://api.weather.gov')) ext.push(r.url()); });
 try {
-  await pg.goto('file://' + file); await pg.waitForSelector('.metrics', { timeout: 30000 });
+  await pg.goto('file://' + file); await pg.waitForSelector('.authgate, .metrics', { state: 'attached', timeout: 30000 });
+  check('first launch shows the create-account screen', (await pg.locator('.authgate').count()) === 1);
+  await pg.click('.authgate >> text=Skip for now'); await pg.waitForSelector('.metrics', { timeout: 30000 });
   check('single file boots from file://', true);
   check('embedded ZIP Map decompressed (33,782 rows)', (await pg.textContent('#zipstat')).includes('33,782'), await pg.textContent('#zipstat'));
   await pg.goto('file://' + file + '#/board');

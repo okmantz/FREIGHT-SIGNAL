@@ -14,9 +14,9 @@ export const DEFAULTS = Object.freeze({
   skin: 'signal',
   accent: 'auto',          // 'auto' = the skin's own accent | ACCENTS key | 'custom'
   accentHex: '#1ab0ee',
-  bg: 'mountains',
+  bg: 'midnight-ocean',
   motion: true,            // animated scenes
-  dim: 30,                 // 0..85: how much the scene is dimmed behind the content
+  dim: 34,                 // 0..85: how much the scene is dimmed behind the content
   blur: 0,                 // 0..14 px blur on the scene art
   glass: 82,               // 40..100: panel opacity
   glassBlur: true,         // frosted-glass blur behind panels
@@ -59,25 +59,34 @@ export const ACCENTS = [
   { id: 'gold', label: 'Gold', dark: '#e6c36a', light: '#8a6a12' },
 ];
 
-// fx = which canvas effect (scenes.js) runs over the art. group = heading in the picker.
+// Every scene is a photo with a dark and a light version (assets/backgrounds/<id>-dark.webp / -light.webp, plus
+// <id>-thumb-*.webp for the picker). fx = which canvas effect (scenes.js) moves over the photo: falling leaves on Autumn,
+// snow on Winter, petals on Spring and Sakura, rain on Rainfall District and so on. group = heading in the picker.
 export const BACKGROUNDS = [
-  { id: 'mountains', label: 'Mountains', group: 'Scenes', fx: 'stars', blurb: 'The teal night range under a twinkling sky.' },
-  { id: 'aurora', label: 'Cosmic Drift', group: 'Scenes', fx: 'aurora', blurb: 'Slow aurora ribbons over deep space.' },
-  { id: 'midnight-ocean', label: 'Midnight Ocean', group: 'Scenes', fx: 'waves', blurb: 'Moonlit water with rolling swells.' },
-  { id: 'rainfall-district', label: 'Rainfall District', group: 'Scenes', fx: 'rain', blurb: 'Neon city glow in the rain.' },
-  { id: 'misty-forest', label: 'Misty Forest', group: 'Scenes', fx: 'fireflies', blurb: 'Layered mist and drifting fireflies.' },
-  { id: 'obsidian-gold', label: 'Obsidian Gold', group: 'Scenes', fx: 'gold', blurb: 'Black stone with rising gold dust.' },
-  { id: 'bioluminescence', label: 'Bioluminescence', group: 'Scenes', fx: 'biolum', blurb: 'Glowing plankton in a dark tide.' },
-  { id: 'neural', label: 'Neural Network', group: 'Scenes', fx: 'neural', blurb: 'A soft node-and-link knowledge graph.' },
-  { id: 'nordic-kingdom', label: 'Nordic Kingdom', group: 'Seasons', fx: 'snow', blurb: 'A cold fjord with falling snow.' },
-  { id: 'sakura', label: 'Sakura Reverie', group: 'Seasons', fx: 'petals', blurb: 'Blossom petals at dusk.' },
-  { id: 'autumn', label: 'Autumn Dusk', group: 'Seasons', fx: 'leaves', blurb: 'Warm light and drifting leaves.' },
-  { id: 'endless-sands', label: 'Endless Sands', group: 'Seasons', fx: 'sand', blurb: 'Desert dunes under a low sun.' },
-  { id: 'grid', label: 'Blueprint Grid', group: 'Minimal', fx: null, blurb: 'A fine technical grid.' },
-  { id: 'plain', label: 'Clean', group: 'Minimal', fx: null, blurb: 'No scene. Just the theme colours.' },
-  { id: 'gradient', label: 'Custom gradient', group: 'Yours', fx: null, blurb: 'Pick two colours and an angle.' },
-  { id: 'image', label: 'Your image', group: 'Yours', fx: null, blurb: 'Upload your own picture.' },
+  { id: 'spring', label: 'Spring', group: 'Seasons', fx: 'blossom', blurb: 'Cherry blossom over a river valley. Petals drift down.' },
+  { id: 'summer', label: 'Summer', group: 'Seasons', fx: 'summernight', blurb: 'A warm lakeside night. Twinkling stars and fireflies.' },
+  { id: 'autumn', label: 'Autumn', group: 'Seasons', fx: 'leaves', blurb: 'Sunset over a red-gold forest. Leaves fall.' },
+  { id: 'winter', label: 'Winter', group: 'Seasons', fx: 'snow', blurb: 'A frozen alpine lake. Soft snowfall.' },
+  { id: 'nordic-kingdom', label: 'Nordic Kingdom', group: 'Landscapes', fx: 'flurry', blurb: 'A fjord village at dusk. Wind-blown flurries.' },
+  { id: 'sakura-reverie', label: 'Sakura Reverie', group: 'Landscapes', fx: 'sakura', blurb: 'A pagoda at sunset. Heavy blossom petals.' },
+  { id: 'coastal-italy', label: 'Coastal Italy', group: 'Landscapes', fx: 'seaglint', blurb: 'A sunlit Amalfi bay. Sparkling water.' },
+  { id: 'endless-sands', label: 'Endless Sands', group: 'Landscapes', fx: 'sand', blurb: 'Dunes under a low sun. Blowing sand.' },
+  { id: 'misty-forest', label: 'Misty Forest', group: 'Landscapes', fx: 'mist', blurb: 'A quiet fjord forest. Slow drifting mist.' },
+  { id: 'silent-sanctuary', label: 'Silent Sanctuary', group: 'Landscapes', fx: 'lanternfly', blurb: 'A lantern-lit shrine path. Fireflies and mist.' },
+  { id: 'midnight-ocean', label: 'Midnight Ocean', group: 'Night & water', fx: 'moonwater', blurb: 'Moonlit water. Glittering swells and stars.' },
+  { id: 'abyssal-blue', label: 'Abyssal Blue', group: 'Night & water', fx: 'bubbles', blurb: 'Light shafts and a whale. Rising bubbles.' },
+  { id: 'bioluminescence', label: 'Bioluminescence', group: 'Night & water', fx: 'biolumsky', blurb: 'A glowing tide under the Milky Way.' },
+  { id: 'cosmic-drift', label: 'Cosmic Drift', group: 'Night & water', fx: 'cosmos', blurb: 'A violet nebula. Twinkling stars, shooting stars.' },
+  { id: 'rainfall-district', label: 'Rainfall District', group: 'Night & water', fx: 'rain', blurb: 'Neon city streets in the rain.' },
+  { id: 'obsidian', label: 'Obsidian', group: 'Abstract', fx: 'sheen', blurb: 'Black glass curves. A slow light sweep.' },
+  { id: 'obsidian-gold', label: 'Obsidian Gold', group: 'Abstract', fx: 'gold', blurb: 'Black marble veined with gold. Rising gold dust.' },
+  { id: 'plain', label: 'Clean', group: 'Minimal & yours', fx: null, photo: false, blurb: 'No scene. Just the theme colours.' },
+  { id: 'gradient', label: 'Custom gradient', group: 'Minimal & yours', fx: null, photo: false, blurb: 'Pick two colours and an angle.' },
+  { id: 'image', label: 'Your image', group: 'Minimal & yours', fx: null, photo: false, blurb: 'Upload your own picture.' },
 ];
+
+// Scenes that were removed when the photo set arrived: anything saved with one of these ids moves to its nearest photo.
+export const LEGACY_BG = Object.freeze({ mountains: 'midnight-ocean', aurora: 'cosmic-drift', sakura: 'sakura-reverie', neural: 'cosmic-drift', grid: 'plain' });
 
 export const DENSITIES = [['compact', 'Compact'], ['comfortable', 'Comfortable'], ['spacious', 'Spacious']];
 export const RADII = [['sharp', 'Sharp'], ['soft', 'Soft'], ['round', 'Round']];
@@ -98,7 +107,7 @@ export function normalize(raw) {
     skin: oneOf(o.skin, SKINS.map(s => s.id), D.skin),
     accent: oneOf(o.accent, ['auto', 'custom', ...ACCENTS.map(a => a.id)], D.accent),
     accentHex: hex6(o.accentHex, D.accentHex),
-    bg: oneOf(o.bg, BACKGROUNDS.map(b => b.id), D.bg),
+    bg: oneOf(LEGACY_BG[o.bg] || o.bg, BACKGROUNDS.map(b => b.id), D.bg),
     motion: bool(o.motion, D.motion),
     dim: num(o.dim, 0, 85, D.dim),
     blur: num(o.blur, 0, 14, D.blur),
@@ -200,8 +209,8 @@ function attrsFor(a) {
 }
 
 function baseVars(a, mode = 'dark') {
-  // On the light theme a scene is only a pale wash: push the scrim up so text always has contrast.
-  const dim = mode === 'light' ? Math.min(92, a.dim * 0.55 + 52) : a.dim;
+  // The light photos are already pale, so the light theme needs a lighter scrim than the dark one to keep text readable.
+  const dim = mode === 'light' ? Math.min(80, a.dim * 0.5 + 22) : a.dim;
   return {
     '--dim': String(dim / 100), '--bg-blur': a.blur + 'px', '--glass-a': String(a.glass / 100),
     '--grad-a': a.gradA, '--grad-b': a.gradB, '--grad-angle': a.gradAngle + 'deg',

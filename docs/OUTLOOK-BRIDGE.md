@@ -28,7 +28,7 @@ Macro commands: `FS_Ping`, `FS_Diagnostics`, `FS_Reload`, `ProcessUnreadNow` (ha
 | No rate detected | Flags `MANUAL REVIEW - NO RATE DETECTED` | Updates the inquiry |
 | Another e-mail after a rate response | Flags `FOLLOW-UP - MANUAL REVIEW - NO AUTO REPLY`, no draft | Stage `FOLLOWUP_FLAGGED` |
 
-Nothing is sent by the app or the macro. The *target rate* comes from the posting's **Target $** cell; the DAT rate is not used for e-mail decisions.
+Nothing is sent by the app or the macro. The *target rate* comes from the load's **Target rate** field (falling back to a posting's DAT rate override); it is used for e-mail decisions.
 
 ## Differences from v3 (deliberate)
 * Reads the folder instead of `FREIGHT SIGNAL.xlsm`; postings are identified by a stable `PostingId` instead of a row number (row number is still logged).

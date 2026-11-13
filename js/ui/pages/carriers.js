@@ -20,7 +20,7 @@ function overview() {
   const never = cs.filter(c => !Date.parse(c.lastContacted)).length;
   const states = new Set(cs.flatMap(c => [c.originState, c.destState]).map(x => String(x || '').trim().toUpperCase()).filter(Boolean)).size;
   const top = topCarriersByCovers(state.coverLog, 3).map(t => { const c = cs.find(x => String(x.email || '').toLowerCase() === t.email); return `${(c && c.carrierName) || t.email} (${t.covers})`; });
-  return h('div', null, statTiles([[cs.length, 'Carriers'], [active.length, 'Active', 'ok'], [withEmail, 'With e-mail'], [withPhone, 'With phone'], [covers, 'Covers on record'], [recent, 'Contacted this week'], [never, 'Never contacted', never ? 'act' : ''], [states, 'States on lanes']]),
+  return h('div', null, statTiles([[cs.length, 'Carriers'], [withEmail, 'With e-mail'], [recent, 'Contacted this week'], [never, 'Never contacted', never ? 'act' : '']]),
     top.length ? h('p', { class: 'muted small topline' }, icon('trendup', 14), ' Top carriers in your Cover Log: ' + top.join(', ')) : null);
 }
 

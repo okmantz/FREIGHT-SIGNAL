@@ -25,7 +25,7 @@ Legend: **Tested** = automated unit and/or browser test passes · **Partial** = 
 | Account Settings: profile, 10 interface themes, accent colours (10 + custom), 16 backgrounds (animated scenes, seasons, gradient, own image), density, corners, type, sidebar | Tested | e2e |
 | Copy original load details (lane header, each row, edit window, Spare cards) | Tested | e2e + unit |
 | Spare Load Details | Partial (behaviour inferred) | manual only |
-| DAT bulk-upload CSV (all / lane / selected / single), exact 24-column template header, DAT rate per posting or per lane | Tested against the real template header | unit + e2e |
+| DAT bulk-upload CSV (all / lane / selected / single), exact 24-column template header, one Target rate per load (posted as the DAT rate; per-posting override in Edit) | Tested against the real template header | unit + e2e |
 | Lane boxes (one box per lane, 9 postings each), delete posting / selection / group, priority → target (5/10/15) | Tested incl. real-focus regression | e2e |
 | City change → ZIP (origin and destination), equipment V R F SD VM RM | Tested | unit + e2e |
 | Outlook bridge (folder feed + v4 macro) | App side tested with a stand-in folder; **VBA not run in real Outlook** | unit + e2e |

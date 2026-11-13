@@ -27,8 +27,8 @@ export function render() {
       steps(
         h('span', null, h('b', null, 'Paste the load. '), 'On FREIGHT SIGNAL paste the TQL text and press ', h('b', null, 'Parse pasted loads'), '. Check the origin, destination, date, weight and equipment, then ', h('b', null, 'Add to board'), '.'),
         h('span', null, h('b', null, 'Build the matrix. '), 'Press ', h('b', null, 'Build 3×3 matrix'), '. Approve the nearby markets and you get one lane box holding all 9 postings.'),
-        h('span', null, h('b', null, 'Set priority and rates. '), 'Pick Low / Medium / High for the box and type the DAT rate you want posted (one rate for the whole box, or per posting).'),
-        h('span', null, h('b', null, 'Download the DAT file. '), 'Press ', h('b', null, 'Download CSV'), ' on the lane, or ', h('b', null, 'Download all (DAT CSV)'), ' at the top, and upload it in DAT’s bulk posting tool.'),
+        h('span', null, h('b', null, 'Set priority and rates. '), 'Pick Low / Medium / High for the box and type one Target rate for the whole load. It is the rate posted on DAT and the price used to judge carrier replies.'),
+        h('span', null, h('b', null, 'Download the DAT file. '), 'Press ', h('b', null, 'Download CSV'), ' on the lane, or ', h('b', null, 'Download all'), ' at the top, and upload it in DAT’s bulk posting tool.'),
         h('span', null, h('b', null, 'Work the replies. '), 'Carrier e-mails land in Outlook, which drafts your answers from the same postings (section 5). Nothing is sent until you press Send.'))),
 
     sec('board', 2, 'The board: one box per lane',
@@ -41,11 +41,11 @@ export function render() {
       h('p', null, h('b', null, 'Deleting. '), 'The red ✕ deletes one posting. ', h('b', null, 'Delete group'), ' deletes the whole box. Both ask first. Setting a load to Covered removes the whole group and counts a cover.')),
 
     sec('dat', 3, 'DAT, rates and CSV downloads',
-      h('div', { class: 'man-note warn' }, h('b', null, 'Two different rates. '), h('b', null, 'DAT rate $'), ' is the price posted on DAT (goes into the CSV). ', h('b', null, 'Target $'), ' is what you want to pay and is used only to judge carrier e-mail replies. The target is never uploaded to DAT.'),
+      h('div', { class: 'man-note' }, h('b', null, 'One rate per load. '), 'The ', h('b', null, 'Target rate'), ' in the load details is the rate for every posting in the matrix. It is posted on DAT (switch “Post target rate on DAT” off to leave the CSV rate blank) and it is the price carrier e-mail replies are judged against.'),
       table(['I want to…', 'Do this'], [
-        ['Post the same rate on all 9', 'Type it in DAT rate for all in the lane header, press Apply.'],
-        ['Rate only some postings', 'Type the rate in that row’s DAT rate $ cell. Leave the others blank to post without a rate.'],
-        ['Download everything', 'Download all (DAT CSV) in the top bar.'],
+        ['Post the same rate on all 9', 'Type it in Target rate in the load details and press Enter.'],
+        ['Rate only some postings', 'Open a posting’s ⋯ menu, choose Edit every field and fill “DAT rate override”.'],
+        ['Download everything', 'Download all in the top bar.'],
         ['Download one lane', 'Download CSV in the lane box.'],
         ['Download some postings', 'Tick them, then Download selected.'],
         ['Download one posting', 'CSV at the end of that row.']]),

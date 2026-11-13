@@ -49,7 +49,7 @@ export function render() {
   return h('div', null,
     pageHead({ icon: 'covers', title: 'Cover Log', sub: 'Every load that leaves the board is recorded here first: which posting covered it, which carrier, at what rate. It feeds lane memory, carrier ranking, the matrix and the pace tracker.',
       actions: [h('button', { class: 'btn primary', type: 'button', onclick: manualDialog }, 'Log a cover by hand'), h('button', { class: 'btn', type: 'button', disabled: !log.length, onclick: () => download('cover-log.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV')] }),
-    statTiles([[pace.today, 'Covers today'], [`${pace.week} / ${pace.floor}`, 'This week'], [pace.projection === null ? '-' : pace.projection, 'Projected for the week', pace.status === 'on' ? 'ok' : pace.status === 'short' ? 'urgent' : 'act'], [covered.length, 'Covers logged'], [avg ? money(avg) : '-', 'Average rate'], [log.filter(e => e.outcome === 'Expired').length, 'Expired unworked', 'act']]),
+    statTiles([[pace.today, 'Covers today'], [`${pace.week} / ${pace.floor}`, 'This week'], [pace.projection === null ? '-' : pace.projection, 'Projected for the week', pace.status === 'on' ? 'ok' : pace.status === 'short' ? 'urgent' : 'act'], [avg ? money(avg) : '-', 'Average rate']]),
     h('p', { class: 'muted pacetext' }, pace.text + (pace.status !== 'on' && pace.status !== 'early' ? ` You need about ${pace.perDay} a day for the rest of the week.` : '')),
     covered.length ? h('div', { class: 'grid2 insightgrid' },
       h('div', { class: 'panel' }, h('h4', null, 'Which of the 9 postings covers loads'), gridTable(a), h('p', { class: 'muted small' }, 'Rows are origin A (original) to C, columns destination A to C. Each box: covers of postings in that position.')),

@@ -8,7 +8,7 @@
 //   interest but no rate          reply to inquiries -> follow up by phone -> small reprice + second wave
 //   rate on the table             book it (inside the band) / let the split counter work / phone the carrier
 //   hot (many inquiries fast)     do NOT touch the price; work the replies; book the first acceptable rate
-//   quotes keep coming in high    the market says the rate is low: raise the DAT rate toward what carriers are asking
+//   quotes keep coming in high    the market says the rate is low: raise the target rate toward what carriers are asking
 //
 // A step may carry an `action` the UI can run with one click: reprice | wave2 | recities | call | outreach | setRate | cover.
 // Pure functions: groupStats() output in, advice out.
@@ -18,14 +18,14 @@ import { safeNumeric, formatCurrency0 } from './util.js';
 const H = 3600000;
 const round25 = (x) => Math.round(x / 25) * 25;
 
-/** The one-click reprice: % of the current DAT rate clamped to the class's min/max dollars, rounded to $25, growing a little each time. */
+/** The one-click reprice: % of the current rate clamped to the class's min/max dollars, rounded to $25, growing a little each time. */
 export function repriceSuggestion(st, iteration = 0) {
   const s = st.strategy;
   const base = st.datRate || (st.mem ? st.mem.last.rate : 0);
   if (!(base > 0)) return null;
   const pct = s.repricePct * (1 + 0.5 * iteration);
   const step = Math.max(25, round25(Math.min(s.repriceMax * (1 + 0.5 * iteration), Math.max(s.repriceMin, base * pct / 100))));
-  return { from: st.datRate || 0, to: round25((st.datRate || base) + step), step, basis: st.datRate ? 'current DAT rate' : 'last cover on this lane' };
+  return { from: st.datRate || 0, to: round25((st.datRate || base) + step), step, basis: st.datRate ? 'current target rate' : 'last cover on this lane' };
 }
 
 const count = (st, type) => st.ops.filter(o => o.type === type).length;
@@ -51,7 +51,7 @@ export function nextSteps(st, extra = {}) {
 
   if (!st.rateSet) {
     const memRate = st.mem ? st.mem.last.rate : 0;
-    add('setrate', 'Set a DAT rate', memRate ? `Nothing is posted yet. This lane last covered at ${formatCurrency0(memRate)}.` : 'Nothing is posted until a DAT rate is entered.', memRate ? { type: 'setRate', rate: memRate, label: `Use ${formatCurrency0(memRate)}` } : null, true);
+    add('setrate', 'Set a target rate', memRate ? `No rate is set yet. This lane last covered at ${formatCurrency0(memRate)}.` : 'Enter the target rate for this load so carrier replies can be judged.', memRate ? { type: 'setRate', rate: memRate, label: `Use ${formatCurrency0(memRate)}` } : null, true);
     level = 'act'; phase = 'unpriced';
   }
 

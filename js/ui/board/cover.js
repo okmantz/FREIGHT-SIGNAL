@@ -13,7 +13,7 @@ export function coverModal(box, preset = {}) {
   const mem = laneMemory(state.coverLog, head, state.zip, Number(state.settings.carrierRadiusMiles) || 75);
 
   // which posting
-  const label = (m) => `${gridLabel(m.variant) || 'Single'} · ${m.originCity}, ${m.originState} → ${m.destCity}, ${m.destState}${m.datRate ? ' · ' + money(m.datRate) : ''}`;
+  const label = (m) => `${gridLabel(m.variant) || 'Single'} · ${m.originCity}, ${m.originState} → ${m.destCity}, ${m.destState}${(m.targetRate || m.datRate) ? ' · ' + money(m.targetRate || m.datRate) : ''}`;
   const postingSel = h('select', { 'aria-label': 'Which posting covered it', 'data-live': '' }, members.map(m => h('option', { value: m.id, selected: m.id === (preset.postingId || head.id) }, label(m))));
 
   // carrier

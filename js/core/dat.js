@@ -3,8 +3,9 @@
 //   * header + postings only (DAT's three instruction rows are NOT included - you must delete them before upload anyway)
 //   * value styles copied from the template's sample rows: dates m/d/yyyy, Full/Partial capitalised, yes/no lower-case,
 //     contact method lower-case, equipment code (V, R, F ...), rates as whole dollars.
-// The "DAT Loadboard Rate" column is the SELECT rate you type on the board. It is deliberately separate from the
-// target rate, which is only used when judging carrier replies in e-mail.
+// The "DAT Loadboard Rate" column is a posting's own DAT rate when it has one (set in the Edit dialog). Otherwise, when
+// `targetAsRate` is on (the board's "Post target rate on DAT" switch, on by default), it is the load's Target rate: the one
+// rate typed per load. With the switch off the column stays blank and the target rate is only used to judge carrier replies.
 
 import { DAT_COLUMNS } from './defaults.js';
 import { toDelimited } from './csv.js';
@@ -33,7 +34,7 @@ const digits = (v) => String(v ?? '').replace(/[^0-9]/g, '');
 const text = (v) => String(v ?? '').replace(/[\r\n\t]+/g, ' ').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '').trim();
 
 /** One posting -> the 24 DAT cell values (strings) in template order. */
-export function datRow(p) {
+export function datRow(p, opts = {}) {
   const equip = String(p.equip ?? '').trim().toUpperCase();
   const usePrivate = yn(p.usePrivate, 'no');
   const useDat = yn(p.useDat, 'yes');
@@ -49,7 +50,7 @@ export function datRow(p) {
     allowPrivBooking: yn(p.allowPrivBooking, 'no'),
     allowPrivBidding: yn(p.allowPrivBidding, 'no'),
     useDat,
-    datRate: useDat === 'yes' ? rate(p.datRate) : '',
+    datRate: useDat === 'yes' ? (rate(p.datRate) || (opts.targetAsRate ? rate(p.targetRate) : '')) : '',
     allowDatBooking: yn(p.allowDatBooking, 'no'),
     useExtended: yn(p.useExtended, 'no'),
     contact: String(p.contact ?? 'email').trim().toLowerCase() || 'email',
@@ -82,16 +83,16 @@ export function datProblems(postings) {
 /** Postings that go to DAT (covered rows never do). */
 export const datPostings = (postings) => postings.filter(p => String(p.status ?? 'Active').toLowerCase() !== 'covered');
 
-export function datRows(postings) { return datPostings(postings).map(datRow); }
+export function datRows(postings, opts = {}) { return datPostings(postings).map(p => datRow(p, opts)); }
 
 /** The upload file: header + one line per posting, LF endings, no BOM. */
-export function datCsv(postings) {
-  return toDelimited([datHeader(), ...datRows(postings)], ',', '\n');
+export function datCsv(postings, opts = {}) {
+  return toDelimited([datHeader(), ...datRows(postings, opts)], ',', '\n');
 }
 
 /** Tab-separated, for pasting straight into the DAT template workbook. Header optional. */
-export function datTsv(postings, withHeader = false) {
-  const rows = datRows(postings);
+export function datTsv(postings, withHeader = false, opts = {}) {
+  const rows = datRows(postings, opts);
   if (withHeader) rows.unshift(datHeader());
   return rows.map(r => r.join('\t')).join('\n');
 }

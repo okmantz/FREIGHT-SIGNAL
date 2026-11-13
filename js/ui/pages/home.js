@@ -6,7 +6,7 @@ import { icon } from '../icons.js';
 import { greeting } from '../chrome.js';
 
 const TILES = [
-  ['board', 'board', 'FREIGHT SIGNAL', 'Paste TQL loads, build the 3 x 3 matrix, set DAT rates, download the DAT CSV', 'OPEN BOARD'],
+  ['board', 'board', 'FREIGHT SIGNAL', 'Paste TQL loads, build the 3 x 3 matrix, set one target rate, download the DAT CSV', 'OPEN BOARD'],
   ['spare', 'spare', 'SPARE LOAD DETAILS', 'Parked loads you can restore later', 'OPEN SPARES'],
   ['carriers', 'carriers', 'CARRIER DATABASE', 'Approved carriers by lane', 'OPEN DATABASE'],
   ['inquiry', 'inquiry', 'INQUIRY LOG', 'Carrier inquiries and performance dashboard', 'OPEN LOG'],
@@ -34,11 +34,10 @@ export function render() {
           h('a', { class: 'outline wx', href: ventuskyUrl(NaN, NaN), target: '_blank', rel: 'noopener noreferrer', title: 'Opens Ventusky weather in a new tab' }, 'Ventusky weather \u2197')),
       ),
       h('div', { class: 'logo-wrap' }, h('img', { class: 'logo', src: 'assets/logo-mark.png', alt: 'Freight Signal' }))),
-    h('div', { class: 'metrics' },
+    h('div', { class: 'metrics m3' },
       metric('activity', 'Active loads', m.activeLoads, 'load groups on the board'),
       metric('check', 'Covers today', m.coversToday, 'counted when status = Covered'),
-      metric('inquiry', 'Total inquiries', m.totalInquiries, 'rows in the Inquiry Log'),
-      metric('bolt', 'Lifetime covers', m.lifetimeCovers, 'all-time counter')),
+      metric('inquiry', 'Inquiries', m.totalInquiries, 'in the Inquiry Log')),
     h('div', { class: 'tiles' }, TILES.map(([id, ic, t, s, c]) => h('a', { class: 'tile', href: '#/' + id }, h('span', { class: 't-ico' }, icon(ic, 20)), h('b', null, t), h('span', null, s), h('i', null, c)))),
     !state.zip ? h('div', { class: 'banner err' }, 'The ZIP Map is not loaded. Matrix building needs it: open System and import uszips.csv.') : null,
     h('div', { class: 'footline' }, 'ALL DATA STAYS IN THIS BROWSER  •  NOTHING IS EVER SENT AUTOMATICALLY'));

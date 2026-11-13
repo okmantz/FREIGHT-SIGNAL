@@ -15,7 +15,9 @@ const datauri = (p, mime) => `data:${mime};base64,${rd(p).toString('base64')}`;
 
 const out = await build({ entryPoints: [path.join(root, 'js/main.js')], bundle: true, format: 'iife', write: false, minify: false, target: 'chrome110', legalComments: 'none' });
 const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-const css = rd('css/app.css').toString('utf8');
+// The photo backgrounds are separate .webp files, which this strict-CSP single file cannot load (img-src data: blob:).
+// Drop those rules so the file has no CSP violations; scenes fall back to the theme colours (the hosted app has the photos).
+const css = rd('css/app.css').toString('utf8').replace(/^[^\n{}]*\{[^{}]*url\("\.\.\/assets\/backgrounds\/[^)]*\)[^{}]*\}\s*$/gm, '');
 const zipGz = zlib.gzipSync(rd('data/uszips.csv'), { level: 9 }).toString('base64');
 const sample = rd('data/sample/sample-backup.json').toString('utf8');
 const macroText = rd('outlook/Outlook_v5_ThisOutlookSession.txt').toString('utf8');

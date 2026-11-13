@@ -40,9 +40,10 @@ export function groupStats(members, ctx) {
   const ageHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
   const ops = members.flatMap(m => Array.isArray(m.ops) ? m.ops : []).filter((o, i, a) => a.findIndex(x => x.at === o.at && x.type === o.type) === i).sort((a, b) => String(a.at).localeCompare(String(b.at)));
   const lane = classifyLane(head, ctx.zip, ctx.settings || {});
-  const rates = members.map(m => safeNumeric(m.datRate)).filter(r => r > 0);
-  const datRate = safeNumeric(head.datRate) || rates[0] || 0;
-  const target = safeNumeric(head.targetRate);
+  // One rate per load: the Target rate. A posting's own DAT rate (older loads, Edit dialog) counts as the rate when no target is set.
+  const rates = members.map(m => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter(r => r > 0);
+  const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
+  const datRate = target;
   const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx.drafts || []).filter(d => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || '')).length;
   // weather: pickup cities of every posting + the original delivery city, restricted to the pickup window
   const alerts = [];
@@ -90,7 +91,7 @@ export function workScore(st, ctx) {
   const stale = s.staleHours;
   fresh = n > 0 ? 10 : st.ageHours <= stale ? 10 : st.ageHours <= stale * 3 ? Math.round(10 * (1 - (st.ageHours - stale) / (stale * 2))) : 0;
   if (st.alerts.length) { wx = 5; r.push('weather alert: ' + st.weatherText); }
-  if (!st.rateSet) { pen = 10; r.push('no DAT rate set'); }
+  if (!st.rateSet) { pen = 10; r.push('no target rate set'); }
   const score = Math.max(0, Math.min(100, Math.round(urgency + engage + hist + fresh + wx - pen)));
   return { score, label: score >= 65 ? 'Hot' : score >= 40 ? 'Warm' : 'Cold', reasons: r };
 }
@@ -98,7 +99,7 @@ export function workScore(st, ctx) {
 /** What needs the dispatcher's attention on this load. [{ kind, level:'urgent'|'act'|'watch', text }] */
 export function attentionFlags(st) {
   const f = []; const s = st.strategy; const n = st.inquiries.total; const h = st.hoursToPickup;
-  if (!st.rateSet) f.push({ kind: 'norate', level: 'act', text: 'No DAT rate set' });
+  if (!st.rateSet) f.push({ kind: 'norate', level: 'act', text: 'No target rate' });
   if (st.inquiries.quotes.length && st.inquiries.stage && st.inquiries.stage.stage === 'book') f.push({ kind: 'hot', level: 'urgent', text: 'A carrier is inside your booking band - confirm and book' });
   if (st.inquiries.flagged) f.push({ kind: 'review', level: 'act', text: `${st.inquiries.flagged} reply(ies) flagged for review` });
   if (n === 0 && st.ageHours >= s.staleHours) f.push({ kind: 'aging', level: h !== null && h <= s.closingHours ? 'urgent' : 'act', text: `Aging: ${Math.round(st.ageHours * 10) / 10} h with no inquiries` });

@@ -33,7 +33,7 @@ export function buildCoverEntry({ members, outcome = 'Covered', coveredId = null
   const inq = inquiries.filter(q => ids.has(q.postingId));
   const created = members.map(m => Date.parse(m.createdAt)).filter(Number.isFinite);
   const ageHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / 3600000) : '';
-  const view = (p) => ({ variant: p.variant || '', grid: gridLabel(p.variant) || (p.variant ? '' : 'A-A'), originCity: p.originCity, originState: p.originState, originZip: p.originZip, destCity: p.destCity, destState: p.destState, destZip: p.destZip, datRate: p.datRate, targetRate: p.targetRate, inquiryCount: safeNumeric(p.inquiryCount), contact: p.contact || '' });
+  const view = (p) => ({ variant: p.variant || '', grid: gridLabel(p.variant) || (p.variant ? '' : 'A-A'), originCity: p.originCity, originState: p.originState, originZip: p.originZip, destCity: p.destCity, destState: p.destState, destZip: p.destZip, datRate: p.datRate || p.targetRate, targetRate: p.targetRate, inquiryCount: safeNumeric(p.inquiryCount), contact: p.contact || '' });
   return {
     id: uid(), closedAt: now.toISOString(), outcome,
     groupId: head.groupId || '', broker: head.broker || '', laneClass,
@@ -41,7 +41,7 @@ export function buildCoverEntry({ members, outcome = 'Covered', coveredId = null
     covered: hit ? view(hit) : null,
     carrier: { id: carrier.id || '', name: carrier.name || carrier.carrierName || '', email: String(carrier.email || '').trim().toLowerCase(), mc: carrier.mc || '', phone: carrier.phone || '' },
     rate: rate === '' || rate === null || rate === undefined ? '' : safeNumeric(rate),
-    datRate: hit ? safeNumeric(hit.datRate) || '' : safeNumeric(head.datRate) || '',
+    datRate: hit ? safeNumeric(hit.datRate) || safeNumeric(hit.targetRate) || '' : safeNumeric(head.datRate) || safeNumeric(head.targetRate) || '',
     targetRate: safeNumeric(head.targetRate) || '',
     pickup: head.pickupEarliest || '', equip: head.equip || '',
     postings: members.map(view),

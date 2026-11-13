@@ -71,6 +71,13 @@ export const DEFAULT_SETTINGS = {
   // Appearance (themes, accent, background...) and the account profile. null/blank = defaults; see js/ui/appearance.js.
   appearance: null,
   profile: { name: '', title: '', company: '', startPage: 'home' },
+  // Sign-in. account = { email, salt, hash, iter, createdAt } (a salted PBKDF2 hash, never the password) once one is created on the
+  // Account Settings page or the first-run screen. accountPrompt: '' = ask on first visit, 'skipped' = the person chose "Skip for now".
+  account: null,
+  accountPrompt: '',
+  // The ONE rate typed per load (the "Target rate"): it judges carrier e-mail replies, and (when this is on) it is also the rate that
+  // goes into the DAT CSV's "DAT Loadboard Rate" column for every posting that has no rate of its own.
+  postTargetOnDat: true,
   // Outreach mode used by the per-row Carrier Outreach button: 'excel' (tiered, Excel v3) or 'outlook' (lane scan, Outlook v3)
   outreachButtonMode: 'excel',
 };

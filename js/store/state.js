@@ -122,12 +122,41 @@ export const actions = {
     if ('datRate' in patch) p.datRate = cleanRate(p.datRate);
     await savePostings(); emit();
   },
-  /** Set (or clear, with '') the DAT-posted rate on specific postings. This is NOT the target rate (emails only). */
+  /** Set (or clear, with '') the DAT-posted rate on specific postings: a per-posting override (Edit dialog). The normal way to price a load is setTargetRate. */
   async setDatRate(ids, rate) {
     const r = cleanRate(rate); const set = new Set(ids);
     let n = 0;
     for (const p of state.postings) if (set.has(p.id)) { p.datRate = r; n++; }
     await savePostings(); emit(); return n;
+  },
+  /**
+   * The ONE rate per load: sets the Target rate on every posting in the box (or clears it with ''). It judges carrier e-mail replies and,
+   * unless "Post target rate on DAT" is switched off, it is the rate in the DAT CSV. Any per-posting DAT override is cleared so the box
+   * has one rate again.
+   */
+  async setTargetRate(ids, rate) {
+    const r = cleanRate(rate); const set = new Set(ids);
+    let n = 0;
+    for (const p of state.postings) if (set.has(p.id)) { p.targetRate = r; p.datRate = ''; n++; }
+    await savePostings(); emit(); return n;
+  },
+  /** Apply basic load details (pickup, weight, equipment, ...) to every posting of the box at once. */
+  async updateGroup(id, patch) {
+    const p = state.postings.find(x => x.id === id); if (!p) return 0;
+    const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+    for (const m of members) {
+      if ('pickupEarliest' in patch) { const oldE = String(m.pickupEarliest ?? '').trim(); const oldL = String(m.pickupLatest ?? '').trim(); if (!oldL || oldL === oldE) m.pickupLatest = patch.pickupEarliest; }
+      Object.assign(m, patch);
+    }
+    await savePostings(); emit(); return members.length;
+  },
+  /** One "include in the next lane scan" switch per box. It lives on the Original posting so the scan drafts for the load once, not nine times. */
+  async setLaneScan(id, on) {
+    const p = state.postings.find(x => x.id === id); if (!p) return;
+    const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+    const head = members.find(m => m.variant === 'Original') || members[0];
+    for (const m of members) m.outreach = on && m === head ? 'Yes' : 'No';
+    await savePostings(); emit();
   },
   /** Delete exactly these postings (individual rows or a ticked selection). */
   async deletePostings(ids) {
@@ -276,12 +305,17 @@ export const actions = {
     head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type, at: new Date().toISOString(), detail }].slice(-40);
     await savePostings(); emit();
   },
-  /** Raise (or lower, negative) every posted DAT rate in the group by `step` dollars and log it. */
+  /** Raise (or lower, negative) the box's rate (the Target rate, and any DAT override) by `step` dollars and log it. */
   async repriceGroup(id, step) {
     const p = state.postings.find(x => x.id === id); if (!p) return 0;
     const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
     let n = 0;
-    for (const m of members) { const r = Number(cleanRate(m.datRate)); if (r > 0) { m.datRate = String(Math.max(1, r + Math.round(step))); n++; } }
+    for (const m of members) {
+      const t = Number(cleanRate(m.targetRate)), d = Number(cleanRate(m.datRate));
+      if (t > 0) m.targetRate = String(Math.max(1, t + Math.round(step)));
+      if (d > 0) m.datRate = String(Math.max(1, d + Math.round(step)));
+      if (t > 0 || d > 0) n++;
+    }
     const head = members.find(m => m.variant === 'Original') || members[0];
     head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'reprice', at: new Date().toISOString(), detail: (step >= 0 ? '+$' : '-$') + Math.abs(Math.round(step)) }].slice(-40);
     await savePostings(); emit(); return n;
@@ -554,10 +588,13 @@ export const actions = {
   // ---------- backup / restore ----------
   async exportBackup() { return db.exportAll(); },
   async restoreBackup(snapshot, mode = 'replace') {
+    const keepAcct = { account: state.settings.account || null, accountPrompt: state.settings.accountPrompt || '' };
     await db.importAll(snapshot, mode);
     const keepZip = state.zip;
     await loadAll();
     if (!state.zip && keepZip) state.zip = keepZip;
+    // A backup made before sign-in existed must not remove the sign-in you have now.
+    if (!state.settings.account && keepAcct.account) await actions.savePrefs(keepAcct);
     emit();
   },
   async wipe() { await db.wipeAll(false); await loadAll(); },

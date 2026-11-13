@@ -32,7 +32,7 @@ function drawPreview(host, summaryEl, addBtn) {
   addBtn.textContent = n ? `Add ${n} load${n === 1 ? '' : 's'}` : 'Add loads';
   addBtn.disabled = !n;
   if (!paste.items.length) return;
-  const head = h('tr', null, h('th', null, ''), EDIT_FIELDS.map(([, l]) => h('th', null, l)), h('th', null, 'Equip'), h('th', null, ''));
+  const head = h('tr', null, h('th', null, ''), EDIT_FIELDS.map(([, l]) => h('th', null, l)), h('th', null, 'Equip'), h('th', { title: 'Target rate for the whole load (optional)' }, 'Target $'), h('th', null, ''));
   const rows = paste.items.map((it, idx) => {
     const miss = new Set(it.parsed.missing || []);
     const cells = EDIT_FIELDS.map(([k, , w]) => {
@@ -43,9 +43,12 @@ function drawPreview(host, summaryEl, addBtn) {
       return h('td', null, inp);
     });
     const eq = pageSelectEq(it.f.equip, (v) => { it.f.equip = v; });
+    const tgt = h('input', { class: 'cell', size: 6, value: it.f.targetRate ?? '', placeholder: '$', inputmode: 'decimal', 'aria-label': 'Target rate', 'data-live': '' });
+    tgt.addEventListener('input', () => { it.f.targetRate = tgt.value; });
+    tgt.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addAll(); } });
     const tick = h('input', { type: 'checkbox', checked: it.take, 'aria-label': 'Include this load', 'data-live': '' });
     tick.addEventListener('change', () => { it.take = tick.checked; drawPreview(host, summaryEl, addBtn); });
-    return h('tr', { class: 'prow' + (miss.size ? ' warnrow' : '') }, h('td', { class: 'chk' }, tick), cells, h('td', null, eq),
+    return h('tr', { class: 'prow' + (miss.size ? ' warnrow' : '') }, h('td', { class: 'chk' }, tick), cells, h('td', null, eq), h('td', null, tgt),
       h('td', { class: 'muted small', title: (it.parsed.warnings || []).join(' ') }, miss.size ? 'missing: ' + [...miss].join(', ') : (it.parsed.warnings || []).length ? (it.parsed.warnings || [])[0] : ''));
   });
   host.append(h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable pastetable' }, h('thead', null, head), h('tbody', null, rows))));
@@ -74,7 +77,8 @@ export function pastePanel() {
         for (const k of Object.keys(f)) if (typeof f[k] === 'string') f[k] = f[k].trim();
         f.originState = String(f.originState || '').toUpperCase(); f.destState = String(f.destState || '').toUpperCase();
         f.pickupLatest = f.pickupLatest || f.pickupEarliest;
-        added.push(await actions.addParsedLoad(f, { broker: paste.broker }));
+        const targetRate = String(f.targetRate || '').replace(/[^0-9.]/g, ''); delete f.targetRate;
+        added.push(await actions.addParsedLoad(f, { broker: paste.broker, targetRate }));
       }
       paste.text = ''; paste.items = []; ta.value = '';
       drawPreview(previewHost, summary, addBtn);

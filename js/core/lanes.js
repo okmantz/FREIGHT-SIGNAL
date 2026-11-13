@@ -15,7 +15,7 @@ export const LANE_LABEL = { local: 'Local', regional: 'Regional', long: 'Long-di
  *  outreachMultiplier          - x the load's outreach target (Low 5 / Medium 10 / High 15): local freight needs a wide net of nearby trucks,
  *                                long-haul needs fewer, better-matched carriers.
  *  staleHours                  - hours with zero inquiries before a load counts as "aging" (second wave / reprice).
- *  repricePct / repriceMin / repriceMax - the one-click reprice step: % of the DAT rate, clamped to [min, max] dollars, rounded to $25.
+ *  repricePct / repriceMin / repriceMax - the one-click reprice step: % of the target rate, clamped to [min, max] dollars, rounded to $25.
  *  closingHours                - how close to pickup (hours) counts as "closing".
  */
 export const DEFAULT_STRATEGIES = {
