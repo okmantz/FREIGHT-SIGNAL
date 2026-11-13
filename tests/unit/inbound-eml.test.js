@@ -12,13 +12,12 @@ const mail = (o) => ({ from: 'carrier@x.example', subject: 'Chicago, IL to Atlan
 test('rate extraction', () => {
   assert.equal(extractCarrierRate('', 'I can do $1650 all in').rate, 1650);
   assert.equal(extractCarrierRate('', 'total $12000').rate, 12000);
-  assert.equal(extractCarrierRate('', 'total $12,000').found, false, 'macro parity: comma rates are not recognised');
+  assert.equal(extractCarrierRate('', 'total $12,000').rate, 12000, 'v8: comma rates are always recognised');
   const fixed = { ...DEFAULT_SETTINGS, recogniseCommaRates: true };
   assert.equal(extractCarrierRate('', 'I can do $1,650 all in', fixed).rate, 1650);
   assert.equal(extractCarrierRate('', 'total $12,000', fixed).rate, 12000);
   assert.equal(extractCarrierRate('', 'rate 1650', fixed).rate, 1650);
-  // PARITY QUIRK (Outlook v3 regex "[0-9]{3,5}(?:,[0-9]{3})?"): a comma after only 1 digit is not matched, so "$1,650" is NOT recognised.
-  assert.equal(extractCarrierRate('', 'I can do $1,650 all in').found, false);
+  assert.equal(extractCarrierRate('', 'I can do $1,650 all in').rate, 1650, 'v8: $1,650 is read correctly');
   assert.equal(extractCarrierRate('', 'no number here').found, false);
   assert.equal(extractCarrierRate('', 'MC 123456 call 555-0100').found, false, 'ids and phone numbers are not rates');
   assert.equal(extractCarrierRate('', 'I can do $50').found, false, 'below the plausible minimum');
@@ -49,7 +48,7 @@ test('conversation: rate far from target -> negotiate; near target -> ETA; then 
   Object.assign(rec, far.inquiryPatch.patch);
   assert.equal(rec.stage, 'RATE_RESPONSE_SENT');
   const again = processIncomingEmail({ mail: mail({ body: 'any update?' }), postings: [p], inquiries: inq });
-  assert.equal(again.action, 'flag-repeat'); assert.equal(again.draft, undefined);
+  assert.equal(again.action, 'flag-manual'); assert.equal(again.draft, undefined); assert.ok(again.flag, 'v8: an unreadable repeat is flagged for a person');
   const rec2 = { id: 'q2', ...processIncomingEmail({ mail: mail({ from: 'b@x.example' }), postings: [p], inquiries: [] }).newInquiry }; 
   const near = processIncomingEmail({ mail: mail({ from: 'b@x.example', body: '$1540 works' }), postings: [p], inquiries: [rec2] });
   assert.equal(near.action, 'rate-within-target'); assert.ok(near.draft.body.startsWith('Please confirm your ETA to pickup.'));
