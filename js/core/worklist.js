@@ -27,6 +27,18 @@ export function carrierDepth(head, ctx) {
   return n;
 }
 
+/**
+ * The rate this load is actually POSTED at on DAT. If any posting carries its own DAT rate, that (the highest one) is the posted rate
+ * and the target is only the goal; with no DAT rates anywhere, the target rate is what is posted.
+ * Raising the rate is always judged from this number, never from the target.
+ */
+export function postedRateOf(members) {
+  const own = members.map(m => safeNumeric(m.datRate)).filter(r => r > 0);
+  if (own.length) return { rate: Math.max(...own), own: true };
+  const tg = members.map(m => safeNumeric(m.targetRate)).filter(r => r > 0);
+  return { rate: tg.length ? Math.max(...tg) : 0, own: false };
+}
+
 /** Everything the scoring and guidance engines need to know about one load. */
 export function groupStats(members, ctx) {
   const now = ctx.now || new Date();
@@ -36,7 +48,10 @@ export function groupStats(members, ctx) {
   const times = inq.map(q => Date.parse(q.dateCounted)).filter(Number.isFinite);
   const fieldTotal = members.reduce((n, m) => n + safeNumeric(m.inquiryCount), 0);
   const total = Math.max(inq.length, fieldTotal);
-  const quotes = inq.filter(q => safeNumeric(q.lastCarrierRate) > 0).map(q => ({ rate: safeNumeric(q.lastCarrierRate), email: q.senderEmail, stage: q.stage, flag: q.flag || '' }));
+  // a quote is only real when the carrier actually typed a rate: a number inside the plausible range, on a log line that was not flagged as unreadable/wrong
+  const cfg = ctx.settings || {};
+  const lo = safeNumeric(cfg.minReasonableRate) || 250, hi = safeNumeric(cfg.maxReasonableRate) || 20000;
+  const quotes = inq.filter(q => { const r = safeNumeric(q.lastCarrierRate); return r >= lo && r <= hi && !/RATE LOOKS WRONG|MORE THAN ONE RATE|NO RATE DETECTED/i.test(q.flag || ''); }).map(q => ({ rate: safeNumeric(q.lastCarrierRate), email: q.senderEmail, stage: q.stage, flag: q.flag || '' }));
   const created = members.map(m => Date.parse(m.createdAt)).filter(Number.isFinite);
   const addedHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
   const ops = members.flatMap(m => Array.isArray(m.ops) ? m.ops : []).filter((o, i, a) => a.findIndex(x => x.at === o.at && x.type === o.type) === i).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -50,7 +65,8 @@ export function groupStats(members, ctx) {
   // One rate per load: the Target rate. A posting's own DAT rate (older loads, Edit dialog) counts as the rate when no target is set.
   const rates = members.map(m => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter(r => r > 0);
   const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
-  const datRate = target;
+  const posted = postedRateOf(members);
+  const datRate = posted.rate || target; // what is posted on DAT (own DAT rate when any posting has one, else the target)
   const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx.drafts || []).filter(d => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || '')).length + ops.filter(o => o.type === 'outreach' || o.type === 'wave2').length;
   // weather: pickup cities of every posting + the original delivery city, restricted to the pickup window
   const alerts = [];
@@ -73,7 +89,7 @@ export function groupStats(members, ctx) {
     postings: members.length, rateInfo, problems, miles: lane.miles, equip: String(head.equip || '').toUpperCase(), weight: safeNumeric(head.weight), pickupText: head.pickupEarliest || '',
     inquiries: { total, log: inq.length, last2h: times.filter(t => now.getTime() - t <= 2 * H).length, lastAt: lastInquiryAt, sinceOp: lastOpAt ? times.filter(t => t > lastOpAt).length : total, quotes, bestQuote: quotes.length ? Math.min(...quotes.map(q => q.rate)) : 0,
       avgQuote: quotes.length ? Math.round(quotes.reduce((a, q) => a + q.rate, 0) / quotes.length) : 0, stage: brokerStage, flagged: inq.filter(q => /MANUAL REVIEW|RATE RECEIVED/i.test(q.flag || '')).length },
-    outreachSent, datRate, rateSet: rates.length > 0, target, ops, lastOp, lastOpAt, alerts, weatherText: alertLabel(alerts), mem,
+    outreachSent, datRate, postedOwn: posted.own, rateSet: rates.length > 0, target, ops, lastOp, lastOpAt, alerts, weatherText: alertLabel(alerts), mem,
     phone: String(head.contact || '').toLowerCase() === 'phone',
     splitPct: Number(ctx.settings && ctx.settings.ladderSplitPct) || 8,
   };
@@ -110,7 +126,7 @@ export function workScore(st, ctx) {
 export function attentionFlags(st) {
   const f = []; const s = st.strategy; const n = st.inquiries.total; const h = st.hoursToPickup;
   if (!st.rateSet) f.push({ kind: 'norate', level: 'act', text: 'No target rate' });
-  if (st.inquiries.quotes.length && st.inquiries.stage && st.inquiries.stage.stage === 'book') f.push({ kind: 'hot', level: 'urgent', text: 'A carrier is inside your booking band - confirm and book' });
+  if (st.inquiries.quotes.length && st.inquiries.stage && st.inquiries.stage.stage === 'book') f.push({ kind: 'hot', level: 'urgent', text: (() => { const b = st.inquiries.quotes.reduce((a, q) => q.rate < a.rate ? q : a); return `${b.email || 'A carrier'} quoted ${formatCurrency0(b.rate)}, inside your booking band (${formatCurrency0(st.target)} target) - confirm and book`; })() });
   if (st.inquiries.flagged) f.push({ kind: 'review', level: 'act', text: `${st.inquiries.flagged} reply(ies) flagged for review` });
   if (n === 0 && st.ageHours >= s.staleHours) f.push({ kind: 'aging', level: h !== null && h <= s.closingHours ? 'urgent' : 'act', text: `Aging: ${Math.round(st.ageHours * 10) / 10} h with no inquiries` });
   if (h !== null && h <= s.closingHours && h > -24 && (n === 0 || !st.inquiries.quotes.length)) f.push({ kind: 'closing', level: 'urgent', text: h <= 0 ? 'Pickup day is ending' : `Pickup closes in ${Math.max(1, Math.round(h))} h` });

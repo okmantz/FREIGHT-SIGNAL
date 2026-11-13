@@ -7,26 +7,17 @@ import { normalizeForMatching, safeNumeric, safeString, formatCurrency0, vbaRoun
 import { DEFAULT_SETTINGS } from './defaults.js';
 import { isBlockedOutlook } from './outreach.js';
 import { buildOutlookLoadDetails } from './outreach.js';
-import { ladderReply, ladderAction } from './ladder.js';
+import { ladderReply, ladderAction, templatesOf, fillTemplate } from './ladder.js';
+import { freshText, extractRate, analyseCarrierEmail, planCarrierReply, REPLY_FLAGS } from './carrierreply.js';
 
-// ---- Rate engine (InitRegex / ExtractCarrierRate) ----
-const RATE_RE_SRC = '(rate|offer|can do|do for|take|counter|all in|all-in|total)[^$0-9]{0,40}\\$?\\s*([0-9]{3,5}(?:,[0-9]{3})?(?:\\.\\d{1,2})?)';
-const DOLLAR_RE_SRC = '\\$\\s*([0-9]{3,5}(?:,[0-9]{3})?(?:\\.\\d{1,2})?)';
-// Optional fix (Settings -> "Recognise comma-formatted rates"): the macro's number pattern cannot match "1,650" or "12,000".
-const NUM_MACRO = '[0-9]{3,5}(?:,[0-9]{3})?', NUM_FIXED = '(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,5})';
-
-const valNum = (s) => { const n = parseFloat(String(s).replace(/,/g, '')); return Number.isFinite(n) ? n : 0; }; // VBA Val()
-
-export function extractCarrierRate(subject, body, settings = DEFAULT_SETTINGS) {
-  const text = String(subject ?? '') + CRLF + String(body ?? '');
-  const ok = (v) => v >= settings.minReasonableRate && v <= settings.maxReasonableRate;
-  let m;
-  const fix = (src) => (settings.recogniseCommaRates ? src.replace(NUM_MACRO, NUM_FIXED) : src);
-  const re1 = new RegExp(fix(RATE_RE_SRC), 'gim');
-  while ((m = re1.exec(text)) !== null) { const v = valNum(m[2]); if (ok(v)) return { found: true, rate: v }; if (m.index === re1.lastIndex) re1.lastIndex++; }
-  const re2 = new RegExp(fix(DOLLAR_RE_SRC), 'gim');
-  while ((m = re2.exec(text)) !== null) { const v = valNum(m[1]); if (ok(v)) return { found: true, rate: v }; if (m.index === re2.lastIndex) re2.lastIndex++; }
-  return { found: false, rate: 0 };
+/**
+ * The rate a carrier typed. v8: looks ONLY at the carrier's own words (quoted history, signatures and our own wording are removed first),
+ * and only at rate-shaped phrases, so numbers inside your load details, dates, ZIP codes or phone numbers can never become a "quote".
+ * `subject` is accepted for backwards compatibility and ignored (a reply subject repeats your own subject line).
+ */
+export function extractCarrierRate(subject, body, settings = DEFAULT_SETTINGS, own = '') {
+  const r = extractRate(freshText(body, own), settings);
+  return { found: r.found, rate: r.rate, ambiguous: r.ambiguous, perMile: r.perMile };
 }
 
 // ---- Lane matching (GetLaneMatchScore / FindMatchingLoadDetails) ----
@@ -72,7 +63,8 @@ export function findMatchingLoad(subject, body, postings) {
 // ---- Message filters ----
 export const isAutomatedMessage = (mail) => {
   const sender = String(mail.from ?? '').toLowerCase(), subj = String(mail.subject ?? '').trim().toLowerCase();
-  return sender.includes('mailer-daemon') || sender.includes('postmaster') || subj.includes('out of office') || subj.includes('automatic reply');
+  return sender.includes('mailer-daemon') || sender.includes('postmaster') || subj.includes('out of office') || subj.includes('out-of-office') || subj.includes('automatic reply') ||
+    subj.includes('auto-reply') || subj.includes('autoreply') || subj.includes('undeliverable') || subj.includes('delivery status notification');
 };
 export const isForward = (mail) => { const s = String(mail.subject ?? '').trim().toUpperCase(); return s.startsWith('FW:') || s.startsWith('FWD:'); };
 
@@ -91,11 +83,19 @@ function quotedOriginal(mail) {
 }
 const replySubject = (s) => (/^\s*re\s*:/i.test(s || '') ? s : 'RE: ' + (s || ''));
 
+/** Text we posted or wrote for a posting (details + notes): a carrier line that repeats it word for word is history, not an answer. */
+const ownTextOf = (posting) => { const d = safeString(posting.details) || buildOutlookLoadDetails(posting); const n = safeString(posting.notes); return n ? d + CRLF + n : d; };
+
+const stageAction = {
+  book: 'rate-within-target', split: 'rate-split', target: 'rate-negotiate',
+};
+
 /**
- * Decide what the Outlook macro would do with one inbound e-mail.
+ * Decide what the Outlook macro would do with one inbound e-mail (the macro v6 applies the same rules).
  * Returns:
- *  { action, reason, draft?, flag?, newInquiry?, inquiryPatch?, postingPatch?, display? }
- * `inquiries` and `postings` are read-only here.
+ *  { action, reason, intent?, draft?, flag?, newInquiry?, inquiryPatch?, postingPatch?, autoSendSafe? }
+ * `inquiries` and `postings` are read-only here. A draft is NEVER sent by this function; draft.autoSendSafe says whether a
+ * person could safely be left out of the loop for it (the Outlook macro only sends when the Settings switch is on AND this is true).
  */
 export function processIncomingEmail({ mail, postings, inquiries, settings = DEFAULT_SETTINGS, now = new Date() }) {
   if (isBlockedOutlook(mail.from, settings.inboundBlocklist)) return { action: 'ignored', reason: 'Sender is on the inbound blocklist.' };
@@ -104,82 +104,74 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
 
   const convId = deriveConversationId(mail);
   const log = inquiries.find(q => String(q.conversationId).toLowerCase() === convId.toLowerCase());
+  const tpl = templatesOf(settings);
+  const mkDraft = (text, over = {}) => ({ to: mail.from, subject: replySubject(mail.subject), body: text + CRLF + CRLF + quotedOriginal(mail).trimStart(), display: false, kind: 'Rate response', ...over });
 
   // New conversation -> ProcessCarrierInquiry
   if (!log) {
     const m = findMatchingLoad(mail.subject, mail.body, postings);
     if (!m || !m.details) return { action: 'no-match', reason: 'No posting lane was found in the subject or body, so no inquiry draft was created.' };
-    const draft = {
-      to: mail.from, subject: replySubject(mail.subject),
-      body: m.details + CRLF + CRLF + 'What is your best all-in rate? ETA to pickup?' + CRLF + CRLF + quotedOriginal(mail).trimStart(),
-      display: true, kind: 'Inquiry reply',
-    };
+    const a = analyseCarrierEmail(mail.body, ownTextOf(m.posting), settings);
+    if (a.echo) return { action: 'ignored', reason: 'This message only contains our own wording (for example a test sent to yourself), so nothing was drafted.' };
+    if (a.intent === 'stop' || a.intent === 'decline') return { action: 'ignored', reason: 'The carrier is not interested, so no reply was drafted.', intent: a.intent };
+    const target = safeNumeric(m.posting.targetRate);
+    // A carrier whose FIRST message is "rate?" gets the details and your target, not a request for their rate.
+    const askRate = a.intent === 'asks_rate' && target > 0;
+    const ask = askRate ? fillTemplate(tpl.askRate, { target: formatCurrency0(target) }) + CRLF + 'What is your ETA to pickup?' : 'What is your best all-in rate? ETA to pickup?';
+    const draft = mkDraft(m.details + CRLF + CRLF + ask, { display: true, kind: 'Inquiry reply', autoSendSafe: (m.score % 1000) >= 220 && a.intent !== 'wants_call' && a.intent !== 'pushback' });
     const count = safeNumeric(m.posting.inquiryCount) + 1;
     return {
-      action: 'inquiry-reply', reason: 'Matched posting row ' + (m.index + 2) + ' (' + m.posting.originCity + ', ' + m.posting.originState + ' -> ' + m.posting.destCity + ', ' + m.posting.destState + ').',
+      action: 'inquiry-reply', intent: a.intent, autoSendSafe: draft.autoSendSafe,
+      reason: 'Matched posting row ' + (m.index + 2) + ' (' + m.posting.originCity + ', ' + m.posting.originState + ' -> ' + m.posting.destCity + ', ' + m.posting.destState + ').',
       draft,
       postingPatch: { id: m.posting.id, patch: { inquiryCount: count } },
       newInquiry: {
         conversationId: convId, dateCounted: now.toISOString(), senderEmail: mail.from, subject: mail.subject || '',
         postingId: m.posting.id, postingRow: m.index + 2,
         originCity: m.posting.originCity, originState: m.posting.originState, destCity: m.posting.destCity, destState: m.posting.destState,
-        countAfterInquiry: count, targetRate: safeNumeric(m.posting.targetRate), status: 'INQUIRY', stage: 'INQUIRY_REPLY_SENT',
-        rateResponseSent: 'NO', lastCarrierRate: '', lastAction: 'Inquiry reply draft created', eventCount: 1, approved: 'No', dateAdded: '',
+        countAfterInquiry: count, targetRate: target, status: 'INQUIRY', stage: 'INQUIRY_REPLY_SENT',
+        rateResponseSent: 'NO', lastCarrierRate: '', lastAction: askRate ? 'Inquiry reply draft created (asked for the rate: answered with the target)' : 'Inquiry reply draft created', eventCount: 1, approved: 'No', dateAdded: '',
+        intent: a.intent, ladderStage: askRate ? 'target' : '', ourRate: askRate ? target : '',
       },
     };
   }
 
   const stage = String(log.stage || '').toUpperCase();
   const evt = safeNumeric(log.eventCount) + 1;
-
-  if (stage === 'RATE_RESPONSE_SENT' || stage === 'FOLLOWUP_FLAGGED') {
-    return {
-      action: 'flag-repeat', reason: 'Repeat carrier e-mail after a rate response; flagged for manual review, no reply drafted.',
-      flag: 'FOLLOW-UP - MANUAL REVIEW - NO AUTO REPLY',
-      inquiryPatch: { id: log.id, patch: { stage: 'FOLLOWUP_FLAGGED', lastAction: 'Repeat carrier email flagged - no auto reply', eventCount: evt, flag: 'FOLLOW-UP - MANUAL REVIEW - NO AUTO REPLY' } },
-    };
-  }
-
   const posting = postings.find(p => p.id === log.postingId) ||
     (log.postingId ? null : postings[Number(log.postingRow) - 2]);
   if (!posting) return { action: 'no-posting', reason: 'The posting this inquiry was logged against no longer exists (it was covered/removed), so nothing was drafted.' };
 
   const targetRate = safeNumeric(posting.targetRate);
-  const { found, rate } = extractCarrierRate(mail.subject, mail.body, settings);
+  const analysis = analyseCarrierEmail(mail.body, ownTextOf(posting), settings);
+  const plan = planCarrierReply({ analysis, target: targetRate, settings, state: { stage, ladderStage: String(log.ladderStage || ''), ourRate: safeNumeric(log.ourRate), events: safeNumeric(log.eventCount) } });
+  if (plan.ignore) return { action: 'ignored', intent: plan.intent, reason: plan.reason };
 
-  if (!found) {
-    if (stage === 'INQUIRY_REPLY_SENT') {
-      return {
-        action: 'flag-no-rate', reason: 'No carrier rate detected in the e-mail.', flag: 'MANUAL REVIEW - NO RATE DETECTED',
-        inquiryPatch: { id: log.id, patch: { lastAction: 'Carrier email received without detectable rate', eventCount: evt, flag: 'MANUAL REVIEW - NO RATE DETECTED' } },
-      };
-    }
-    return {
-      action: 'followup-received', reason: 'Follow-up received with no detectable rate.',
-      inquiryPatch: { id: log.id, patch: { stage: 'FOLLOWUP_RECEIVED', lastAction: 'Carrier follow-up received - no detectable rate' } },
-    };
+  const patch = { eventCount: evt, intent: plan.intent };
+  if (plan.stageNext) patch.stage = plan.stageNext;
+  if (plan.ladderNext !== undefined) { patch.ladderStage = plan.ladderNext; patch.ourRate = plan.ourRateNext || ''; }
+  const flag = plan.flag || '';
+
+  // nothing to send: a person looks at it
+  if (plan.kind === 'none') {
+    // a real, readable quote is still logged even when no reply is drafted (for example: a rate but no target rate to compare it with)
+    if (plan.rate) patch.lastCarrierRate = plan.rate;
+    patch.flag = flag; patch.lastAction = plan.reason;
+    const actionName = plan.stageNext === 'DECLINED' ? 'declined' : plan.stageNext === 'ETA_RECEIVED' ? 'eta-received' : plan.flag === REPLY_FLAGS.noTarget ? 'flag-no-target' : plan.flag === REPLY_FLAGS.noRate ? 'flag-no-rate' : plan.flag === REPLY_FLAGS.closed ? 'flag-repeat' : 'flag-manual';
+    return { action: actionName, intent: plan.intent, reason: plan.reason, flag, inquiryPatch: { id: log.id, patch } };
   }
 
-  const lad = ladderReply(rate, targetRate, settings);
-  if (lad.stage === 'none') {
-    return {
-      action: 'flag-no-target', reason: 'Carrier rate ' + formatCurrency0(rate) + ' received, but this posting has no Target $ to compare it with.', flag: 'MANUAL REVIEW - NO TARGET RATE',
-      inquiryPatch: { id: log.id, patch: { stage: 'FOLLOWUP_RECEIVED', lastCarrierRate: rate, eventCount: evt, lastAction: 'Carrier rate ' + formatCurrency0(rate) + ' received - no target rate set, no draft', flag: 'MANUAL REVIEW - NO TARGET RATE' } },
-    };
-  }
-  const flag = lad.stage === 'book' ? 'RATE RECEIVED - REVIEW / ETA' : lad.stage === 'split' ? 'RATE RECEIVED - SPLIT COUNTER DRAFTED' : '';
+  // a reply is drafted
+  if (plan.kind === 'ladder') { patch.lastCarrierRate = plan.rate; patch.rateResponseSent = 'YES'; patch.lastAction = ladderAction({ ...plan.ladder }, plan.rate, targetRate); }
+  else if (plan.kind === 'asks_rate') { patch.rateResponseSent = 'YES'; patch.lastAction = 'Carrier asked for the rate - answered with your target (' + formatCurrency0(targetRate) + ')'; }
+  else if (plan.kind === 'agreed') { patch.rateResponseSent = 'YES'; patch.lastAction = 'Carrier agreed to ' + formatCurrency0(plan.ourRateNext) + ' - ETA requested'; }
+  else if (plan.kind === 'available') patch.lastAction = 'Carrier asked if the load is available - confirmed and asked for a rate';
+  else patch.lastAction = 'Carrier gave no rate - asked for it';
+  patch.flag = flag;
+  const action = plan.kind === 'ladder' ? stageAction[plan.ladder.stage] : plan.kind === 'asks_rate' ? 'reply-asks-rate' : plan.kind === 'agreed' ? 'reply-agreed' : plan.kind === 'available' ? 'reply-available' : 'reply-need-rate';
   return {
-    action: lad.stage === 'book' ? 'rate-within-target' : lad.stage === 'split' ? 'rate-split' : 'rate-negotiate',
-    ladder: { stage: lad.stage, pct: lad.pct, split: lad.split },
-    reason: 'Carrier rate ' + formatCurrency0(rate) + ' vs target ' + formatCurrency0(targetRate) + ' (' + (lad.pct >= 0 ? '+' : '') + lad.pct.toFixed(1) + '%).',
-    draft: { to: mail.from, subject: replySubject(mail.subject), body: lad.text + CRLF + CRLF + quotedOriginal(mail).trimStart(), display: false, kind: 'Rate response' },
-    flag,
-    inquiryPatch: {
-      id: log.id,
-      patch: {
-        stage: 'RATE_RESPONSE_SENT', rateResponseSent: 'YES', lastCarrierRate: rate, eventCount: evt,
-        lastAction: ladderAction(lad, rate, targetRate), ladderStage: lad.stage, flag,
-      },
-    },
+    action, intent: plan.intent, ladder: plan.ladder, flag, autoSendSafe: plan.autoSendSafe, reason: plan.reason,
+    draft: mkDraft(plan.text, { kind: plan.kind === 'ladder' ? 'Rate response' : 'Carrier reply', autoSendSafe: plan.autoSendSafe }),
+    inquiryPatch: { id: log.id, patch },
   };
 }

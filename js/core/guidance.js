@@ -36,7 +36,7 @@ export function repriceSuggestion(st, iteration = 0) {
   if (!(base > 0)) return null;
   const pct = s.repricePct * (1 + 0.5 * iteration);
   const step = Math.max(25, round25(Math.min(s.repriceMax * (1 + 0.5 * iteration), Math.max(s.repriceMin, base * pct / 100))));
-  return { from: st.datRate || 0, to: round25((st.datRate || base) + step), step, basis: st.datRate ? 'current target rate' : 'last cover on this lane' };
+  return { from: st.datRate || 0, to: round25((st.datRate || base) + step), step, basis: st.datRate ? (st.postedOwn ? 'rate posted on DAT' : 'target rate (nothing posted lower)') : 'last cover on this lane' };
 }
 
 const count = (st, type) => st.ops.filter(o => o.type === type).length;
@@ -71,6 +71,58 @@ function memCompare(st) {
   const last = st.mem.last.rate; const d = st.target - last; const pct = Math.abs(d) / last * 100;
   if (pct < 2) return `Your ${formatCurrency0(st.target)} is in line with the last cover on this lane (${formatCurrency0(last)}).`;
   return `Your ${formatCurrency0(st.target)} is ${pct.toFixed(0)}% ${d < 0 ? 'under' : 'over'} the last cover on this lane (${formatCurrency0(last)}).`;
+}
+
+/**
+ * The 30-minute coach. The load's clock is split into 30-minute slots; every new slot gets a different note, written from what is
+ * known about THIS load: its lane, how many inquiries it has drawn (and how recently), whether there are quotes, and what has
+ * already been tried. Returns null before the first slot ends or when a rate is already on the table (those have their own steps).
+ */
+export function slotNote(st, extra, now, ctx) {
+  const T = st.ageHours; if (!(T >= 0.5)) return null;
+  const slot = Math.floor(T / 0.5);                     // 1 = the 30-minute mark, 2 = one hour, ...
+  const n = st.inquiries.total, quotes = st.inquiries.quotes, lane = laneText(st);
+  const mark = hm(slot * 0.5);
+  const perHr = n / Math.max(T, 0.5);
+  const lastAgo = st.inquiries.lastAt ? (now.getTime() - st.inquiries.lastAt) / H : null;
+  const did = ctx.did, rp = ctx.rp;
+  const depth = extra.depth || 0, unused = extra.unusedDepth || 0;
+  const R = (arr) => arr[(slot - 1) % arr.length];       // rotate so consecutive slots never repeat
+  const kind = laneKind(st), pickup = pickupPhrase(st, now);
+  if (quotes.length) {
+    const best = st.inquiries.bestQuote, lad = st.inquiries.stage;
+    if (lad && lad.stage === 'book') return null;        // the 'Book it' step already says it
+    const over = st.target > 0 ? ((best - st.target) / st.target * 100).toFixed(1) : null;
+    return { slot, title: `${mark} check: ${quotes.length} quote${quotes.length === 1 ? '' : 's'} on the table`,
+      detail: R([
+        `Best quote on ${lane} is ${formatCurrency0(best)}${over !== null ? ` (${over}% over target)` : ''}. Reply to that carrier first and ask whether ${formatCurrency0(st.target || best)} works if you can confirm today.`,
+        `${quotes.length} carrier${quotes.length === 1 ? ' has' : 's have'} quoted so far (${n} replies total). Call the lowest quote now: a phone conversation closes the last 3-5% faster than another email.`,
+        `Still no deal at ${mark}. Carriers who quoted early move on fast. Send the best one a firm answer, yes or a specific number, so they stop shopping the load.`,
+      ]) };
+  }
+  if (n === 0) {
+    const mem = st.mem ? `This lane last covered at ${formatCurrency0(st.mem.last.rate)}. ` : '';
+    const pool = [
+      { t: 'Refresh and confirm the post is live', d: `${lane} (${kind}, ${pickup}) has been live ${mark} with no inquiries. Refresh DAT and your inbox (including Junk), and confirm every posting is still showing.`, a: { type: 'csv', label: 'Re-post (download CSV)' } },
+      { t: 'Silence at 1 hour: check, then reach out', d: `${mark} with nothing on ${lane}. ${depth ? `Draft outreach to the ${Math.min(depth, extra.wave || 5)} best-matched of ${depth} carriers in your database.` : 'Your database has no carriers for this lane yet, so search DAT Find Trucks and call two.'}`, a: depth && !st.outreachSent ? { type: 'outreach', label: 'Draft first wave' } : null },
+      { t: 'Compare your rate with the market', d: `${mem}${st.target > 0 ? memCompare(st) + ' ' : ''}Open RateView for ${lane}: if the posted rate is below the market average, a ${rp ? formatCurrency0(rp.step) + ' raise to ' + formatCurrency0(rp.to) : 'raise'} is the likeliest fix.`, a: rp && did.reprice < 3 ? { type: 'reprice', to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` } : null },
+      { t: 'Widen the reach', d: unused > 0 ? `${mark} live. ${unused} more carrier${unused === 1 ? '' : 's'} that fit ${lane} have not heard about it. Send the second wave.` : `${mark} live. Everyone in your database that fits ${lane} has been contacted, so search DAT Find Trucks for new names.`, a: unused > 0 && did.wave2 < 2 ? { type: 'wave2', label: 'Draft second wave' } : null },
+      { t: 'Change what trucks see', d: `Trucks searching near ${st.head.originCity || 'the origin'} may never see these postings. Rebuild the nearby cities with fresh high-traffic markets so ${lane} appears in more searches.`, a: did.recities < 3 ? { type: 'recities', label: 'Reshuffle postings' } : null },
+      { t: 'Pick up the phone', d: `${mark} without a single inquiry on ${lane}. Call the three carriers who ran ${kind} freight most recently; a direct ask beats waiting on the post.`, a: { type: 'call', label: 'Call list' } },
+      { t: 'Involve the customer', d: `${mark} of silence. If the rate, reach and cities have all been tried, ask the customer for a higher rate or a later pickup (${pickup}) before it gets harder.`, a: null },
+    ];
+    const pk = slot <= pool.length ? pool[slot - 1] : pool[(slot - 1) % pool.length];
+    return { slot, title: `${mark} check: ${pk.t}`, detail: pk.d, action: pk.a };
+  }
+  // inquiries but no usable rate
+  const calm = lastAgo !== null && lastAgo >= 0.5;
+  const heat = perHr >= 3 ? 'strong' : perHr >= 1 ? 'steady' : 'light';
+  const pool = [
+    `${n} inquir${n === 1 ? 'y' : 'ies'} on ${lane} after ${mark} (${heat} interest${lastAgo !== null ? `, latest ${hm(lastAgo)} ago` : ''}). Make sure every one has been answered and asked for an all-in rate and ETA.`,
+    calm ? `Nothing new on ${lane} for ${hm(lastAgo)}. Phone the carriers who e-mailed without a rate: a spoken number is faster than another round of email.` : `Interest on ${lane} is still arriving (${n} so far). Do not touch the price; chase the carriers who have not given a rate yet.`,
+    heat === 'light' ? `Only ${n} inquir${n === 1 ? 'y' : 'ies'} in ${mark} on ${lane}. ${rp ? `A ${formatCurrency0(rp.step)} raise to ${formatCurrency0(rp.to)} could turn browsers into quotes.` : 'Consider a small rate raise.'}` : `${heat === 'strong' ? 'Strong' : 'Steady'} demand on ${lane}: ${n} inquiries and still no rate. Ask directly for "best all-in rate and ETA" in your next reply.`,
+  ];
+  return { slot, title: `${mark} check: ${n} inquir${n === 1 ? 'y' : 'ies'}, no rate yet`, detail: R(pool), action: heat === 'light' && rp && did.reprice < 3 ? { type: 'reprice', to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` } : null };
 }
 
 /**
@@ -136,7 +188,7 @@ export function nextSteps(st, extra = {}) {
       phase = 'warm'; headline = 'Interest is building'; if (level === 'ok') level = 'watch';
     } else {
       const stalled = st.inquiries.lastAt && (now.getTime() - st.inquiries.lastAt) / H >= 1;
-      add('followup', stalled ? 'Follow up by phone' : 'Answer the inquiry', stalled ? `${n} inquiry${n === 1 ? '' : 'ies'} on ${lane}, none with a rate and nothing new for ${hm((now.getTime() - st.inquiries.lastAt) / H)}. Call them instead of waiting.` : `${n} inquiry${n === 1 ? '' : 'ies'} so far on ${lane} - get an all-in rate and ETA.`, stalled ? { type: 'call', label: 'Call list' } : null, true);
+      add('followup', stalled ? 'Follow up by phone' : 'Answer the inquiry', stalled ? `${n} inquir${n === 1 ? 'y' : 'ies'} on ${lane}, none with a rate and nothing new for ${hm((now.getTime() - st.inquiries.lastAt) / H)}. Call them instead of waiting.` : `${n} inquir${n === 1 ? 'y' : 'ies'} so far on ${lane} - get an all-in rate and ETA.`, stalled ? { type: 'call', label: 'Call list' } : null, true);
       phase = 'engaged'; headline = 'Engaged but no rate yet'; if (level === 'ok') level = 'watch';
       if (!wait && st.ageHours >= s.staleHours * 1.5 && rp && since(st, 'reprice', now) > cooldown * 2) add('nudge', `Small bump: +${formatCurrency0(rp.step)}`, `Interest is thin after ${hm(st.ageHours)} live. A small raise to ${formatCurrency0(rp.to)} can turn inquiries into quotes.`, { type: 'reprice', to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` });
     }
@@ -214,6 +266,13 @@ export function nextSteps(st, extra = {}) {
         if (did.reprice >= 2 && did.wave2 >= 1 && did.call >= 1) add('customer', 'Talk to the customer', `${lane} has had rate, reach and calls. Ask for a higher rate, a later pickup, or release the load.`, null, !pick);
       }
     }
+  }
+
+  // ---- v8: a fresh, lane-specific note every 30 minutes the load is live
+  const pulse = slotNote(st, extra, now, { rp, did: { reprice: count(st, 'reprice'), wave2: count(st, 'wave2'), recities: count(st, 'recities'), call: count(st, 'call') }, wait });
+  if (pulse && st.posted !== false && phase !== 'unposted' && phase !== 'unpriced') {
+    const at = Math.min(steps.length, steps.findIndex(x => x.primary) + 1);
+    steps.splice(at < 0 ? steps.length : at, 0, { id: 'pulse', title: pulse.title, detail: pulse.detail, action: pulse.action || null, primary: false, slot: pulse.slot, ...(pulse.checks ? { checks: pulse.checks } : {}) });
   }
 
   if (urgent && level === 'ok') level = 'watch';

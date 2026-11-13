@@ -14,6 +14,13 @@ export const DEFAULT_TEMPLATES = {
   book: 'Please confirm your ETA to pickup.',
   split: 'Can we meet in the middle at {split}? If that works, please confirm your ETA to pickup.',
   target: 'How close can you come to {target}?',
+  // v8: replies to a carrier who has not given a rate. askRate answers "rate?" / "what are you paying?" with your target.
+  askRate: 'How close can you come to {target}?',
+  available: 'Yes, it is still available. What is your best all-in rate and ETA to pickup?',
+  availableLead: 'Yes, it is still available.',
+  needRate: 'Thank you. What is your best all-in rate for this load?',
+  needRateEta: 'Thank you. What is your best all-in rate and ETA to pickup?',
+  agreed: 'Great, we are set at {ourRate}. Please confirm your ETA to pickup.',
   truckSubject: 'Any trucks available? {lane}',
   truckBody: 'Hello {name},\n\nDo you have any trucks available {where}?\n\nIf so, please reply with the truck location, equipment and the rate you would need.\n\nThank you,',
 };
@@ -21,6 +28,12 @@ export const TEMPLATE_VARS = {
   book: ['{rate}', '{target}', '{split}', '{pct}'],
   split: ['{rate}', '{target}', '{split}', '{pct}'],
   target: ['{rate}', '{target}', '{split}', '{pct}'],
+  askRate: ['{target}'],
+  available: ['{target}'],
+  availableLead: [],
+  needRate: ['{target}'],
+  needRateEta: ['{target}'],
+  agreed: ['{ourRate}', '{target}'],
   truckSubject: ['{lane}', '{name}'],
   truckBody: ['{name}', '{where}', '{lane}'],
 };

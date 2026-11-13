@@ -18,6 +18,10 @@ export const DEFAULT_SETTINGS = {
   // Outlook v3 IsReasonableCarrierRate: 250..20000
   // Outlook v3's rate regex cannot match comma-formatted rates ($1,650 / $12,000). false = exact macro behaviour.
   recogniseCommaRates: false,
+  // DANGER ZONE (v8): let the Outlook macro SEND instead of saving drafts. Both default OFF. Inbound = replies to carriers; outbound = new outreach.
+  autoSendInbound: false,
+  autoSendOutbound: false,
+  maxAutoSendsPerHour: 20,
   minReasonableRate: 250,
   maxReasonableRate: 20000,
   // Blocklists. Excel DraftCarrierOutreach uses IsBlockedSender (suffix "@domain" / exact address).

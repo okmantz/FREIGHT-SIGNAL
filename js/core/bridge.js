@@ -13,6 +13,7 @@
 // Tabs / newlines inside a field are escaped as \t and \n, backslash as \\ (the macro reverses this).
 
 import { templatesOf } from './ladder.js';
+import { RULES } from './carrierreply.js';
 
 export const BRIDGE_VERSION = 'v1';
 export const FILES = {
@@ -26,6 +27,8 @@ export const FILES = {
 export const POSTING_COLS = ['PostingId', 'Row', 'GroupId', 'Variant', 'OriginCity', 'OriginState', 'OriginZip', 'DestCity', 'DestState', 'DestZip',
   'Equipment', 'PickupDate', 'Weight', 'DatRate', 'TargetRate', 'Priority', 'Status', 'Outreach', 'InquiryCount', 'Details', 'Notes', 'Broker', 'Contact'];
 export const INQUIRY_COLS = ['ConversationId', 'Timestamp', 'SenderEmail', 'Subject', 'PostingId', 'PostingRow', 'Stage', 'CarrierRate', 'TargetRate', 'Action', 'Flag', 'EventCount'];
+/** v6 macro appends these after the 12 core columns. Older (12-column) lines still parse. */
+export const INQUIRY_EXTRA_COLS = ['Intent', 'OurRate', 'LadderStage', 'Sent'];
 
 /** ASCII-safe single field: accents folded, other non-ASCII dropped, control chars escaped. */
 export function encodeField(v) {
@@ -68,7 +71,12 @@ export function configFile(settings) {
     // v5: percent ladder + the wording for each rung ({rate} {target} {split} {pct} are filled in by the macro)
     ['bookPct', settings.ladderBookPct], ['splitPct', settings.ladderSplitPct], ['ladderRound', settings.ladderRound],
     ['tplBook', t.book], ['tplSplit', t.split], ['tplTarget', t.target],
+    // v6: wording for the non-ladder replies + the two send switches (default 0 = drafts only) + the safety cap
+    ['tplAskRate', t.askRate], ['tplAvailable', t.available], ['tplAvailableLead', t.availableLead], ['tplNeedRate', t.needRate], ['tplNeedRateEta', t.needRateEta], ['tplAgreed', t.agreed],
+    ['autoSendInbound', settings.autoSendInbound ? 1 : 0], ['autoSendOutbound', settings.autoSendOutbound ? 1 : 0], ['maxAutoSendsPerHour', settings.maxAutoSendsPerHour || 20],
   ];
+  // the carrier-reply rules are shared with the app (js/core/carrierreply.js) so the macro reads e-mail exactly as the app does
+  for (const [name, v] of Object.entries(RULES)) (Array.isArray(v) ? v : [v]).forEach((src, i) => out.push(['rule', name, i, src]));
   for (const b of settings.inboundBlocklist || []) out.push(['inboundBlock', b]);
   return ['#FREIGHT-SIGNAL-CONFIG', BRIDGE_VERSION].join('\t') + '\r\n' + out.map(line).join('\r\n') + '\r\n';
 }
@@ -89,7 +97,7 @@ export function foldInquiryEvents(text) {
     if (!ln || ln.startsWith('ConversationId') || ln.startsWith('#')) continue;
     const c = ln.split('\t');
     if (c.length < INQUIRY_COLS.length || !c[0].trim()) continue;
-    const r = Object.fromEntries(INQUIRY_COLS.map((k, i) => [k, decodeField(c[i])]));
+    const r = Object.fromEntries([...INQUIRY_COLS, ...INQUIRY_EXTRA_COLS].map((k, i) => [k, decodeField(c[i] ?? '')]));
     const prev = byId.get(r.ConversationId);
     byId.set(r.ConversationId, { ...r, firstTimestamp: prev ? prev.firstTimestamp : r.Timestamp });
   }
@@ -97,6 +105,7 @@ export function foldInquiryEvents(text) {
     conversationId: r.ConversationId, dateCounted: toIso(r.firstTimestamp), lastEventAt: toIso(r.Timestamp), senderEmail: r.SenderEmail, subject: r.Subject,
     postingId: r.PostingId, postingRow: num(r.PostingRow), stage: String(r.Stage).toUpperCase(), lastCarrierRate: r.CarrierRate === '' ? '' : num(r.CarrierRate),
     targetRate: num(r.TargetRate), lastAction: r.Action, flag: r.Flag, eventCount: num(r.EventCount) || 1,
+    intent: r.Intent || '', ourRate: r.OurRate === '' || r.OurRate == null ? '' : num(r.OurRate), ladderStage: r.LadderStage || '', sent: String(r.Sent || '').toUpperCase() === 'SENT',
   }));
 }
 
@@ -137,13 +146,14 @@ export function planInquirySync(records, inquiries, postings) {
         countAfterInquiry: count, targetRate: r.targetRate, status: 'INQUIRY', stage: r.stage,
         rateResponseSent: r.stage === 'RATE_RESPONSE_SENT' ? 'YES' : 'NO', lastCarrierRate: r.lastCarrierRate, lastAction: r.lastAction,
         flag: r.flag, eventCount: r.eventCount, approved: 'No', dateAdded: '', source: 'outlook',
+        intent: r.intent, ourRate: r.ourRate, ladderStage: r.ladderStage, sent: r.sent,
       });
       continue;
     }
     if (safeInt(q.eventCount) >= r.eventCount && q.stage === r.stage && q.lastAction === r.lastAction) continue; // already applied
     patches.push({
       id: q.id,
-      patch: { stage: r.stage, lastAction: r.lastAction, flag: r.flag, eventCount: r.eventCount, lastCarrierRate: r.lastCarrierRate,
+      patch: { stage: r.stage, lastAction: r.lastAction, flag: r.flag, eventCount: r.eventCount, lastCarrierRate: r.lastCarrierRate, intent: r.intent, ourRate: r.ourRate, ladderStage: r.ladderStage, sent: r.sent,
         rateResponseSent: r.stage === 'RATE_RESPONSE_SENT' ? 'YES' : q.rateResponseSent },
     });
   }
@@ -155,7 +165,7 @@ const safeInt = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0;
 
 // ------------------------------------------------------------------------------------------------ outbox (drafts -> Outlook Drafts folder)
 
-export const OUTBOX_COLS = ['DraftId', 'To', 'Cc', 'Subject', 'Body', 'Kind', 'Created'];
+export const OUTBOX_COLS = ['DraftId', 'To', 'Cc', 'Subject', 'Body', 'Kind', 'Created', 'Send'];
 export const DRAFTS_DONE_COLS = ['DraftId', 'Timestamp', 'Result', 'Detail'];
 
 /**
@@ -164,7 +174,7 @@ export const DRAFTS_DONE_COLS = ['DraftId', 'Timestamp', 'Result', 'Detail'];
  * Each draft needs `outboxId`, `to`, `subject`, `body`.
  */
 export function outboxFile(drafts, now = new Date()) {
-  const rows = drafts.filter(d => d && d.outboxId && d.to).map(d => line([d.outboxId, d.to, d.cc || '', d.subject, d.body, d.kind || '', d.createdAt || now.toISOString()]));
+  const rows = drafts.filter(d => d && d.outboxId && d.to).map(d => line([d.outboxId, d.to, d.cc || '', d.subject, d.body, d.kind || '', d.createdAt || now.toISOString(), d.send ? 'SEND' : '']));
   return ['#FREIGHT-SIGNAL-OUTBOX', BRIDGE_VERSION, now.toISOString(), rows.length].join('\t') + '\r\n' + OUTBOX_COLS.join('\t') + '\r\n'
     + rows.map(r => r + '\r\n').join('') + ['#END', rows.length].join('\t') + '\r\n';
 }
@@ -175,7 +185,8 @@ export function parseDraftsDone(text) {
   for (const ln of String(text ?? '').split(/\r?\n/)) {
     if (!ln || ln.startsWith('DraftId') || ln.startsWith('#')) continue;
     const c = ln.split('\t'); if (c.length < 3 || !c[0].trim()) continue;
-    out.set(decodeField(c[0]).trim(), { ok: String(c[2]).trim().toUpperCase() === 'OK', at: toIso(c[1]), detail: decodeField(c[3] || '') });
+    const res = String(c[2]).trim().toUpperCase();
+    out.set(decodeField(c[0]).trim(), { ok: res === 'OK' || res === 'SENT', sent: res === 'SENT', at: toIso(c[1]), detail: decodeField(c[3] || '') });
   }
   return out;
 }
