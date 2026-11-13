@@ -1,7 +1,7 @@
 // Overview strip, ranked worklist, per-broker scoreboard, per-load next steps and the aging / second-wave dialog.
 import { h, toast, modal, confirmDialog } from '../dom.js';
 import { state, actions } from '../../store/state.js';
-import { rankLoads, overviewCounts } from '../../core/worklist.js';
+import { rankLoads, overviewCounts, postedRateOf } from '../../core/worklist.js';
 import { nextSteps, repriceSuggestion } from '../../core/guidance.js';
 import { paceStats, coverStatsByBroker } from '../../core/coverlog.js';
 import { safeNumeric } from '../../core/util.js';
@@ -68,11 +68,11 @@ async function runAction(box, a, hooks = {}) {
   const head = box.head; const ids = box.members.map(m => m.id);
   switch (a.type) {
     case 'reprice': {
-      const cur = Math.max(0, ...box.members.map(m => safeNumeric(m.targetRate) || safeNumeric(m.datRate)));
+      const cur = postedRateOf(box.members).rate;
       const step = Math.round(a.to - cur);
       if (!(step > 0)) return toast('The rate is already at or above that.', 'info');
       const n = await actions.repriceGroup(head.id, step);
-      toast(`Target rate raised by ${money(step)} on ${n} posting(s). Download the DAT CSV again and re-upload it.`, 'ok', 7000); return;
+      toast(`Posted rate raised by ${money(step)} on ${n} posting(s). Download the DAT CSV again and re-upload it.`, 'ok', 7000); return;
     }
     case 'setRate': { await actions.setTargetRate(ids, a.rate); toast(`Target rate set to ${money(a.rate)} for the whole load.`, 'ok'); return; }
     case 'outreach': case 'wave2': {
@@ -128,7 +128,7 @@ export function agingModal(rows, ctx) {
   modal({ title: 'Aging loads', body, wide: true, actions: [{ label: 'Cancel' }, { label: 'Apply', kind: 'primary', onClick: async () => {
     let rp = 0, wv = 0, dr = 0;
     for (const { r, rp: sug, cb, wave } of picks) {
-      if (sug && cb.checked) { const cur = Math.max(0, ...r.box.members.map(m => safeNumeric(m.targetRate) || safeNumeric(m.datRate))); const step = Math.round(sug.to - cur); if (step > 0) { await actions.repriceGroup(r.box.head.id, step); rp++; } }
+      if (sug && cb.checked) { const cur = postedRateOf(r.box.members).rate; const step = Math.round(sug.to - cur); if (step > 0) { await actions.repriceGroup(r.box.head.id, step); rp++; } }
       if (wave.checked) { const res = await actions.runOutreach(r.box.head.id, { wave2: true }); if (res) { wv++; dr += res.drafts.length; } }
     }
     toast(`${rp} load(s) repriced, ${wv} second wave(s) drafted (${dr} draft${dr === 1 ? '' : 's'}).${rp ? ' Re-upload the DAT CSV for repriced loads.' : ''}`, 'ok', 8000);
