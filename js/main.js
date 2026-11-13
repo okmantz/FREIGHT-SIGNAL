@@ -1,5 +1,5 @@
-import { h, clear, toast } from './ui/dom.js';
-import { state, subscribe, loadAll, actions } from './store/state.js';
+import { h, clear, toast, confirmDialog } from './ui/dom.js';
+import { state, subscribe, loadAll, reloadStores, actions } from './store/state.js';
 import * as home from './ui/pages/home.js';
 import * as board from './ui/pages/board.js';
 import * as spare from './ui/pages/spare.js';
@@ -17,8 +17,10 @@ import { startWeather } from './store/weather.js';
 import { paceStats, nextWeekStart, weekRangeText } from './core/coverlog.js';
 import { icon } from './ui/icons.js';
 import { initials } from './ui/chrome.js';
-import { needsGate, hasAccount, account as signedAccount, signOut } from './store/auth.js';
-import { showGate } from './ui/auth.js';
+import * as cloud from './store/cloud.js';
+import * as local from './store/localacct.js';
+import './ui/install.js';
+import { showCloudGate } from './ui/cloudgate.js';
 import { maybeStartTour } from './ui/tour.js';
 import { celebrate } from './ui/celebrate.js';
 import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode, toggleMode, onAppearance } from './ui/appearance.js';
@@ -55,7 +57,7 @@ function renderNav() {
     nav.appendChild(h('a', { href: '#/' + t.id, dataset: { tab: t.id }, title: t.label, class: current && current.id === t.id ? 'active' : '', 'aria-current': current && current.id === t.id ? 'page' : null },
       icon(t.icon, 19), h('span', { class: 'lbl' }, t.label), badge));
   }
-  nav.appendChild(h('div', { class: 'side-foot' }, icon('shield', 15), h('span', null, 'All data stays in this browser. Nothing is sent automatically.')));
+  nav.appendChild(h('div', { class: 'side-foot' }, icon('shield', 15), h('span', null, cloud.enabled() ? 'Your workspace is saved to your own private account. No e-mail is ever sent automatically.' : 'All data stays in this browser. Nothing is sent automatically.')));
   renderChrome();
 }
 
@@ -71,13 +73,24 @@ export function renderChrome() {
   const ab = document.getElementById('appearbtn'); if (!ab.firstChild) ab.appendChild(icon('palette', 17));
   const nt = document.getElementById('navtoggle'); if (!nt.firstChild) nt.appendChild(icon('menu', 18));
   const pf = state.settings.profile || {};
-  const acct = signedAccount();
+  const acct = cloud.enabled() ? cloud.user() : local.user();
   const chip = document.getElementById('profilechip'); clear(chip);
   const ini = initials(pf.name) || (acct ? acct.email[0].toUpperCase() : '');
   chip.append(h('span', { class: 'avatar' }, ini || icon('user', 16)),
     h('span', { class: 'who' }, h('b', null, pf.name || (acct ? acct.email.split('@')[0] : 'Account')), h('small', null, pf.title || (acct ? acct.email : 'Settings and themes'))));
   const so = document.getElementById('signoutbtn');
-  if (so) { so.hidden = !hasAccount(); if (!so.firstChild) so.appendChild(icon('logout', 17)); }
+  if (so) { so.hidden = !(cloud.enabled() ? cloud.user() : local.user()); if (!so.firstChild) so.appendChild(icon('logout', 17)); }
+  renderSync(cloud.getStatus());
+}
+
+/** Header pill showing whether the workspace is saved to the account. Hidden when cloud accounts are not set up. */
+const SYNC_TEXT = { synced: ['Saved to account', ''], saving: ['Saving…', ''], offline: ['Offline: will sync', ' warn'], error: ['Sync problem', ' warn'], off: ['', ''] };
+function renderSync(st) {
+  const el = document.getElementById('syncstat'); if (!el) return;
+  if (!cloud.enabled() || !cloud.user()) { el.hidden = true; return; }
+  const [text, cls] = SYNC_TEXT[st.status] || SYNC_TEXT.off;
+  el.hidden = !text; el.textContent = text; el.className = 'pill' + cls;
+  el.title = st.detail || (st.status === 'synced' ? 'Everything is saved to your account.' : '');
 }
 
 /** Top-right cover pace tracker: covers today, covers this week, and where the week is heading against the floor. */
@@ -136,6 +149,16 @@ export async function render() {
 // Apply the last saved look immediately (from the localStorage mirror), then reconcile with IndexedDB once it has loaded.
 initAppearance({ read: readMirror, write: (a) => actions.savePrefs({ appearance: a, theme: resolvedMode(a) }) });
 
+/** First sign-in on a browser that already holds data from before accounts existed: offer to move it into the account. */
+async function offerLegacyImport() {
+  const c = await cloud.legacySummary();
+  if (!c) { cloud.markLegacyHandled(); return; }
+  const parts = [[c.postings, 'load posting'], [c.carriers, 'carrier'], [c.customers, 'customer'], [c.inquiries, 'inquiry'], [c.spares, 'spare load']].filter(([n]) => n > 0).map(([n, w]) => `${n} ${w}${n === 1 ? '' : 's'}`);
+  const yes = await confirmDialog('Add your existing data to this account?', `This browser already holds Freight Signal data from before accounts existed (${parts.join(', ') || 'settings only'}). Add it to the account you just signed in with? It will then be saved to the cloud and follow you to other computers. Only say yes if this data is yours.`, 'Add it to my account');
+  cloud.markLegacyHandled();
+  if (yes) await cloud.importLegacy();
+}
+
 async function boot() {
   const zipFetcher = async () => {
     // Single-file build: the ZIP Map is embedded (gzip + base64) so the page works when opened straight from disk.
@@ -147,6 +170,29 @@ async function boot() {
     const r = await fetch('data/uszips.csv'); if (!r.ok) throw new Error('HTTP ' + r.status);
     return { text: await r.text(), source: 'bundled data/uszips.csv' };
   };
+  const cloudOn = cloud.enabled();
+  if (!cloudOn) {
+    // Local accounts: several people can each have an account on this computer; each gets their own on-device database.
+    if (!local.restoreSession()) await showCloudGate({ local: true });
+    try { await local.activate(); }
+    catch (e) { console.error(e); view.replaceChildren(h('div', { class: 'banner err' }, 'Storage could not be opened: ' + (e.message || e) + '. Freight Signal needs IndexedDB (not available in some private/guest windows). Use a normal Chrome or Edge profile.')); return; }
+  }
+  if (cloudOn) {
+    // Cloud accounts: sign in first (the saved sign-in needs no network), then open THIS person's copy of the data.
+    if (!cloud.restoreSession()) await showCloudGate();
+    try {
+      await cloud.activate();
+      const { fresh } = await cloud.initialSync();
+      if (fresh && !cloud.legacyHandled()) await offerLegacyImport();
+    } catch (e) {
+      console.error(e);
+      if (e.code === 'auth') { await cloud.dropSession(); location.reload(); return; }
+      view.replaceChildren(h('div', { class: 'banner err' }, 'Your workspace could not be loaded: ' + (e.message || e)),
+        h('p', null, h('button', { class: 'btn primary', type: 'button', onclick: () => location.reload() }, 'Try again'), ' ',
+          h('button', { class: 'btn', type: 'button', onclick: async () => { await cloud.dropSession(); location.reload(); } }, 'Sign out')));
+      return;
+    }
+  }
   try { await loadAll(zipFetcher); }
   catch (e) {
     console.error(e);
@@ -156,8 +202,12 @@ async function boot() {
   // The stored appearance wins over the localStorage mirror used for the flash-free first paint.
   syncFromStore(state.settings.appearance);
   // First visit: ask for an e-mail and a password. Later visits: sign in. (Skipped when the person chose "Skip for now".)
-  if (needsGate()) await showGate();
-  document.getElementById('signoutbtn').addEventListener('click', () => { signOut(); location.reload(); });
+  document.getElementById('signoutbtn').addEventListener('click', async () => {
+    if (!cloudOn) { local.signOut(); location.reload(); return; }
+    toast('Saving your changes, then signing out…', 'info', 6000);
+    try { await cloud.signOut(); } catch (e) { console.error(e); await cloud.dropSession(); }
+    location.reload();
+  });
   document.getElementById('themebtn').addEventListener('click', () => { toggleMode(); });
   onAppearance(() => renderChrome());
   document.getElementById('navtoggle').addEventListener('click', () => document.getElementById('app').classList.toggle('nav-open'));
@@ -172,6 +222,17 @@ async function boot() {
   rollover();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderPace(); render(); } });   // a laptop that slept through the rollover catches up on wake
   state.hooks.onWeeklyGoal = (g) => celebrate(g);
+  if (cloudOn) {
+    const NAMES = { postings: 'loads', carriers: 'carriers', inquiries: 'the inquiry log', outreach: 'outreach history', spares: 'spare loads', drafts: 'drafts', kv: 'settings', customers: 'customers', coverLog: 'the cover log' };
+    const list = (ss) => ss.map(s => NAMES[s] || s).join(', ');
+    cloud.setHooks({
+      onRemoteChange: async (stores) => { await reloadStores(); toast('Updated from your other device: ' + list(stores) + '.', 'info', 6000); },
+      onConflict: (stores) => toast('Another device saved changes to ' + list(stores) + ' while you were editing here. This device\'s version was kept.', 'warn', 12000),
+      onAuthLost: () => { toast('Your sign-in has expired. Please sign in again.', 'err', 6000); setTimeout(async () => { await cloud.dropSession(); location.reload(); }, 2500); },
+    });
+    cloud.onStatus(renderSync);
+    cloud.start();
+  }
   setTimeout(maybeStartTour, 350);                        // first login only: the 60-second guided tour
   onBridge(() => { if (current && (current.id === 'system' || current.id === 'drafts')) render(); });
   initBridge();
