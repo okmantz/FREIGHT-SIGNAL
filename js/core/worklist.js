@@ -2,7 +2,7 @@
 // One "load" = one lane box = a load group (the 9 postings) or a single posting. Pure functions; the caller passes everything in `ctx`:
 //   { postings, inquiries, drafts, coverLog, carriers, zip, settings, now, weather: Map("city|st" -> alerts[]), carrierRev }
 
-import { safeNumeric, normalizeText } from './util.js';
+import { safeNumeric, normalizeText, formatCurrency0 } from './util.js';
 import { laneBoxes } from './model.js';
 import { classifyLane } from './lanes.js';
 import { hoursToPickup, parseDateText } from './expiry.js';
