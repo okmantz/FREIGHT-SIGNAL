@@ -1,12 +1,13 @@
 import { h } from '../dom.js';
 import { EQUIPMENT } from '../../core/defaults.js';
+import { startTour } from '../tour.js';
 
 // Section navigation uses scrollIntoView (not #anchors) because the app's router owns the URL hash.
 const go = (id) => { const el = document.getElementById('man-' + id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
 const SECTIONS = [
   ['start', 'Quick start'], ['board', 'The board'], ['dat', 'DAT & rates'], ['outreach', 'Carriers & outreach'],
-  ['outlook', 'Outlook'], ['tools', 'Weather & RateView'], ['safety', 'Backup & safety'], ['help', 'Troubleshooting'],
+  ['guide', 'Guided notes'], ['outlook', 'Outlook'], ['tools', 'Weather & RateView'], ['safety', 'Backup & safety'], ['help', 'Troubleshooting'],
 ];
 
 const sec = (id, n, title, ...body) => h('section', { class: 'man-sec', id: 'man-' + id }, h('h3', null, h('span', { class: 'num' }, n), title), ...body);
@@ -20,7 +21,8 @@ export function render() {
     h('div', { class: 'man-hero' },
       h('div', { class: 'eyebrow' }, 'User guide'),
       h('h2', null, 'Intelligent Carrier Sourcing Optimization System'),
-      h('p', null, 'Freight Signal turns one load into nine DAT postings, sets your rates, drafts carrier outreach and tracks every reply. This guide takes about five minutes to read.')),
+      h('p', null, 'Freight Signal turns one load into nine DAT postings, sets your rates, drafts carrier outreach and tracks every reply. This guide takes about five minutes to read.'),
+      h('p', null, h('button', { class: 'btn primary', type: 'button', onclick: () => startTour() }, 'Take the 60-second tour'))),
     h('nav', { class: 'man-toc', 'aria-label': 'Guide sections' }, SECTIONS.map(([id, t]) => h('button', { type: 'button', onclick: () => go(id) }, t))),
 
     sec('start', 1, 'Quick start',
@@ -37,18 +39,21 @@ export function render() {
         card('A-A = the original', 'Postings are labelled by grid position. A is the original origin / destination, B and C are the two nearby markets. A-B means original origin to the first nearby destination.'),
         card('Priority sets the target', 'Changing Priority on a box updates the whole box at once: Low = 5, Medium = 10, High = 15 outreach emails. The badge in the header shows the live number.'),
         card('Edit anywhere', 'Every cell is editable. Change a city and its ZIP follows automatically (origin and destination). If the city is not in the ZIP Map you get a warning instead of a guess.'),
-        card('Tick, then act', 'Use the checkboxes to select postings across lanes, then Download selected or Delete selected from the bar that appears.')),
+        card('Tick, then act', 'Use the checkboxes to select postings across lanes, then Download selected or Delete selected from the bar that appears.'),
+        card('Brokers, in your order', 'Drag a broker tab (or hold Alt and press the arrow keys) to put the brokers in the order you want. The same order shows in System.'),
+        card('Cover week', 'The weekly cover count runs Monday to Sunday and resets at 12:00 AM Monday. Reach your weekly floor (50 by default) and the app celebrates.')),
       h('p', null, h('b', null, 'Deleting. '), 'The red ✕ deletes one posting. ', h('b', null, 'Delete group'), ' deletes the whole box. Both ask first. Setting a load to Covered removes the whole group and counts a cover.')),
 
     sec('dat', 3, 'DAT, rates and CSV downloads',
       h('div', { class: 'man-note' }, h('b', null, 'One rate per load. '), 'The ', h('b', null, 'Target rate'), ' in the load details is the rate for every posting in the matrix. It is posted on DAT (switch “Post target rate on DAT” off to leave the CSV rate blank) and it is the price carrier e-mail replies are judged against.'),
       table(['I want to…', 'Do this'], [
         ['Post the same rate on all 9', 'Type it in Target rate in the load details and press Enter.'],
-        ['Rate only some postings', 'Open a posting’s ⋯ menu, choose Edit every field and fill “DAT rate override”.'],
+        ['Rate only some postings (say 2 of the 9)', 'Type the rate in the DAT rate box on just those rows. The other postings of that load post without a rate. “Use the target on all” under the table undoes it.'],
         ['Download everything', 'Download all in the top bar.'],
         ['Download one lane', 'Download CSV in the lane box.'],
         ['Download some postings', 'Tick them, then Download selected.'],
-        ['Download one posting', 'CSV at the end of that row.']]),
+        ['Download one posting', 'The ⋯ menu at the end of that row, then Download this posting.'],
+        ['See the market rate', 'DAT RateView on the load (or the chart button on a row, for that posting’s own cities) opens RateView in a new tab.']]),
       note('The file is DAT’s bulk template exactly: the same 24 columns in the same order, header row and one line per posting, with no instruction rows. If a required field is missing you are told which postings DAT would reject before the file downloads.'),
       h('h4', null, 'Equipment codes'),
       table(['Code', 'Equipment'], EQUIPMENT.map(e => [h('span', { class: 'kbd' }, e.code), e.label])),
@@ -61,7 +66,16 @@ export function render() {
         card('Inquiry Log', 'Every carrier conversation, its stage, the last rate and what was done. Approve a sender to add them to the Carrier Database.'),
         card('Drafts', 'Everything the app prepared. Download .eml files to open them in Outlook as unsent drafts.'))),
 
-    sec('outlook', 5, 'Outlook connection',
+    sec('guide', 5, 'Guided notes: what to do and when',
+      h('p', null, 'Every load has a Next step panel. It reads what has happened on that load (how long it has been live, inquiries, rates, what you already tried) and tells you the one best thing to do. A load starts its clock when you download its CSV for DAT.'),
+      table(['Live for', 'No inquiries yet? Do this'], [
+        ['0 to 30 minutes', 'Hold the price. Inquiries normally start within minutes. Confirm all the postings are showing on DAT and start outreach.'],
+        ['30 to 60 minutes', 'Refresh: reload your DAT posts and your inbox, and re-post anything that dropped off.'],
+        ['1 hour', 'Something is not working. The panel lists what to check for that load: required fields, whether it shows on DAT, pickup date, rate against the last cover, contact method, equipment and weight.'],
+        ['2 hours or more', 'Escalate in order: reprice, second wave of outreach, fresh alternate cities, phone calls, then the customer.']]),
+      note('A pickup that is close to closing skips the waiting: after 30 minutes you go straight to the escalation steps.')),
+
+    sec('outlook', 6, 'Outlook connection',
       h('p', null, 'Outlook cannot see data inside a browser, so Freight Signal shares your postings with it through one folder on your computer. The Outlook macro reads that folder, drafts the replies, and tells the app what it did.'),
       steps(
         h('span', null, 'Create a folder called ', h('span', { class: 'kbd' }, 'FreightSignal'), ' inside Documents.'),
@@ -75,16 +89,16 @@ export function render() {
         ['They write again after that', 'Flags it FOLLOW-UP – MANUAL REVIEW and drafts nothing.']]),
       note('Postings sync within moments of any change, so an e-mail about a posting you added a minute ago is already matched. Covered or deleted postings stop matching. Keep Freight Signal open in Chrome or Edge while you work; Outlook’s activity appears in the Inquiry Log within a few seconds.')),
 
-    sec('tools', 6, 'Weather and RateView',
-      h('p', null, h('b', null, 'Wx'), ' on a posting opens Ventusky weather at the origin. The ', h('b', null, 'Ventusky weather'), ' button on HOME opens the general map. ', h('b', null, 'Rate'), ' opens DAT RateView for the lane and equipment in a new tab. The app never fetches or invents rates.')),
+    sec('tools', 7, 'Weather and RateView',
+      h('p', null, 'Weather at origin (in a ⋯ menu) opens Ventusky. The ', h('b', null, 'Ventusky weather'), ' button on HOME opens the general map. ', h('b', null, 'DAT RateView'), ' is a button on every load (and a chart button on every row) and opens RateView for that lane and equipment in a new tab. The app never fetches or invents rates.')),
 
-    sec('safety', 7, 'Backup and safety',
+    sec('safety', 8, 'Backup and safety',
       h('div', { class: 'man-cards' },
         card('Everything stays local', 'Loads, carriers and logs live in this browser only. The Outlook folder holds postings, the rate window and your inbound blocklist.'),
         card('Nothing is sent for you', 'Every e-mail, by the app or by Outlook, is a draft until you press Send.'),
         card('Back up often', 'System → Download backup. Clearing browser data erases the board.'))),
 
-    sec('help', 8, 'Troubleshooting',
+    sec('help', 9, 'Troubleshooting',
       table(['Symptom', 'Fix'], [
         ['ZIP did not change after editing a city', 'The city or state is not in the ZIP Map (a warning appears). Check the spelling or type the ZIP yourself.'],
         ['DAT rejects a row', 'Use the warning shown at download: it names the posting and missing field. Dates must be m/d/yyyy.'],

@@ -14,11 +14,13 @@ import * as system from './ui/pages/system.js';
 import * as account from './ui/pages/account.js';
 import { initBridge, onBridge } from './store/bridge.js';
 import { startWeather } from './store/weather.js';
-import { paceStats } from './core/coverlog.js';
+import { paceStats, nextWeekStart, weekRangeText } from './core/coverlog.js';
 import { icon } from './ui/icons.js';
 import { initials } from './ui/chrome.js';
 import { needsGate, hasAccount, account as signedAccount, signOut } from './store/auth.js';
 import { showGate } from './ui/auth.js';
+import { maybeStartTour } from './ui/tour.js';
+import { celebrate } from './ui/celebrate.js';
 import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode, toggleMode, onAppearance } from './ui/appearance.js';
 
 // group = heading in the sidebar. `icon` = ui/icons.js name.
@@ -84,7 +86,7 @@ export function renderPace() {
   clear(el);
   const p = paceStats(state.coverLog, state.settings, new Date(), null);
   el.className = 'pace-strip ' + p.status;
-  el.title = p.text + (p.status === 'early' ? '' : ` You need about ${p.perDay} a day for the rest of the week.`) + ' Click for the Cover Log.';
+  el.title = p.text + (p.status === 'early' ? '' : ` You need about ${p.perDay} a day for the rest of the week.`) + ` Week: ${weekRangeText(new Date())}; the count resets Monday 12:00 AM.` + ' Click for the Cover Log.';
   el.append(
     h('span', { class: 'pc' }, h('b', null, p.today), h('small', null, 'today')),
     h('span', { class: 'pc' }, h('b', null, p.week), h('small', null, `week / ${p.floor}`)),
@@ -165,6 +167,12 @@ async function boot() {
   window.addEventListener('hashchange', render);
   subscribe(() => { syncFromStore(state.settings.appearance); render(); });
   await render();
+  // The weekly cover count resets at 12:00 AM Monday (the moment Sunday ends). Re-draw exactly then, even if the app was left open all weekend.
+  const rollover = () => { const ms = Math.max(1000, nextWeekStart(new Date()).getTime() - Date.now() + 2000); setTimeout(() => { renderPace(); render(); rollover(); }, Math.min(ms, 2 ** 31 - 1)); };
+  rollover();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderPace(); render(); } });   // a laptop that slept through the rollover catches up on wake
+  state.hooks.onWeeklyGoal = (g) => celebrate(g);
+  setTimeout(maybeStartTour, 350);                        // first login only: the 60-second guided tour
   onBridge(() => { if (current && (current.id === 'system' || current.id === 'drafts')) render(); });
   initBridge();
   startWeather();

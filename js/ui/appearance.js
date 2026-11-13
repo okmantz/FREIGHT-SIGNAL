@@ -14,7 +14,7 @@ export const DEFAULTS = Object.freeze({
   skin: 'signal',
   accent: 'auto',          // 'auto' = the skin's own accent | ACCENTS key | 'custom'
   accentHex: '#1ab0ee',
-  bg: 'midnight-ocean',
+  bg: 'plain',             // the Clean background is the default: no scene, just the theme colours
   motion: true,            // animated scenes
   dim: 34,                 // 0..85: how much the scene is dimmed behind the content
   blur: 0,                 // 0..14 px blur on the scene art
@@ -261,8 +261,9 @@ export function initAppearance({ read, write }) {
 
 /** Called when the stored settings were replaced from outside (backup restore): apply them if they differ. */
 export function syncFromStore(stored) {
-  if (!stored) return;
-  const next = normalize(stored);
+  // Nothing saved in the database = this browser never customised the look. Use the current defaults (this also moves people who were
+  // only ever shown the old default scene, via the localStorage mirror, onto the Clean default).
+  const next = normalize(stored || null);
   if (JSON.stringify(next) !== JSON.stringify(current)) { current = next; applyAppearance(current); }
 }
 

@@ -14,14 +14,15 @@ export const LANE_LABEL = { local: 'Local', regional: 'Regional', long: 'Long-di
  *  minPop                      - smallest city (population) the matrix will use for an alternate in the first rings.
  *  outreachMultiplier          - x the load's outreach target (Low 5 / Medium 10 / High 15): local freight needs a wide net of nearby trucks,
  *                                long-haul needs fewer, better-matched carriers.
- *  staleHours                  - hours with zero inquiries before a load counts as "aging" (second wave / reprice).
+ *  staleHours                  - hours live with zero inquiries before a load counts as "aging" (something is not working: fix the post, second wave, reprice).
+ *                                Loads on DAT normally draw a first inquiry within minutes, so this is 1 hour for every lane class.
  *  repricePct / repriceMin / repriceMax - the one-click reprice step: % of the target rate, clamped to [min, max] dollars, rounded to $25.
  *  closingHours                - how close to pickup (hours) counts as "closing".
  */
 export const DEFAULT_STRATEGIES = {
-  local:    { altMin: 3,  altIdeal: 8,  altMax: 30, minPop: 20000, outreachMultiplier: 1.5,  staleHours: 1.5, repricePct: 6, repriceMin: 50,  repriceMax: 150, closingHours: 12 },
-  regional: { altMin: 4,  altIdeal: 14, altMax: 55, minPop: 25000, outreachMultiplier: 1,    staleHours: 3,   repricePct: 4, repriceMin: 75,  repriceMax: 200, closingHours: 24 },
-  long:     { altMin: 5,  altIdeal: 20, altMax: 80, minPop: 30000, outreachMultiplier: 0.75, staleHours: 5,   repricePct: 3, repriceMin: 100, repriceMax: 300, closingHours: 36 },
+  local:    { altMin: 3,  altIdeal: 8,  altMax: 30, minPop: 20000, outreachMultiplier: 1.5,  staleHours: 1,   repricePct: 6, repriceMin: 50,  repriceMax: 150, closingHours: 12 },
+  regional: { altMin: 4,  altIdeal: 14, altMax: 55, minPop: 25000, outreachMultiplier: 1,    staleHours: 1,   repricePct: 4, repriceMin: 75,  repriceMax: 200, closingHours: 24 },
+  long:     { altMin: 5,  altIdeal: 20, altMax: 80, minPop: 30000, outreachMultiplier: 0.75, staleHours: 1,   repricePct: 3, repriceMin: 100, repriceMax: 300, closingHours: 36 },
 };
 
 export function strategyFor(settings, cls) {

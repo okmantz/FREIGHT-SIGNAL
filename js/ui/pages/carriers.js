@@ -1,7 +1,7 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, inputEl, field, copyText } from '../dom.js';
 import { pageHead, emptyState, statTiles } from '../chrome.js';
 import { summaryOutreach } from '../board/outreachview.js';
-import { topCarriersByCovers } from '../../core/coverlog.js';
+import { topCarriersByCovers, weekStart } from '../../core/coverlog.js';
 import { icon } from '../icons.js';
 import { state, actions } from '../../store/state.js';
 import { CARRIER_HEADERS, CARRIER_KEYS } from '../../core/defaults.js';
@@ -16,7 +16,8 @@ function overview() {
   const active = cs.filter(c => String(c.status || 'Active').toLowerCase() !== 'inactive');
   const withEmail = cs.filter(c => String(c.email || '').trim()).length, withPhone = cs.filter(c => String(c.phone || '').trim()).length;
   const covers = cs.reduce((n, c) => n + (Number(c.coverCount) || 0), 0);
-  const recent = cs.filter(c => { const t = Date.parse(c.lastContacted); return Number.isFinite(t) && now - t < 7 * DAY; }).length;
+  const wk = weekStart(new Date(now)).getTime();   // the week starts Monday 12:00 AM, same as the cover pace tracker
+  const recent = cs.filter(c => { const t = Date.parse(c.lastContacted); return Number.isFinite(t) && t >= wk; }).length;
   const never = cs.filter(c => !Date.parse(c.lastContacted)).length;
   const states = new Set(cs.flatMap(c => [c.originState, c.destState]).map(x => String(x || '').trim().toUpperCase()).filter(Boolean)).size;
   const top = topCarriersByCovers(state.coverLog, 3).map(t => { const c = cs.find(x => String(x.email || '').toLowerCase() === t.email); return `${(c && c.carrierName) || t.email} (${t.covers})`; });

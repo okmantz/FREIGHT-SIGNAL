@@ -16,6 +16,8 @@ try {
   check('first launch shows the create-account screen', (await pg.locator('.authgate').count()) === 1);
   await pg.click('.authgate >> text=Skip for now'); await pg.waitForSelector('.metrics', { timeout: 30000 });
   check('single file boots from file://', true);
+  check('the first-login tour opens on a fresh install', await pg.waitForSelector('.tour-card', { timeout: 5000 }).then(() => true).catch(() => false));
+  await pg.click('.tour-skip'); await pg.waitForSelector('.tour-layer', { state: 'detached' });
   check('embedded ZIP Map decompressed (33,782 rows)', (await pg.textContent('#zipstat')).includes('33,782'), await pg.textContent('#zipstat'));
   await pg.goto('file://' + file + '#/board');
   await pg.fill('textarea.pastebox', fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8'));

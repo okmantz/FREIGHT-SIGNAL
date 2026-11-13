@@ -4,6 +4,7 @@ import { homeMetrics } from '../../core/stats.js';
 import { ventuskyUrl } from '../../core/links.js';
 import { icon } from '../icons.js';
 import { greeting } from '../chrome.js';
+import { startTour } from '../tour.js';
 
 const TILES = [
   ['board', 'board', 'FREIGHT SIGNAL', 'Paste TQL loads, build the 3 x 3 matrix, set one target rate, download the DAT CSV', 'OPEN BOARD'],
@@ -27,6 +28,7 @@ export function render() {
         h('div', { class: 'accentbar' }),
         h('div', { class: 'btnrow' },
           h('a', { class: 'outline', href: '#/board' }, 'Add loads'),
+          h('button', { class: 'outline', type: 'button', 'data-act': 'take-tour', onclick: () => startTour() }, 'Take the 60-second tour'),
           h('a', { class: 'outline', href: '#/drafts' }, 'Drafts' + (state.drafts.length ? ` (${state.drafts.length})` : '')),
           h('a', { class: 'outline', href: '#/system' }, 'System / backup'),
           h('a', { class: 'outline', href: '#/manual' }, 'User manual'),

@@ -10,6 +10,7 @@ import { laneMemory } from './coverlog.js';
 import { rankCarriers } from './ranking.js';
 import { overlapsWindow, pickupWindow, alertLabel } from './weather.js';
 import { ladderStage } from './ladder.js';
+import { datProblems, loadRateInfo } from './dat.js';
 
 const H = 3600000;
 const cityKey = (c, s) => normalizeText(c) + '|' + normalizeText(s);
@@ -37,14 +38,20 @@ export function groupStats(members, ctx) {
   const total = Math.max(inq.length, fieldTotal);
   const quotes = inq.filter(q => safeNumeric(q.lastCarrierRate) > 0).map(q => ({ rate: safeNumeric(q.lastCarrierRate), email: q.senderEmail, stage: q.stage, flag: q.flag || '' }));
   const created = members.map(m => Date.parse(m.createdAt)).filter(Number.isFinite);
-  const ageHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
+  const addedHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
   const ops = members.flatMap(m => Array.isArray(m.ops) ? m.ops : []).filter((o, i, a) => a.findIndex(x => x.at === o.at && x.type === o.type) === i).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  // "Live" clock: when the load was first downloaded for DAT (the Download CSV button logs a 'posted' step). Loads that were never
+  // downloaded (posted by hand, or added before this existed) fall back to when they were pasted into the app.
+  const postedTimes = ops.filter(o => o.type === 'posted').map(o => Date.parse(o.at)).filter(Number.isFinite);
+  const postedAt = postedTimes.length ? Math.min(...postedTimes) : 0;
+  const lastPostedAt = postedTimes.length ? Math.max(...postedTimes) : 0;
+  const ageHours = postedAt ? Math.max(0, (now.getTime() - postedAt) / H) : addedHours;
   const lane = classifyLane(head, ctx.zip, ctx.settings || {});
   // One rate per load: the Target rate. A posting's own DAT rate (older loads, Edit dialog) counts as the rate when no target is set.
   const rates = members.map(m => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter(r => r > 0);
   const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
   const datRate = target;
-  const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx.drafts || []).filter(d => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || '')).length;
+  const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx.drafts || []).filter(d => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || '')).length + ops.filter(o => o.type === 'outreach' || o.type === 'wave2').length;
   // weather: pickup cities of every posting + the original delivery city, restricted to the pickup window
   const alerts = [];
   if (ctx.weather && ctx.weather.size) {
@@ -57,10 +64,13 @@ export function groupStats(members, ctx) {
   const lastOp = ops.length ? ops[ops.length - 1] : null;
   const lastOpAt = lastOp ? Date.parse(lastOp.at) : 0;
   const mem = laneMemory(ctx.coverLog, head, ctx.zip, Number(ctx.settings && ctx.settings.carrierRadiusMiles) || 75);
+  const rateInfo = loadRateInfo(members, { targetAsRate: !(ctx.settings && ctx.settings.postTargetOnDat === false) });
+  const problems = datProblems(members);
   const brokerStage = quotes.length ? ladderStage(Math.min(...quotes.map(q => q.rate)), target, ctx.settings || {}) : null;
   return {
     head, members, ids, lane, strategy: lane.strategy, cls: lane.cls,
-    ageHours, hoursToPickup: hoursToPickup(head, now),
+    ageHours, addedHours, postedAt, lastPostedAt, posted: !!postedAt, hoursSincePost: lastPostedAt ? Math.max(0, (now.getTime() - lastPostedAt) / H) : null, hoursToPickup: hoursToPickup(head, now),
+    postings: members.length, rateInfo, problems, miles: lane.miles, equip: String(head.equip || '').toUpperCase(), weight: safeNumeric(head.weight), pickupText: head.pickupEarliest || '',
     inquiries: { total, log: inq.length, last2h: times.filter(t => now.getTime() - t <= 2 * H).length, lastAt: lastInquiryAt, sinceOp: lastOpAt ? times.filter(t => t > lastOpAt).length : total, quotes, bestQuote: quotes.length ? Math.min(...quotes.map(q => q.rate)) : 0,
       avgQuote: quotes.length ? Math.round(quotes.reduce((a, q) => a + q.rate, 0) / quotes.length) : 0, stage: brokerStage, flagged: inq.filter(q => /MANUAL REVIEW|RATE RECEIVED/i.test(q.flag || '')).length },
     outreachSent, datRate, rateSet: rates.length > 0, target, ops, lastOp, lastOpAt, alerts, weatherText: alertLabel(alerts), mem,

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-skin="signal" data-bg="midnight-ocean">
+<html lang="en" data-theme="dark" data-skin="signal" data-bg="plain">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-SeXS1/N6JC1OdrZ0xdQ1PYaqU1JMzR6xqblbt5qzMgk=' 'sha256-U/FUSy+wtI9i7+3KSXdi07y4w600/nngbNzyMupGrK8='; style-src 'sha256-S/F4wP5Ve87dQa2DdJ+DIU2IjwmhtIKCWQ1csDqiPq4='; img-src data: blob:; connect-src https://api.weather.gov; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-SeXS1/N6JC1OdrZ0xdQ1PYaqU1JMzR6xqblbt5qzMgk=' 'sha256-6cMxxQcnf+xgATMXrIlHEvPJe24EVfkAVoebHLwLHI8='; style-src 'sha256-OvXJNukJpQ3VffjFpTsc/7ciL7DNCInMZ16A6kHJU9Y='; img-src data: blob:; connect-src https://api.weather.gov; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -895,6 +895,82 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
 .lanebox th:nth-child(2) { width: 64px; }
 .lanebox th:nth-child(6) { width: 110px; text-align: center; }
 .toolbar.boardbar input[type="search"] { width: 160px; }
+
+/* =====================================================================================================================
+   v6 additions: bigger checkboxes, DAT-rate column, RateView buttons, draggable brokers, guided-note checklists,
+   the weekly-goal celebration and the first-login tour.
+   ===================================================================================================================== */
+
+/* ---- bigger tick boxes on every posting row (and the "select every posting" box in the lane header) */
+input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; vertical-align: middle; flex: none; cursor: pointer; }
+.lanebox td.chk, .lanebox th:first-child { width: 46px; padding-left: 14px; }
+.lanebox td.chk { padding-top: 4px; padding-bottom: 4px; }
+.lanebox td.chk input.bigchk { margin: 0 4px; }
+
+/* ---- per-posting DAT rate box, and the RateView / menu buttons at the end of each row */
+.lanebox td.ratecell { width: 92px; text-align: right; }
+.lanebox td.ratecell input.cell.datrate { width: 82px; text-align: right; font-variant-numeric: tabular-nums; }
+.lanebox td.ratecell input.cell.datrate:not(:placeholder-shown) { border-color: rgba(var(--accent-rgb), .65); font-weight: 800; }
+.lanebox td.rowmenu { width: 92px; }
+.rowtools { display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.btn.iconbtn svg { display: block; }
+.ratenote { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 18px 12px; border-top: 1px solid var(--line); }
+.ratenote .ico { flex: none; color: var(--accent); }
+.ratenote .btn { margin-left: auto; }
+
+/* ---- guided notes: the per-load checklist */
+.gchecks { margin: 8px 0 2px; padding-left: 20px; display: grid; gap: 5px; font-size: .92em; line-height: 1.4; }
+.gchecks li::marker { color: var(--accent); }
+
+/* ---- drag to re-order brokers */
+.tab.sortable { cursor: grab; padding-left: 10px; }
+.tab.sortable:active { cursor: grabbing; }
+.tab .grip, .brokerlist .grip { display: inline-flex; align-items: center; color: var(--muted); opacity: .7; }
+.tab.dragging, .brokerlist li.dragging { opacity: .4; }
+.tab.drop-before { box-shadow: -4px 0 0 -1px var(--accent); }
+.tab.drop-after { box-shadow: 4px 0 0 -1px var(--accent); }
+.brokerlist li { cursor: grab; }
+.brokerlist li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.brokerlist li.drop-before { box-shadow: 0 -3px 0 -1px var(--accent); }
+.brokerlist li.drop-after { box-shadow: 0 3px 0 -1px var(--accent); }
+.brokerlist li button { cursor: pointer; }
+
+/* ---- weekly goal celebration (js/ui/celebrate.js) */
+#confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 120; }
+.goal-banner { position: fixed; top: 16px; left: 50%; z-index: 121; display: flex; align-items: center; gap: 12px; max-width: min(470px, calc(100vw - 24px)); padding: 11px 12px 11px 11px; border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 95%, transparent); border: 1px solid rgba(var(--accent-rgb), .5); box-shadow: var(--shadow-lg), 0 0 0 5px rgba(var(--accent-rgb), .12);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; transform: translate(-50%, -150%); transition: transform .55s var(--ease), opacity .4s ease; }
+.goal-banner.in { opacity: 1; transform: translate(-50%, 0); }
+.gb-ico { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: var(--on-btn); background: linear-gradient(180deg, var(--btn-a), var(--btn-b)); box-shadow: 0 6px 18px -6px rgba(var(--accent-rgb), .9); }
+.gb-text b { display: block; font-size: 1.05em; letter-spacing: -.005em; }
+.gb-text small { color: var(--muted); }
+.gb-x { flex: none; margin-left: 4px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.gb-x:hover { background: var(--hover); color: var(--text); }
+.pace-strip.milestone { border-color: var(--good); animation: pacegoal 1.7s ease-out 3; }
+@keyframes pacegoal { 0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), .75); } 100% { box-shadow: 0 0 0 18px rgba(var(--accent-rgb), 0); } }
+
+/* ---- first-login tour (js/ui/tour.js) */
+.tour-layer { position: fixed; inset: 0; z-index: 150; }
+.tour-dim { position: absolute; inset: 0; background: transparent; }
+.tour-dim.solid { background: rgba(2, 6, 12, .7); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.tour-spot { position: absolute; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(2, 6, 12, .68), 0 0 0 2px var(--accent), 0 0 28px 4px rgba(var(--accent-rgb), .5);
+  transition: left .32s var(--ease), top .32s var(--ease), width .32s var(--ease), height .32s var(--ease); }
+.tour-spot[hidden] { display: none; }
+.tour-card { position: absolute; width: min(390px, calc(100vw - 24px)); padding: 16px 18px 14px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-lg); transition: left .32s var(--ease), top .32s var(--ease); animation: pop .24s var(--ease) both; }
+.tour-card.center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.tour-card.sheet { left: 12px; right: 12px; bottom: 12px; top: auto; width: auto; transform: none; }
+.tour-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.tour-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--accent); background: rgba(var(--accent-rgb), .14); border: 1px solid rgba(var(--accent-rgb), .32); }
+.tour-count { flex: 1; font-size: .72em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tour-skip { background: none; border: 0; padding: 4px 2px; font: inherit; font-size: .84em; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.tour-skip:hover { color: var(--text); }
+.tour-bar { display: block; height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: 13px; }
+.tour-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--accent); transition: width .38s var(--ease); }
+.tour-card h3 { margin: 0 0 6px; font-size: 1.16em; letter-spacing: -.005em; }
+.tour-body { margin: 0 0 15px; line-height: 1.52; opacity: .93; }
+.tour-foot { display: flex; justify-content: flex-end; gap: 8px; }
+.tour-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
+@media print { .tour-layer, #confetti, .goal-banner { display: none !important; } }
 </style>
 <script>/* Runs before first paint (classic script, loaded in <head>): replays the last saved appearance from localStorage so the
  * theme, accent and background never flash. The real engine is js/ui/appearance.js; this file only reads what it wrote. */
@@ -921,7 +997,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
 </head>
 <body>
 <div id="bg" aria-hidden="true">
-  <div class="bg-art art-midnight-ocean" id="bg-art"></div>
+  <div class="bg-art art-plain" id="bg-art"></div>
   <canvas id="bg-fx" hidden></canvas>
   <div class="bg-scrim"></div>
 </div>
@@ -1684,6 +1760,17 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
   function todayKey(d = /* @__PURE__ */ new Date()) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
+  function applyOrder(current3, desired) {
+    const have = new Set(current3);
+    const out = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const n of desired || []) if (have.has(n) && !seen.has(n)) {
+      out.push(n);
+      seen.add(n);
+    }
+    for (const n of current3) if (!seen.has(n)) out.push(n);
+    return out;
+  }
   var PI_VBA, pad, CRLF;
   var init_util = __esm({
     "js/core/util.js"() {
@@ -2254,9 +2341,9 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
       ROAD_FACTOR = 1.15;
       LANE_LABEL = { local: "Local", regional: "Regional", long: "Long-distance" };
       DEFAULT_STRATEGIES = {
-        local: { altMin: 3, altIdeal: 8, altMax: 30, minPop: 2e4, outreachMultiplier: 1.5, staleHours: 1.5, repricePct: 6, repriceMin: 50, repriceMax: 150, closingHours: 12 },
-        regional: { altMin: 4, altIdeal: 14, altMax: 55, minPop: 25e3, outreachMultiplier: 1, staleHours: 3, repricePct: 4, repriceMin: 75, repriceMax: 200, closingHours: 24 },
-        long: { altMin: 5, altIdeal: 20, altMax: 80, minPop: 3e4, outreachMultiplier: 0.75, staleHours: 5, repricePct: 3, repriceMin: 100, repriceMax: 300, closingHours: 36 }
+        local: { altMin: 3, altIdeal: 8, altMax: 30, minPop: 2e4, outreachMultiplier: 1.5, staleHours: 1, repricePct: 6, repriceMin: 50, repriceMax: 150, closingHours: 12 },
+        regional: { altMin: 4, altIdeal: 14, altMax: 55, minPop: 25e3, outreachMultiplier: 1, staleHours: 1, repricePct: 4, repriceMin: 75, repriceMax: 200, closingHours: 24 },
+        long: { altMin: 5, altIdeal: 20, altMax: 80, minPop: 3e4, outreachMultiplier: 0.75, staleHours: 1, repricePct: 3, repriceMin: 100, repriceMax: 300, closingHours: 36 }
       };
     }
   });
@@ -2409,6 +2496,15 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     x.setDate(x.getDate() - dow);
     return x;
   }
+  function nextWeekStart(d) {
+    const x = weekStart(d);
+    x.setDate(x.getDate() + 7);
+    return x;
+  }
+  function weekKey(d) {
+    const x = weekStart(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  }
   function workWeekProgress(now, s) {
     const days = (Array.isArray(s.workDays) && s.workDays.length ? s.workDays : [1, 2, 3, 4, 5]).map(Number);
     const start = Number.isFinite(Number(s.workStart)) ? Number(s.workStart) : 7;
@@ -2430,11 +2526,12 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
   }
   function paceStats(log2, settings, now = /* @__PURE__ */ new Date(), broker = null) {
     const floor = Number(settings.weeklyFloor) > 0 ? Number(settings.weeklyFloor) : 50;
-    const ws = weekStart(now), ds = startOfDay(now);
+    const ws = weekStart(now), we = nextWeekStart(now), ds = startOfDay(now), de = new Date(ds);
+    de.setDate(de.getDate() + 1);
     const mine = (log2 || []).filter((e) => isCover(e) && (broker === null || broker === void 0 || (e.broker || "") === broker));
     const t2 = (e) => Date.parse(e.closedAt);
-    const today = mine.filter((e) => t2(e) >= ds.getTime()).length;
-    const week = mine.filter((e) => t2(e) >= ws.getTime()).length;
+    const today = mine.filter((e) => t2(e) >= ds.getTime() && t2(e) < de.getTime()).length;
+    const week = mine.filter((e) => t2(e) >= ws.getTime() && t2(e) < we.getTime()).length;
     const prog = workWeekProgress(now, settings);
     let projection = null, status = "early";
     if (prog.fraction >= 1) {
@@ -2445,7 +2542,24 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     const perDay = prog.daysLeft > 0 ? Math.ceil(need / prog.daysLeft) : need;
     const word = status === "on" ? "on pace" : status === "close" ? "just short" : status === "short" ? "short" : "";
     const text2 = projection === null ? `Too early in the week to project - ${need} to go to reach ${floor}.` : `At the current rate you land at ${projection} \u2014 ${word}.`;
-    return { today, week, floor, projection, status, need, perDay, text: text2, fraction: prog.fraction, daysLeft: prog.daysLeft };
+    return { today, week, floor, projection, status, need, perDay, text: text2, fraction: prog.fraction, daysLeft: prog.daysLeft, weekStart: ws, resetsAt: we, weekKey: weekKey(now) };
+  }
+  function weekRangeText(d = /* @__PURE__ */ new Date()) {
+    const a = weekStart(d), b = new Date(a);
+    b.setDate(a.getDate() + 6);
+    const f = (x) => `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][x.getDay()]} ${x.getMonth() + 1}/${x.getDate()}`;
+    return `${f(a)} - ${f(b)}`;
+  }
+  function weeklyGoalHit({ logBefore, entry, settings, goalWeek = "", now = /* @__PURE__ */ new Date() }) {
+    if (!entry || entry.outcome !== "Covered") return null;
+    const ws = weekStart(now).getTime(), we = nextWeekStart(now).getTime();
+    const at = Date.parse(entry.closedAt);
+    if (!(at >= ws && at < we)) return null;
+    const before = paceStats(logBefore, settings, now, null).week;
+    const floor = Number(settings && settings.weeklyFloor) > 0 ? Number(settings.weeklyFloor) : 50;
+    const key = weekKey(now);
+    if (before + 1 !== floor || goalWeek === key) return null;
+    return { week: before + 1, floor, key };
   }
   function coverStatsByBroker(log2, brokers, settings, now = /* @__PURE__ */ new Date()) {
     return [...brokers, ""].map((b) => ({ broker: b, ...paceStats(log2, settings, now, b || "") }));
@@ -2981,12 +3095,12 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     for (let i = postings.length - 1; i >= 0; i--) {
       const p = postings[i];
       if (!(String(p.status ?? "").trim().toUpperCase() === "ACTIVE" && isYes(p.outreach))) continue;
-      const loadKey = String(p.loadNumber || p.id).toLowerCase();
+      const loadKey2 = String(p.loadNumber || p.id).toLowerCase();
       const details = safeString(p.details) ? safeString(p.details) : buildOutlookLoadDetails(p);
       let created = 0;
       for (const r of rankCarriers(p, carriers, ctx2)) {
         const email = safeString(r.carrier.email).toLowerCase();
-        const key = (loadKey + "|" + email).toLowerCase();
+        const key = (loadKey2 + "|" + email).toLowerCase();
         if (seen.has(key)) continue;
         drafts.push({ ...buildOutlookOutreach(p, email, details), postingId: p.id, carrierId: r.carrier.id, tier: r.tierLabel + " (score " + r.score + ")", score: r.score, why: r.reasons.join("; ") });
         logEntries.push({
@@ -3356,7 +3470,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     emit();
     return zm.size;
   }
-  var state, subscribe, emit, savePostings, saveCounters, actions;
+  var state, subscribe, emit, savePostings, saveCounters, announceGoal, actions;
   var init_state = __esm({
     "js/store/state.js"() {
       init_db();
@@ -3388,9 +3502,9 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
         // "city|st" -> alerts[] (filled by store/weather.js)
         carrierRev: 0,
         // bumped whenever the carrier list changes (invalidates cached lane depth)
-        hooks: { sendToOutlook: null },
-        // set by store/bridge.js when an Outlook folder is connected
-        counters: { lifetimeCovers: 0, coversToday: 0, coversTodayDate: todayKey() },
+        hooks: { sendToOutlook: null, onWeeklyGoal: null },
+        // sendToOutlook: set by store/bridge.js when an Outlook folder is connected. onWeeklyGoal: set by main.js (confetti)
+        counters: { lifetimeCovers: 0, coversToday: 0, coversTodayDate: todayKey(), goalWeek: "" },
         zip: null,
         zipInfo: { source: "", importedAt: "" },
         listeners: /* @__PURE__ */ new Set(),
@@ -3409,6 +3523,15 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
       });
       savePostings = () => guard(() => replaceAll("postings", reindex(state.postings)));
       saveCounters = () => guard(() => kvSet("counters", state.counters));
+      announceGoal = (goal) => {
+        if (goal && state.hooks.onWeeklyGoal) setTimeout(() => {
+          try {
+            state.hooks.onWeeklyGoal(goal);
+          } catch (e) {
+            console.error(e);
+          }
+        }, 450);
+      };
       actions = {
         async saveSettings(patch) {
           state.settings = { ...state.settings, ...patch };
@@ -3465,9 +3588,9 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
           return n;
         },
         /**
-         * The ONE rate per load: sets the Target rate on every posting in the box (or clears it with ''). It judges carrier e-mail replies and,
-         * unless "Post target rate on DAT" is switched off, it is the rate in the DAT CSV. Any per-posting DAT override is cleared so the box
-         * has one rate again.
+         * The ONE target rate per load: sets the Target rate on every posting in the box (or clears it with ''). It judges carrier e-mail replies
+         * and, unless "Post target rate on DAT" is switched off, it is the rate in the DAT CSV for postings that have no DAT rate of their own.
+         * A posting's own DAT rate (the box on its row) is never touched here: changing the target must not wipe the rates you typed.
          */
         async setTargetRate(ids, rate2) {
           const r = cleanRate(rate2);
@@ -3475,12 +3598,45 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
           let n = 0;
           for (const p of state.postings) if (set.has(p.id)) {
             p.targetRate = r;
-            p.datRate = "";
             n++;
           }
           await savePostings();
           emit();
           return n;
+        },
+        /** Back to "target rate on every posting": clears the DAT rate on every posting of the box that contains `id`. */
+        async clearDatRates(id) {
+          const p = state.postings.find((x) => x.id === id);
+          if (!p) return 0;
+          const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+          let n = 0;
+          for (const m of members) if (m.datRate) {
+            m.datRate = "";
+            n++;
+          }
+          await savePostings();
+          emit();
+          return n;
+        },
+        /**
+         * The load was downloaded for DAT (the person is about to upload it, or re-upload it to refresh it). The Original posting remembers when,
+         * so the guided notes can say "posted 34 min ago" instead of guessing from when the load was pasted into the app.
+         */
+        async markPosted(ids, detail = "CSV downloaded") {
+          const set = new Set(ids);
+          const seen = /* @__PURE__ */ new Set();
+          const at = (/* @__PURE__ */ new Date()).toISOString();
+          for (const p of state.postings.filter((x) => set.has(x.id))) {
+            const key = String(p.groupId || "").trim().toLowerCase() || p.id;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+            const head = members.find((m) => m.variant === "Original") || members[0];
+            head.ops = [...Array.isArray(head.ops) ? head.ops : [], { type: "posted", at, detail }].slice(-40);
+          }
+          await savePostings();
+          emit();
+          return seen.size;
         },
         /** Apply basic load details (pickup, weight, equipment, ...) to every posting of the box at once. */
         async updateGroup(id, patch) {
@@ -3573,6 +3729,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
             note: opts2.note || "",
             laneClass: lane.cls
           });
+          const goal = weeklyGoalHit({ logBefore: state.coverLog, entry, settings: state.settings, goalWeek: state.counters.goalWeek });
           await guard(() => put("coverLog", entry));
           state.coverLog.unshift(entry);
           if (outcome2 === "Covered" && (dbCarrier || opts2.addCarrier && carrier.email)) {
@@ -3596,10 +3753,12 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
             }
             state.counters.coversToday += 1;
             state.counters.lifetimeCovers += 1;
+            if (goal) state.counters.goalWeek = goal.key;
             await saveCounters();
           }
           await savePostings();
           emit();
+          announceGoal(goal);
           return entry;
         },
         /** Retire groups whose pickup has passed (logged as "Expired", restorable from the Cover Log). Returns how many groups were retired. */
@@ -3643,10 +3802,16 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
           e.postings = [];
           e.rows = [];
           e.covered = { variant: "", grid: "", originCity: e.lane.originCity, originState: e.lane.originState, destCity: e.lane.destCity, destState: e.lane.destState, datRate: "", targetRate: "", inquiryCount: 0, contact: "" };
+          const goal = weeklyGoalHit({ logBefore: state.coverLog, entry: e, settings: state.settings, goalWeek: state.counters.goalWeek });
           state.coverLog.unshift(e);
           state.coverLog.sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt)));
           await guard(() => put("coverLog", e));
+          if (goal) {
+            state.counters.goalWeek = goal.key;
+            await saveCounters();
+          }
           emit();
+          announceGoal(goal);
           return e;
         },
         async deleteLogEntry(id) {
@@ -3667,6 +3832,14 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
           const list = state.settings.brokers || [];
           if (list.some((b) => b.toLowerCase() === n.toLowerCase())) return false;
           await actions.saveSettings({ brokers: [...list, n] });
+          return true;
+        },
+        /** Save a new broker order (drag and drop). `order` is the full list of names in the new order; unknown names are ignored, missing ones keep their place at the end. */
+        async reorderBrokers(order) {
+          const cur = state.settings.brokers || [];
+          const next = applyOrder(cur, order);
+          if (next.join("\0") === cur.join("\0")) return false;
+          await actions.saveSettings({ brokers: next });
           return true;
         },
         async renameBroker(oldName, newName) {
@@ -4354,6 +4527,9 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
         send: [["p", "M21.5 2.5L10.5 13.5"], ["p", "M21.5 2.5l-7 19-4-8.5-8.5-4z"]],
         box: [["p", "M12 3l8 4v10l-8 4-8-4V7z"], ["p", "M4 7l8 4 8-4"], ["p", "M12 11v10"]],
         more: [["c", 5, 12, 1.3], ["c", 12, 12, 1.3], ["c", 19, 12, 1.3]],
+        grip: [["c", 9, 6, 0.4], ["c", 15, 6, 0.4], ["c", 9, 12, 0.4], ["c", 15, 12, 0.4], ["c", 9, 18, 0.4], ["c", 15, 18, 0.4]],
+        play: [["p", "M7 4.5v15l12-7.5z"]],
+        rateview: [["p", "M4 19V5"], ["p", "M4 19h16"], ["p", "M8 15l3.5-4 3 2.5L19 7"], ["p", "M15.5 7H19v3.5"]],
         key: [["c", 8, 15, 4], ["p", "M11 12l9-9"], ["p", "M16 7l3 3"]],
         target: [["c", 12, 12, 9], ["c", 12, 12, 5], ["c", 12, 12, 1]],
         filter: [["p", "M3 5h18l-7 8v6l-4 2v-8z"]],
@@ -4414,6 +4590,291 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     }
   });
 
+  // js/core/tourSteps.js
+  var TOUR_VERSION, TOUR_STEPS;
+  var init_tourSteps = __esm({
+    "js/core/tourSteps.js"() {
+      TOUR_VERSION = 1;
+      TOUR_STEPS = [
+        {
+          id: "welcome",
+          route: "#/home",
+          target: [],
+          icon: "sparkle",
+          title: "Welcome to Freight Signal",
+          body: "A 60-second tour of the whole workflow: paste a load, post it on DAT, get carriers working it, and log the cover. Nothing is ever sent for you; every message is a draft you review.",
+          next: "Start the tour"
+        },
+        {
+          id: "outlook",
+          route: "#/system",
+          target: ['details[data-sect="outlook"]', '#nav a[data-tab="system"]'],
+          icon: "mail",
+          title: "1. Connect Outlook (one time)",
+          body: "Open System, then Connect to Outlook. Choose your Documents\\FreightSignal folder and paste the macro into Outlook once. After that, carrier replies land in the app and drafts save straight to your Outlook Drafts. It takes about two minutes."
+        },
+        {
+          id: "paste",
+          route: "#/board",
+          target: [".pastepanel", '#nav a[data-tab="board"]'],
+          icon: "board",
+          title: "2. Paste your first load",
+          body: "On the Freight Signal page, paste your TQL load text into this box. It is read as you paste. Fix anything highlighted, add a target rate if you know it, then press Add (or Ctrl+Enter)."
+        },
+        {
+          id: "matrix",
+          route: "#/board",
+          target: [".lanebox", ".pastepanel"],
+          icon: "grid",
+          title: "3. One load becomes nine postings",
+          body: "Your original (A-A) plus 8 nearby origin and destination pairings are built for you. Type one Target rate for the whole load. To post only some of them with a rate, say 2 of the 9, type a DAT rate on those rows and leave the others blank."
+        },
+        {
+          id: "post",
+          route: "#/board",
+          target: ['[data-act="csv-all"]', ".boardbar", ".pastepanel"],
+          icon: "download",
+          title: "4. Post it on DAT",
+          body: "Press Download all (or a load's Download CSV) and upload the file in DAT's bulk posting tool. Downloading also starts the load's clock, so the guided notes know how long it has been live. DAT RateView on each load opens the market rate."
+        },
+        {
+          id: "guide",
+          route: "#/board",
+          target: [".lanebox .guide", ".lanebox", ".pastepanel"],
+          icon: "bulb",
+          title: "5. Follow the Next step panel",
+          body: "Every load has its own guided notes. In the first 30 minutes: hold. At 30 minutes: refresh. At one hour with no inquiries something is wrong, and it lists exactly what to check for that load. After that it escalates: reprice, second wave, new cities, calls."
+        },
+        {
+          id: "carriers",
+          route: "#/carriers",
+          target: ["#view .toolbar", '#nav a[data-tab="carriers"]'],
+          icon: "carriers",
+          title: "6. Build your carrier list",
+          body: "Import your carriers here once. Freight Signal ranks them by lane and drafts outreach to the best matches with the Carrier outreach button on each load. Carriers who cover for you float to the top over time."
+        },
+        {
+          id: "inquiry",
+          route: "#/inquiry",
+          target: ["#view .toolbar", '#nav a[data-tab="inquiry"]'],
+          icon: "inquiry",
+          title: "7. Work the replies",
+          body: "When a carrier replies, paste it into Process carrier e-mail (Outlook does this by itself once connected). It is logged, a reply is drafted, and good carriers can be approved into your Carrier Database."
+        },
+        {
+          id: "cover",
+          route: "#/board",
+          target: ['[data-act="mark-covered"]', "#pace", ".pastepanel"],
+          icon: "check",
+          title: "8. Mark it covered",
+          body: "When a carrier books it, press Mark covered and pick the posting and carrier. It goes to the Cover Log and counts toward your weekly pace (top right). The week runs Monday to Sunday, and reaching your weekly floor earns a little celebration.",
+          next: "Start working"
+        }
+      ];
+    }
+  });
+
+  // js/ui/tour.js
+  async function waitFor(list, ms = 2400) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) {
+      const el = find(list);
+      if (el) return el;
+      await sleep(80);
+    }
+    return null;
+  }
+  function startTour({ from = 0 } = {}) {
+    if (open) return;
+    const steps2 = TOUR_STEPS;
+    let i = Math.max(0, Math.min(steps2.length - 1, from));
+    const returnFocus = document.activeElement;
+    const dim = h("div", { class: "tour-dim" });
+    const spot = h("div", { class: "tour-spot", hidden: true });
+    const title = h("h3", { id: "tour-title" });
+    const body = h("p", { class: "tour-body" });
+    const count3 = h("span", { class: "tour-count" });
+    const bar = h("span", { class: "tour-bar" }, h("i"));
+    const ico = h("span", { class: "tour-ico" });
+    const back = h("button", { class: "btn", type: "button" }, "Back");
+    const next = h("button", { class: "btn primary", type: "button" });
+    const skip = h("button", { class: "tour-skip", type: "button" }, "Skip tour");
+    const card4 = h(
+      "div",
+      { class: "tour-card", role: "dialog", "aria-modal": "true", "aria-labelledby": "tour-title" },
+      h("div", { class: "tour-head" }, ico, count3, skip),
+      bar,
+      title,
+      body,
+      h("div", { class: "tour-foot" }, back, next)
+    );
+    const layer = h("div", { class: "tour-layer" }, dim, spot, card4);
+    document.body.appendChild(layer);
+    document.documentElement.classList.add("touring");
+    let target = null;
+    let token = 0;
+    let raf2 = 0;
+    const app = document.getElementById("app");
+    const place = () => {
+      raf2 = 0;
+      target = find(steps2[i].target);
+      const small = window.innerWidth < 720;
+      card4.classList.toggle("sheet", small);
+      dim.classList.toggle("solid", !target);
+      if (!target) {
+        spot.hidden = true;
+        card4.style.left = "";
+        card4.style.top = "";
+        card4.classList.add("center");
+        return;
+      }
+      card4.classList.remove("center");
+      const r = target.getBoundingClientRect();
+      const pad2 = 7;
+      spot.hidden = false;
+      spot.style.left = `${Math.round(r.left - pad2)}px`;
+      spot.style.top = `${Math.round(r.top - pad2)}px`;
+      spot.style.width = `${Math.round(r.width + pad2 * 2)}px`;
+      spot.style.height = `${Math.round(r.height + pad2 * 2)}px`;
+      if (small) {
+        card4.style.left = "";
+        card4.style.top = "";
+        return;
+      }
+      const vw = window.innerWidth, vh = window.innerHeight, cw = card4.offsetWidth || 380, ch = card4.offsetHeight || 230, gap = 18;
+      const clampX = (x2) => Math.max(12, Math.min(vw - cw - 12, x2));
+      const clampY = (y2) => Math.max(12, Math.min(vh - ch - 12, y2));
+      let x, y;
+      if (r.right + gap + cw <= vw - 12) {
+        x = r.right + gap;
+        y = clampY(r.top);
+      } else if (r.left - gap - cw >= 12) {
+        x = r.left - gap - cw;
+        y = clampY(r.top);
+      } else if (r.bottom + gap + ch <= vh - 12) {
+        x = clampX(r.left);
+        y = r.bottom + gap;
+      } else if (r.top - gap - ch >= 12) {
+        x = clampX(r.left);
+        y = r.top - gap - ch;
+      } else {
+        x = clampX((vw - cw) / 2);
+        y = vh - ch - 16;
+      }
+      card4.style.left = `${Math.round(x)}px`;
+      card4.style.top = `${Math.round(y)}px`;
+    };
+    const schedule = () => {
+      if (!raf2) raf2 = requestAnimationFrame(place);
+    };
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    const poll = setInterval(schedule, 350);
+    const finish = (completed) => {
+      clearInterval(poll);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      document.removeEventListener("keydown", onKey, true);
+      cancelAnimationFrame(raf2);
+      layer.remove();
+      document.documentElement.classList.remove("touring");
+      if (app) app.classList.remove("nav-open");
+      open = null;
+      token++;
+      actions.savePrefs({ tour: { done: true, at: (/* @__PURE__ */ new Date()).toISOString(), v: TOUR_VERSION, completed: !!completed } }).catch(() => {
+      });
+      if (completed) location.hash = "#/board";
+      try {
+        if (returnFocus && returnFocus.focus) returnFocus.focus({ preventScroll: true });
+      } catch {
+      }
+    };
+    const show = async (n) => {
+      i = n;
+      const mine = ++token;
+      const s = steps2[i];
+      ico.replaceChildren(icon(s.icon || "info", 18));
+      title.textContent = s.title;
+      body.textContent = s.body;
+      count3.textContent = `Step ${i + 1} of ${steps2.length}`;
+      bar.firstChild.style.width = `${Math.round((i + 1) / steps2.length * 100)}%`;
+      back.disabled = i === 0;
+      back.hidden = i === 0;
+      next.textContent = s.next || (i === steps2.length - 1 ? "Finish" : "Next");
+      next.replaceChildren(next.textContent, icon(i === steps2.length - 1 ? "check" : "chevright", 15));
+      if (s.route && location.hash !== s.route) location.hash = s.route;
+      const wantsNav = (s.target || []).some((t2) => t2.startsWith("#nav"));
+      if (app) app.classList.toggle("nav-open", wantsNav && window.innerWidth < 900);
+      const el = await waitFor(s.target);
+      if (mine !== token) return;
+      if (el) {
+        try {
+          el.scrollIntoView({ block: "center", inline: "nearest" });
+        } catch {
+        }
+      }
+      place();
+      next.focus({ preventScroll: true });
+    };
+    next.addEventListener("click", () => {
+      if (i >= steps2.length - 1) finish(true);
+      else show(i + 1);
+    });
+    back.addEventListener("click", () => {
+      if (i > 0) show(i - 1);
+    });
+    skip.addEventListener("click", () => finish(false));
+    function onKey(e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        finish(false);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        next.click();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        back.click();
+      } else if (e.key === "Tab") {
+        const f = [...card4.querySelectorAll("button:not([disabled]):not([hidden])")];
+        if (!f.length) return;
+        const a = f.indexOf(document.activeElement);
+        if (e.shiftKey && a <= 0) {
+          e.preventDefault();
+          f[f.length - 1].focus();
+        } else if (!e.shiftKey && a === f.length - 1) {
+          e.preventDefault();
+          f[0].focus();
+        }
+      }
+    }
+    document.addEventListener("keydown", onKey, true);
+    open = { finish };
+    show(i);
+  }
+  function maybeStartTour() {
+    if (!tourDone() && !open) startTour();
+  }
+  var tourDone, open, sleep, find;
+  var init_tour = __esm({
+    "js/ui/tour.js"() {
+      init_dom();
+      init_icons();
+      init_state();
+      init_tourSteps();
+      tourDone = () => !!(state.settings.tour && state.settings.tour.done);
+      open = null;
+      sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      find = (list) => {
+        for (const sel of list || []) {
+          const el = document.querySelector(sel);
+          if (el && el.getClientRects().length) return el;
+        }
+        return null;
+      };
+    }
+  });
+
   // js/ui/pages/home.js
   var home_exports = {};
   __export(home_exports, {
@@ -4441,6 +4902,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
             "div",
             { class: "btnrow" },
             h("a", { class: "outline", href: "#/board" }, "Add loads"),
+            h("button", { class: "outline", type: "button", "data-act": "take-tour", onclick: () => startTour() }, "Take the 60-second tour"),
             h("a", { class: "outline", href: "#/drafts" }, "Drafts" + (state.drafts.length ? ` (${state.drafts.length})` : "")),
             h("a", { class: "outline", href: "#/system" }, "System / backup"),
             h("a", { class: "outline", href: "#/manual" }, "User manual"),
@@ -4471,6 +4933,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
       init_links();
       init_icons();
       init_chrome();
+      init_tour();
       TILES = [
         ["board", "board", "FREIGHT SIGNAL", "Paste TQL loads, build the 3 x 3 matrix, set one target rate, download the DAT CSV", "OPEN BOARD"],
         ["spare", "spare", "SPARE LOAD DETAILS", "Parked loads you can restore later", "OPEN SPARES"],
@@ -4509,7 +4972,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
       allowPrivBooking: yn(p.allowPrivBooking, "no"),
       allowPrivBidding: yn(p.allowPrivBidding, "no"),
       useDat,
-      datRate: useDat === "yes" ? rate(p.datRate) || (opts2.targetAsRate ? rate(p.targetRate) : "") : "",
+      datRate: useDat === "yes" ? rate(p.datRate) || (opts2.targetAsRate && !opts2.ownRates ? rate(p.targetRate) : "") : "",
       allowDatBooking: yn(p.allowDatBooking, "no"),
       useExtended: yn(p.useExtended, "no"),
       contact: String(p.contact ?? "email").trim().toLowerCase() || "email",
@@ -4534,8 +4997,21 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     }
     return out;
   }
+  function loadsWithOwnRates(all) {
+    const out = /* @__PURE__ */ new Set();
+    for (const p of all || []) if (String(p.status ?? "Active").toLowerCase() !== "covered" && rate(p.datRate)) out.add(loadKey(p));
+    return out;
+  }
+  function loadRateInfo(members, opts2 = {}) {
+    const live2 = datPostings(members);
+    const own = live2.filter((p) => rate(p.datRate));
+    if (own.length) return { mode: "own", count: own.length, total: live2.length };
+    const t2 = live2.some((p) => rate(p.targetRate));
+    return opts2.targetAsRate && t2 ? { mode: "target", count: live2.length, total: live2.length } : { mode: "none", count: 0, total: live2.length };
+  }
   function datRows(postings, opts2 = {}) {
-    return datPostings(postings).map((p) => datRow(p, opts2));
+    const own = loadsWithOwnRates(opts2.all || postings);
+    return datPostings(postings).map((p) => datRow(p, { ...opts2, ownRates: own.has(loadKey(p)) }));
   }
   function datCsv(postings, opts2 = {}) {
     return toDelimited([datHeader(), ...datRows(postings, opts2)], ",", "\n");
@@ -4554,7 +5030,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     if (kind === "selected") return `freight-signal-dat-selected-${postings.length}-${d}.csv`;
     return `freight-signal-dat-${lane}${h2.variant ? "-" + slug(h2.variant) : ""}-${d}.csv`;
   }
-  var REQUIRED2, datHeader, yn, rate, digits, text, labelOf, datPostings, slug;
+  var REQUIRED2, datHeader, yn, rate, digits, text, labelOf, datPostings, loadKey, slug;
   var init_dat = __esm({
     "js/core/dat.js"() {
       init_defaults();
@@ -4574,6 +5050,10 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
       text = (v) => String(v ?? "").replace(/[\r\n\t]+/g, " ").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\x20-\x7e]/g, "").trim();
       labelOf = (p) => `${p.originCity || "?"}, ${p.originState || "?"} -> ${p.destCity || "?"}, ${p.destState || "?"}${p.variant ? " (" + p.variant + ")" : ""}`;
       datPostings = (postings) => postings.filter((p) => String(p.status ?? "Active").toLowerCase() !== "covered");
+      loadKey = (p) => {
+        const g = String(p.groupId ?? "").trim().toLowerCase();
+        return g ? "g:" + g : "p:" + p.id;
+      };
       slug = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
     }
   });
@@ -4673,13 +5153,17 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     const total = Math.max(inq.length, fieldTotal);
     const quotes = inq.filter((q4) => safeNumeric(q4.lastCarrierRate) > 0).map((q4) => ({ rate: safeNumeric(q4.lastCarrierRate), email: q4.senderEmail, stage: q4.stage, flag: q4.flag || "" }));
     const created = members.map((m) => Date.parse(m.createdAt)).filter(Number.isFinite);
-    const ageHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
+    const addedHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
     const ops = members.flatMap((m) => Array.isArray(m.ops) ? m.ops : []).filter((o, i, a) => a.findIndex((x) => x.at === o.at && x.type === o.type) === i).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+    const postedTimes = ops.filter((o) => o.type === "posted").map((o) => Date.parse(o.at)).filter(Number.isFinite);
+    const postedAt = postedTimes.length ? Math.min(...postedTimes) : 0;
+    const lastPostedAt = postedTimes.length ? Math.max(...postedTimes) : 0;
+    const ageHours = postedAt ? Math.max(0, (now.getTime() - postedAt) / H) : addedHours;
     const lane = classifyLane(head, ctx2.zip, ctx2.settings || {});
     const rates = members.map((m) => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter((r) => r > 0);
     const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
     const datRate = target;
-    const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx2.drafts || []).filter((d) => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || "")).length;
+    const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx2.drafts || []).filter((d) => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || "")).length + ops.filter((o) => o.type === "outreach" || o.type === "wave2").length;
     const alerts = [];
     if (ctx2.weather && ctx2.weather.size) {
       const w = pickupWindow(head, now, parseDateText);
@@ -4691,6 +5175,8 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     const lastOp = ops.length ? ops[ops.length - 1] : null;
     const lastOpAt = lastOp ? Date.parse(lastOp.at) : 0;
     const mem = laneMemory(ctx2.coverLog, head, ctx2.zip, Number(ctx2.settings && ctx2.settings.carrierRadiusMiles) || 75);
+    const rateInfo = loadRateInfo(members, { targetAsRate: !(ctx2.settings && ctx2.settings.postTargetOnDat === false) });
+    const problems = datProblems(members);
     const brokerStage = quotes.length ? ladderStage(Math.min(...quotes.map((q4) => q4.rate)), target, ctx2.settings || {}) : null;
     return {
       head,
@@ -4700,7 +5186,19 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
       strategy: lane.strategy,
       cls: lane.cls,
       ageHours,
+      addedHours,
+      postedAt,
+      lastPostedAt,
+      posted: !!postedAt,
+      hoursSincePost: lastPostedAt ? Math.max(0, (now.getTime() - lastPostedAt) / H) : null,
       hoursToPickup: hoursToPickup(head, now),
+      postings: members.length,
+      rateInfo,
+      problems,
+      miles: lane.miles,
+      equip: String(head.equip || "").toUpperCase(),
+      weight: safeNumeric(head.weight),
+      pickupText: head.pickupEarliest || "",
       inquiries: {
         total,
         log: inq.length,
@@ -4847,6 +5345,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
       init_ranking();
       init_weather();
       init_ladder();
+      init_dat();
       H = 36e5;
       cityKey2 = (c, s) => normalizeText(c) + "|" + normalizeText(s);
       depthCache = /* @__PURE__ */ new Map();
@@ -4883,6 +5382,95 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
         carrierRev: state.carrierRev,
         outreach: state.outreach
       });
+    }
+  });
+
+  // js/ui/sortable.js
+  function makeSortable(container, { items, id, onReorder, axis = "x" }) {
+    let dragging = null;
+    const horizontal = axis === "x";
+    const names = () => items().map(id);
+    const clearMarks = () => items().forEach((el) => el.classList.remove("drop-before", "drop-after", "dragging"));
+    const hit = (x, y) => {
+      let best = null;
+      for (const el of items()) {
+        if (el === dragging) continue;
+        const r = el.getBoundingClientRect();
+        const mid = horizontal ? r.left + r.width / 2 : r.top + r.height / 2;
+        const pos = horizontal ? x : y;
+        const sameLine = horizontal ? y >= r.top - 12 && y <= r.bottom + 12 : true;
+        if (!sameLine) continue;
+        const d = Math.abs(pos - mid);
+        if (!best || d < best.d) best = { el, d, after: pos > mid };
+      }
+      return best;
+    };
+    items().forEach((el) => {
+      el.draggable = true;
+      el.addEventListener("dragstart", (e) => {
+        dragging = el;
+        el.classList.add("dragging");
+        try {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData(DRAG_TYPE, id(el));
+          e.dataTransfer.setData("text/plain", id(el));
+        } catch {
+        }
+      });
+      el.addEventListener("dragend", () => {
+        dragging = null;
+        clearMarks();
+      });
+      el.addEventListener("keydown", (e) => {
+        if (!e.altKey || !/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
+        const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
+        const list = names();
+        const i = list.indexOf(id(el));
+        const j = i + (back ? -1 : 1);
+        if (j < 0 || j >= list.length) return;
+        e.preventDefault();
+        const next = list.slice();
+        next.splice(i, 1);
+        next.splice(j, 0, id(el));
+        onReorder(next);
+      });
+    });
+    container.addEventListener("dragover", (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      try {
+        e.dataTransfer.dropEffect = "move";
+      } catch {
+      }
+      const h2 = hit(e.clientX, e.clientY);
+      items().forEach((el) => el.classList.remove("drop-before", "drop-after"));
+      if (h2) h2.el.classList.add(h2.after ? "drop-after" : "drop-before");
+    });
+    container.addEventListener("drop", (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const h2 = hit(e.clientX, e.clientY);
+      const moved = id(dragging);
+      clearMarks();
+      if (!h2) {
+        dragging = null;
+        return;
+      }
+      const list = names().filter((n) => n !== moved);
+      let at = list.indexOf(id(h2.el)) + (h2.after ? 1 : 0);
+      if (at < 0) at = list.length;
+      list.splice(at, 0, moved);
+      dragging = null;
+      if (list.join("\0") !== names().join("\0")) onReorder(list);
+    });
+    container.addEventListener("dragleave", (e) => {
+      if (!container.contains(e.relatedTarget)) items().forEach((el) => el.classList.remove("drop-before", "drop-after"));
+    });
+  }
+  var DRAG_TYPE;
+  var init_sortable = __esm({
+    "js/ui/sortable.js"() {
+      DRAG_TYPE = "text/x-freight-signal-order";
     }
   });
 
@@ -5334,22 +5922,53 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     const step2 = Math.max(25, round25(Math.min(s.repriceMax * (1 + 0.5 * iteration), Math.max(s.repriceMin, base * pct2 / 100))));
     return { from: st2.datRate || 0, to: round25((st2.datRate || base) + step2), step: step2, basis: st2.datRate ? "current target rate" : "last cover on this lane" };
   }
+  function pickupPhrase(st2, now = /* @__PURE__ */ new Date()) {
+    const d = parseDateText(st2.head.pickupLatest) || parseDateText(st2.head.pickupEarliest);
+    if (!d) return "no pickup date set";
+    const t0 = new Date(now);
+    t0.setHours(0, 0, 0, 0);
+    const days = Math.round((d.getTime() - t0.getTime()) / 864e5);
+    if (days < 0) return "pickup date has passed";
+    if (days === 0) return "pickup today";
+    if (days === 1) return "pickup tomorrow";
+    return `pickup ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`;
+  }
+  function rateWords(st2) {
+    const r = st2.rateInfo || { mode: "none", count: 0, total: st2.postings || 0 };
+    if (r.mode === "own") return `a rate on ${r.count} of ${r.total} postings`;
+    if (r.mode === "target") return `${formatCurrency0(st2.target)} on all ${r.total} postings`;
+    return "no rate on any posting";
+  }
+  function memCompare(st2) {
+    if (!st2.mem || !(st2.target > 0)) return "";
+    const last2 = st2.mem.last.rate;
+    const d = st2.target - last2;
+    const pct2 = Math.abs(d) / last2 * 100;
+    if (pct2 < 2) return `Your ${formatCurrency0(st2.target)} is in line with the last cover on this lane (${formatCurrency0(last2)}).`;
+    return `Your ${formatCurrency0(st2.target)} is ${pct2.toFixed(0)}% ${d < 0 ? "under" : "over"} the last cover on this lane (${formatCurrency0(last2)}).`;
+  }
   function nextSteps(st2, extra = {}) {
     const now = extra.now || /* @__PURE__ */ new Date();
     const s = st2.strategy, n = st2.inquiries.total, quotes = st2.inquiries.quotes;
     const steps2 = [];
     let level = "ok", phase = "posted", headline = "";
-    const add = (id, title, detail, action, primary = false) => steps2.push({ id, title, detail, action: action || null, primary });
+    const add = (id, title, detail, action, primary = false, extras = {}) => {
+      const step2 = { id, title, detail, action: action || null, primary, ...extras.checks ? { checks: extras.checks } : {} };
+      if (extras.front) steps2.unshift(step2);
+      else steps2.push(step2);
+    };
     const urgent = st2.hoursToPickup !== null && st2.hoursToPickup <= s.closingHours;
     const iteration = count(st2, "reprice");
-    const cooldown = Math.max(0.5, s.staleHours / 2);
+    const cooldown = 0.5;
     const sinceAny = st2.lastOpAt ? (now.getTime() - st2.lastOpAt) / H2 : Infinity;
     const rp = repriceSuggestion(st2, iteration);
     const wait = sinceAny < cooldown;
     const waitText = wait ? `You last changed this ${hm(sinceAny)} ago (${st2.lastOp.detail || st2.lastOp.type}). Give it about ${hm(cooldown - sinceAny)} more` : "";
+    const lane = laneText(st2);
+    const T = st2.ageHours;
     if (!st2.rateSet) {
       const memRate = st2.mem ? st2.mem.last.rate : 0;
-      add("setrate", "Set a target rate", memRate ? `No rate is set yet. This lane last covered at ${formatCurrency0(memRate)}.` : "Enter the target rate for this load so carrier replies can be judged.", memRate ? { type: "setRate", rate: memRate, label: `Use ${formatCurrency0(memRate)}` } : null, true);
+      add("setrate", "Set a target rate", memRate ? `No target rate yet. ${lane} last covered at ${formatCurrency0(memRate)}. The target judges carrier replies; it does not have to be posted on every posting.` : "Enter the target rate for this load so carrier replies can be judged. It does not have to be posted on every posting.", memRate ? { type: "setRate", rate: memRate, label: `Use ${formatCurrency0(memRate)}` } : null, true);
       level = "act";
       phase = "unpriced";
     }
@@ -5360,7 +5979,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     if (quotes.length && st2.target > 0) {
       const best = st2.inquiries.bestQuote, lad = st2.inquiries.stage;
       if (lad && lad.stage === "book") {
-        add("book", "Book it", `A carrier quoted ${formatCurrency0(best)} - ${lad.pct <= 0 ? "at or under" : lad.pct.toFixed(1) + "% over"} your ${formatCurrency0(st2.target)} target. Confirm the ETA and book.`, { type: "cover", label: "Mark covered\u2026" }, true);
+        add("book", "Book it", `A carrier quoted ${formatCurrency0(best)} on ${lane} - ${lad.pct <= 0 ? "at or under" : lad.pct.toFixed(1) + "% over"} your ${formatCurrency0(st2.target)} target. Confirm the ETA and book.`, { type: "cover", label: "Mark covered\u2026" }, true);
         level = "urgent";
         phase = "booking";
         headline = "Rate is inside your booking band";
@@ -5373,7 +5992,7 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
         const hi = st2.inquiries.avgQuote > 0 && (st2.inquiries.avgQuote - st2.target) / st2.target * 100 > st2.splitPct;
         if (quotes.length >= 2 && hi && rp) {
           const to = round25(Math.max(rp.to, (st2.datRate || 0) + (st2.inquiries.avgQuote - st2.target) / 2));
-          add("market", "Carriers are asking more than your target", `${quotes.length} quotes average ${formatCurrency0(st2.inquiries.avgQuote)} against a ${formatCurrency0(st2.target)} target. The market is telling you the rate is light - raise it toward ${formatCurrency0(to)} or push the customer.`, { type: "reprice", to, label: `Raise DAT rate to ${formatCurrency0(to)}` }, true);
+          add("market", "Carriers are asking more than your target", `${quotes.length} quotes on ${lane} average ${formatCurrency0(st2.inquiries.avgQuote)} against a ${formatCurrency0(st2.target)} target. The market is telling you the rate is light - raise it toward ${formatCurrency0(to)} or push the customer.`, { type: "reprice", to, label: `Raise DAT rate to ${formatCurrency0(to)}` }, true);
           level = "act";
           phase = "underpriced";
           headline = "Quotes are running above target";
@@ -5386,52 +6005,113 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     }
     if (n > 0 && !quotes.length && phase === "posted") {
       if (st2.inquiries.last2h >= 5) {
-        add("hot", "Strong interest - do not touch the price", `${st2.inquiries.last2h} inquiries in the last 2 hours. Reply fast and push each carrier for an all-in rate and ETA.`, { type: "call", label: "Call list" }, true);
+        add("hot", "Strong interest - do not touch the price", `${st2.inquiries.last2h} inquiries on ${lane} in the last 2 hours. Reply fast and push each carrier for an all-in rate and ETA.`, { type: "call", label: "Call list" }, true);
         phase = "hot";
         headline = "High interest";
         if (level === "ok") level = "watch";
       } else if (st2.inquiries.last2h >= 2) {
-        add("warm", "Interest is building", `${st2.inquiries.last2h} inquiries in 2 hours but no rate yet. Answer each one and ask for an all-in number.`, null, true);
+        add("warm", "Interest is building", `${st2.inquiries.last2h} inquiries in 2 hours on ${lane} but no rate yet. Answer each one and ask for an all-in number.`, null, true);
         phase = "warm";
         headline = "Interest is building";
         if (level === "ok") level = "watch";
       } else {
         const stalled = st2.inquiries.lastAt && (now.getTime() - st2.inquiries.lastAt) / H2 >= 1;
-        add("followup", stalled ? "Follow up by phone" : "Answer the inquiry", stalled ? `${n} inquiry${n === 1 ? "" : "ies"}, none with a rate and nothing new for ${hm((now.getTime() - st2.inquiries.lastAt) / H2)}. Call them instead of waiting.` : `${n} inquiry${n === 1 ? "" : "ies"} so far - get an all-in rate and ETA.`, stalled ? { type: "call", label: "Call list" } : null, true);
+        add("followup", stalled ? "Follow up by phone" : "Answer the inquiry", stalled ? `${n} inquiry${n === 1 ? "" : "ies"} on ${lane}, none with a rate and nothing new for ${hm((now.getTime() - st2.inquiries.lastAt) / H2)}. Call them instead of waiting.` : `${n} inquiry${n === 1 ? "" : "ies"} so far on ${lane} - get an all-in rate and ETA.`, stalled ? { type: "call", label: "Call list" } : null, true);
         phase = "engaged";
         headline = "Engaged but no rate yet";
         if (level === "ok") level = "watch";
-        if (!wait && st2.ageHours >= s.staleHours * 1.5 && rp && since(st2, "reprice", now) > cooldown * 2) add("nudge", `Small bump: +${formatCurrency0(rp.step)}`, `Interest is thin after ${hm(st2.ageHours)}. A small raise to ${formatCurrency0(rp.to)} can turn inquiries into quotes.`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` });
+        if (!wait && st2.ageHours >= s.staleHours * 1.5 && rp && since(st2, "reprice", now) > cooldown * 2) add("nudge", `Small bump: +${formatCurrency0(rp.step)}`, `Interest is thin after ${hm(st2.ageHours)} live. A small raise to ${formatCurrency0(rp.to)} can turn inquiries into quotes.`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` });
       }
     }
     if (n === 0 && phase === "posted") {
       phase = "cold";
-      const early = st2.ageHours < s.staleHours * 0.5 && !urgent;
-      if (early) {
-        add("wait", "Give it time", `Posted ${hm(st2.ageHours)} ago. ${s.staleHours <= 2 ? "Local" : st2.cls === "long" ? "Long-haul" : "Regional"} loads usually draw a first inquiry within ${hm(s.staleHours)}.`, null, !steps2.length);
-        if (!st2.outreachSent && extra.depth > 0) add("outreach", `Draft outreach to ${extra.wave || 5} ranked carriers`, `${extra.depth} carrier${extra.depth === 1 ? "" : "s"} fit this lane. Starting early costs nothing.`, { type: "outreach", label: "Draft first wave" });
-        headline = "Fresh - on schedule";
+      const inbox = st2.phone ? "Your phone is the contact method on these posts: keep it close and answer unknown numbers." : "Refresh your inbox and check Junk / Other: inquiries arrive as e-mail.";
+      const problemLines = st2.problems.slice(0, 4).map((p) => `${p.label}: missing ${p.missing.join(", ")}`);
+      const live2 = `${st2.postings} posting${st2.postings === 1 ? "" : "s"}`;
+      const csvAction = { type: "csv", label: st2.posted ? "Re-post (download CSV)" : "Download CSV" };
+      if (!st2.posted && st2.addedHours < 0.5) {
+        add(
+          "post",
+          "Post it on DAT",
+          `${live2} ready for ${lane} (${laneKind(st2)}, ${equipName(st2.equip)}, ${pickupPhrase(st2, now)}) with ${rateWords(st2)}. Download the CSV and upload it in DAT's bulk posting tool. The clock for the notes below starts when you download.`,
+          csvAction,
+          true,
+          { front: true, checks: problemLines.length ? ["DAT will reject these until they are filled in:", ...problemLines] : null }
+        );
+        if (!st2.outreachSent && extra.depth > 0) add("outreach", `Draft outreach to ${extra.wave || 5} ranked carriers`, `${extra.depth} carrier${extra.depth === 1 ? "" : "s"} in your database fit ${lane}. Draft the first wave while the post goes live.`, { type: "outreach", label: "Draft first wave" });
+        headline = "Not posted yet";
+        level = level === "ok" ? "act" : level;
+        phase = "unposted";
       } else {
-        level = urgent ? "urgent" : "act";
-        headline = `No inquiries after ${hm(st2.ageHours)}`;
-        const did = { reprice: count(st2, "reprice"), wave2: count(st2, "wave2"), recities: count(st2, "recities"), call: count(st2, "call") };
-        const order = [];
-        if (!st2.outreachSent && extra.depth > 0) order.push("outreach");
-        if (urgent) order.push("reprice", "call", "wave2", "recities");
-        else order.push("reprice", "wave2", "recities", "call");
-        const pick = order.find((k) => k === "outreach" ? true : k === "reprice" ? did.reprice < 3 && rp : k === "wave2" ? did.wave2 < 2 && extra.unusedDepth > 0 : k === "recities" ? did.recities < 2 : k === "call" ? did.call < 2 : false);
-        const mk2 = (k, primary) => {
-          if (k === "outreach") add("outreach", `Draft outreach to ${extra.wave || 5} ranked carriers`, `Nobody has been contacted yet and ${extra.depth} carrier${extra.depth === 1 ? "" : "s"} fit the lane.`, { type: "outreach", label: "Draft first wave" }, primary);
-          else if (k === "reprice") add("reprice", `Raise the rate +${formatCurrency0(rp.step)}`, `${hm(st2.ageHours)} with no inquiries${did.reprice ? ` and ${did.reprice} earlier raise${did.reprice === 1 ? "" : "s"} (the next one is bigger)` : ""}. ${formatCurrency0(rp.from || rp.to - rp.step)} \u2192 ${formatCurrency0(rp.to)} (${rp.basis}).`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` }, primary);
-          else if (k === "wave2") add("wave2", `Second wave: ${extra.wave || 5} more carriers`, `${extra.unusedDepth} carrier${extra.unusedDepth === 1 ? "" : "s"} that fit this lane have not been contacted for this load yet.`, { type: "wave2", label: "Draft second wave" }, primary);
-          else if (k === "recities") add("recities", "Swap the alternate cities", `Rebuild the 3 \xD7 3 with fresh high-traffic markets${did.recities ? " (different from the last try)" : ""} so the posting shows up in other trucks' searches.`, { type: "recities", label: "Rebuild cities" }, primary);
-          else if (k === "call") add("call", "Start calling out", "Phone the best-matched carriers - a call beats an unanswered post on a load this old.", { type: "call", label: "Call list" }, primary);
-        };
-        if (wait && !urgent) add("wait", "Let the last change work", `${waitText}. Next up: ${pick === "reprice" ? "a rate raise" : pick === "wave2" ? "a second wave of outreach" : pick === "recities" ? "fresh cities" : "phone calls"}.`, null, true);
-        else if (pick) mk2(pick, true);
-        const rest = order.filter((k) => k !== pick).filter((k) => k === "outreach" ? false : k === "reprice" ? did.reprice < 3 && rp : k === "wave2" ? did.wave2 < 2 && extra.unusedDepth > 0 : k === "recities" ? did.recities < 2 : did.call < 2);
-        rest.slice(0, 2).forEach((k) => mk2(k, false));
-        if (did.reprice >= 2 && did.wave2 >= 1 && did.call >= 1) add("customer", "Talk to the customer", "The market has had rate, reach and calls. Ask for a higher rate, a later pickup, or release the load.", null, !pick);
+        const band = T < 0.5 ? "fresh" : T < 1 ? "refresh" : T < 2 && !urgent ? "stalled" : "dead";
+        const since30 = hm(Math.max(0, 0.5 - T));
+        if (band === "fresh") {
+          add(
+            "wait",
+            `Live ${hm(T)}: hold the price`,
+            `${lane} (${laneKind(st2)}, ${pickupPhrase(st2, now)}) normally draws its first inquiry within minutes of posting. If nothing has come in, refresh in about ${since30} (the 30-minute mark). Do not change the rate yet.`,
+            null,
+            !steps2.length,
+            { checks: [`Open DAT and confirm all ${st2.postings} posting${st2.postings === 1 ? "" : "s"} are showing (${rateWords(st2)}).`, inbox] }
+          );
+          if (!st2.outreachSent && extra.depth > 0) add("outreach", `Draft outreach to ${extra.wave || 5} ranked carriers`, `${extra.depth} carrier${extra.depth === 1 ? "" : "s"} fit ${lane}. Starting while the post is fresh costs nothing and speeds up the first reply.`, { type: "outreach", label: "Draft first wave" });
+          headline = `Live ${hm(T)} - inquiries should start any minute`;
+        } else if (band === "refresh") {
+          level = urgent ? "urgent" : "watch";
+          add(
+            "refresh",
+            `${hm(T)} with no inquiries: refresh now`,
+            `This is the 30-minute check on ${lane}. Refresh your posts and your inbox, and re-post anything that dropped off, then give it 10-15 minutes. If it is still silent at one hour, something is not working.`,
+            csvAction,
+            true,
+            { front: true, checks: [inbox, `On DAT, confirm all ${st2.postings} postings are live and none expired (${rateWords(st2)}).`, problemLines.length ? `Fix first: ${problemLines[0]}` : null].filter(Boolean) }
+          );
+          if (!st2.outreachSent && extra.depth > 0) add("outreach", `Draft outreach to ${extra.wave || 5} ranked carriers`, `Nobody has been contacted about ${lane} yet and ${extra.depth} carrier${extra.depth === 1 ? "" : "s"} fit it. Do not wait for the post alone.`, { type: "outreach", label: "Draft first wave" });
+          headline = `${hm(T)} with no inquiries - time to refresh`;
+        } else {
+          level = urgent ? "urgent" : "act";
+          headline = band === "stalled" ? `No inquiries after ${hm(T)} - something is not working` : `No inquiries after ${hm(T)}`;
+          const did = { reprice: count(st2, "reprice"), wave2: count(st2, "wave2"), recities: count(st2, "recities"), call: count(st2, "call") };
+          const checks = [];
+          if (problemLines.length) checks.push("DAT rejects rows with required fields missing, so these may never have gone live: " + problemLines.join("; "));
+          checks.push(`Search your own lane on DAT (${equipName(st2.equip)}, ${st2.head.originCity || "origin"}, ${st2.head.originState || ""}). All ${st2.postings} postings should show. If not, re-upload the CSV.`);
+          checks.push(`Pickup is ${st2.pickupText || "not set"} (${pickupPhrase(st2, now)}). Make sure DAT shows the same date and it is not in the past.`);
+          const r = st2.rateInfo || { mode: "none" };
+          if (r.mode === "none") checks.push("No posting has a rate. Put a rate on at least 2 of the postings (A-A and one nearby pairing); the rest can stay rate-free.");
+          else checks.push(`${rateWords(st2)[0].toUpperCase() + rateWords(st2).slice(1)}. ${memCompare(st2) || "Open RateView for this lane and compare before you assume the market is the problem."}`);
+          checks.push(st2.phone ? "Contact method is Phone: callers will not leave an e-mail. Keep your phone close, or switch the load to Email." : "Contact method is Email: check Junk / Other, and that the Outlook connection (System) is on.");
+          if (!(st2.weight > 0) || !st2.equip) checks.push(`${!(st2.weight > 0) ? "Weight" : "Equipment"} is blank on this load. Fix it and re-post.`);
+          else checks.push(`Equipment ${equipName(st2.equip)} at ${st2.weight.toLocaleString("en-US")} lbs: confirm that is right. The wrong trailer type hides the load from the trucks you want.`);
+          const order = [];
+          if (!st2.outreachSent && extra.depth > 0) order.push("outreach");
+          if (band === "stalled") order.push("reprice", "call", "wave2", "recities");
+          else if (urgent) order.push("reprice", "call", "wave2", "recities");
+          else order.push("reprice", "wave2", "recities", "call");
+          const can = (k) => k === "outreach" ? true : k === "reprice" ? did.reprice < 3 && rp && r.mode !== "none" : k === "wave2" ? did.wave2 < 2 && extra.unusedDepth > 0 : k === "recities" ? did.recities < 2 : k === "call" ? did.call < 2 : false;
+          const mk2 = (k, primary) => {
+            if (k === "outreach") add("outreach", `Draft outreach to ${extra.wave || 5} ranked carriers`, `Nobody has been contacted about ${lane} and ${extra.depth} carrier${extra.depth === 1 ? "" : "s"} fit it.`, { type: "outreach", label: "Draft first wave" }, primary);
+            else if (k === "reprice") add("reprice", `Raise the rate +${formatCurrency0(rp.step)}`, `${hm(T)} live with no inquiries${did.reprice ? ` and ${did.reprice} earlier raise${did.reprice === 1 ? "" : "s"} (the next one is bigger)` : ""}. ${formatCurrency0(rp.from || rp.to - rp.step)} \u2192 ${formatCurrency0(rp.to)} (${rp.basis}). Re-post after.`, { type: "reprice", to: rp.to, label: `Raise to ${formatCurrency0(rp.to)}` }, primary);
+            else if (k === "wave2") add("wave2", `Second wave: ${extra.wave || 5} more carriers`, `${extra.unusedDepth} carrier${extra.unusedDepth === 1 ? "" : "s"} that fit ${lane} have not been contacted for this load yet.`, { type: "wave2", label: "Draft second wave" }, primary);
+            else if (k === "recities") add("recities", "Swap the alternate cities", `Rebuild the 3 \xD7 3 with fresh high-traffic markets${did.recities ? " (different from the last try)" : ""} so ${lane} shows up in other trucks' searches.`, { type: "recities", label: "Rebuild cities" }, primary);
+            else if (k === "call") add("call", "Start calling out", `Phone the best-matched carriers for ${lane}. A call beats an unanswered post on a load that has been live ${hm(T)}.`, { type: "call", label: "Call list" }, primary);
+          };
+          const pick = order.find(can);
+          if (band === "stalled") {
+            const why = `${hm(T)} live on ${lane} with no inquiries is not normal for DAT. Find out why before you move the price.`;
+            if (wait) {
+              add("wait", "Let the last change work", `${waitText}. If ${lane} is still silent after that, work through the checks next.`, null, true, { front: true });
+              add("diagnose", "Something is not working: check the post", why, csvAction, false, { checks });
+            } else add("diagnose", "Something is not working: check the post first", why, csvAction, true, { front: true, checks });
+            if (pick) mk2(pick, false);
+          } else {
+            if (wait && !urgent) add("wait", "Let the last change work", `${waitText}. Next up: ${pick === "reprice" ? "a rate raise" : pick === "wave2" ? "a second wave of outreach" : pick === "recities" ? "fresh cities" : pick === "outreach" ? "outreach" : "phone calls"}.`, null, true);
+            else if (pick) mk2(pick, true);
+            add("diagnose", "Re-check the post itself", "If nothing below moves it, rule out a post that is not really live.", null, false, { checks });
+          }
+          const rest = order.filter((k) => k !== pick && k !== "outreach").filter(can);
+          rest.slice(0, 2).forEach((k) => mk2(k, false));
+          if (did.reprice >= 2 && did.wave2 >= 1 && did.call >= 1) add("customer", "Talk to the customer", `${lane} has had rate, reach and calls. Ask for a higher rate, a later pickup, or release the load.`, null, !pick);
+        }
       }
     }
     if (urgent && level === "ok") level = "watch";
@@ -5440,10 +6120,12 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
     if (!steps2.some((x) => x.primary)) steps2[0].primary = true;
     return { level, phase, headline, steps: steps2, wait };
   }
-  var H2, round25, count, since, hm;
+  var H2, round25, count, since, hm, equipName, laneText, laneKind;
   var init_guidance = __esm({
     "js/core/guidance.js"() {
       init_util();
+      init_expiry();
+      init_defaults();
       H2 = 36e5;
       round25 = (x) => Math.round(x / 25) * 25;
       count = (st2, type) => st2.ops.filter((o) => o.type === type).length;
@@ -5452,6 +6134,12 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
         return o ? (now.getTime() - Date.parse(o.at)) / H2 : Infinity;
       };
       hm = (hrs) => hrs < 1 ? `${Math.max(1, Math.round(hrs * 60))} min` : `${Math.round(hrs * 10) / 10} h`;
+      equipName = (code) => {
+        const e = EQUIPMENT.find((x) => x.code === String(code || "").toUpperCase());
+        return e ? e.label.toLowerCase() : String(code || "equipment");
+      };
+      laneText = (st2) => `${st2.head.originCity || "?"}, ${st2.head.originState || "?"} \u2192 ${st2.head.destCity || "?"}, ${st2.head.destState || "?"}`;
+      laneKind = (st2) => st2.miles ? `${Math.round(st2.miles).toLocaleString("en-US")} mi ${st2.cls}` : st2.cls || "regional";
     }
   });
 
@@ -5614,7 +6302,7 @@ ${d.body}`) }, "Copy"),
       );
     }));
   }
-  function worklistPanel(rows, open, onOpen, expanded, setExpanded) {
+  function worklistPanel(rows, open2, onOpen, expanded, setExpanded) {
     const top = rankLoads(rows).slice(0, 6);
     const head = h(
       "button",
@@ -5655,7 +6343,7 @@ ${d.body}`) }, "Copy"),
     const view2 = tabBroker === "__all" ? [mk2("All brokers", all)] : rows.filter((r) => r.broker === tabBroker && (r.broker || state.postings.some((p) => !p.broker))).map((r) => mk2(r.broker || "Unassigned", r));
     return h("div", { class: "scoreboard" }, view2, tabBroker !== "__all" && tabBroker ? h("small", { class: "muted" }, `Floor shown is the team floor (${all.floor}); about ${per} each if you split it evenly.`) : null);
   }
-  async function runAction(box, a) {
+  async function runAction(box, a, hooks = {}) {
     const head = box.head;
     const ids = box.members.map((m) => m.id);
     switch (a.type) {
@@ -5695,24 +6383,27 @@ ${d.body}`) }, "Copy"),
       }
       case "cover":
         return coverModal(box);
+      case "csv":
+        return hooks.csv ? hooks.csv() : void 0;
       default:
         return void 0;
     }
   }
-  function guidanceBlock(row3, ctx2) {
+  function guidanceBlock(row3, ctx2, hooks = {}) {
     const adv = nextSteps(row3.stats, adviceExtra(row3.box, ctx2));
     const [first, ...rest] = adv.steps;
-    const btn = (s, primary) => s.action ? h("button", { class: "btn small" + (primary ? " primary" : ""), type: "button", onclick: () => runAction(row3.box, s.action) }, s.action.label || "Do it") : null;
+    const btn = (s, primary) => s.action ? h("button", { class: "btn small" + (primary ? " primary" : ""), type: "button", onclick: () => runAction(row3.box, s.action, hooks) }, s.action.label || "Do it") : null;
+    const checks = (s) => s.checks && s.checks.length ? h("ul", { class: "gchecks" }, s.checks.map((c) => h("li", null, c))) : null;
     return h(
       "div",
       { class: "guide g-" + adv.level },
       h("div", { class: "guide-head" }, icon("bulb", 16), h("b", null, adv.headline || "Next step"), h("span", { class: "pill" }, adv.phase)),
-      first ? h("div", { class: "gstep" }, h("div", null, h("b", null, first.title), h("p", null, first.detail)), btn(first, true)) : null,
+      first ? h("div", { class: "gstep" }, h("div", null, h("b", null, first.title), h("p", null, first.detail), checks(first)), btn(first, true)) : null,
       rest.length ? h(
         "details",
         { class: "gmore" },
         h("summary", null, `${rest.length} other option${rest.length === 1 ? "" : "s"}`),
-        rest.map((s) => h("div", { class: "gstep sub" }, h("div", null, h("b", null, s.title), h("p", null, s.detail)), btn(s, false)))
+        rest.map((s) => h("div", { class: "gstep sub" }, h("div", null, h("b", null, s.title), h("p", null, s.detail), checks(s)), btn(s, false)))
       ) : null,
       adv.wait ? h("p", { class: "muted small" }, adv.wait) : null
     );
@@ -5871,8 +6562,9 @@ Download anyway?`, "Download anyway");
     }
     const o = datOpts();
     download(datFileName(kind, rows), datCsv(rows, o), "text/csv;charset=utf-8");
-    const priced = rows.filter((p) => String(p.datRate ?? "").trim() || o.targetAsRate && String(p.targetRate ?? "").trim()).length;
-    toast(`${what}: ${rows.length} posting(s) downloaded (${priced} with a rate). Upload the file in DAT's bulk posting tool.`, "ok", 7e3);
+    const withRate = datRows(rows, o).filter((r) => String(r[DAT_RATE_COL] ?? "").trim()).length;
+    actions.markPosted(rows.map((p) => p.id));
+    toast(`${what}: ${rows.length} posting(s) downloaded (${withRate} with a rate). Upload the file in DAT's bulk posting tool.`, "ok", 7e3);
   }
   async function deleteMany(ids, what) {
     if (!ids.length) return;
@@ -5911,7 +6603,30 @@ Download anyway?`, "Download anyway");
     for (const f of r.flags) if (f.kind !== "weather") chips.push(h("span", { class: "issue " + (f.kind === "hot" ? "hot" : f.level) }, icon(FLAG_ICON[f.kind] || "alert", 14), f.text));
     return chips.length ? h("div", { class: "issues" }, chips) : null;
   }
-  function row(p) {
+  function datRateInput(p, rc) {
+    const ph = rc.own ? "no rate" : rc.fallback ? money2(rc.fallback) : "no rate";
+    const el = h("input", {
+      class: "cell datrate",
+      size: 6,
+      value: p.datRate ?? "",
+      placeholder: ph,
+      inputmode: "decimal",
+      "aria-label": "DAT rate for this posting",
+      "data-fk": `${p.id}:datRate`,
+      title: "The rate you post on DAT for this posting. Leave it blank to post it with the load's target rate. Fill it on only some postings and the rest of the load post without a rate."
+    });
+    el.addEventListener("change", async () => {
+      await actions.setDatRate([p.id], el.value);
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        el.blur();
+      }
+    });
+    return el;
+  }
+  function row(p, rc) {
     const upd = (k) => (v) => actions.updatePosting(p.id, { [k]: v });
     const ci = (k, size, extra = {}) => inputEl(p[k], upd(k), { size, "data-fk": `${p.id}:${k}`, ...extra });
     const lbl = gridLabel(p.variant);
@@ -5919,7 +6634,7 @@ Download anyway?`, "Download anyway");
     return h(
       "tr",
       { class: "lrow" + (orig ? " orig" : ""), dataset: { posting: p.id } },
-      h("td", { class: "chk" }, h("input", { type: "checkbox", checked: selected.has(p.id), "aria-label": "Select posting", "data-fk": `${p.id}:chk`, onchange: (e) => {
+      h("td", { class: "chk" }, h("input", { type: "checkbox", class: "bigchk", checked: selected.has(p.id), "aria-label": "Select posting", "data-fk": `${p.id}:chk`, onchange: (e) => {
         if (e.target.checked) selected.add(p.id);
         else selected.delete(p.id);
         rerender();
@@ -5928,14 +6643,19 @@ Download anyway?`, "Download anyway");
       h("td", null, h("div", { class: "endpoint" }, ci("originCity", 14, { "aria-label": "Origin city" }), ci("originState", 2, { class: "cell st", "aria-label": "Origin state" }), ci("originZip", 5, { class: "cell zip", "aria-label": "Origin ZIP" }))),
       h("td", { class: "arrow" }, icon("chevright", 14)),
       h("td", null, h("div", { class: "endpoint" }, ci("destCity", 14, { "aria-label": "Destination city" }), ci("destState", 2, { class: "cell st", "aria-label": "Destination state" }), ci("destZip", 5, { class: "cell zip", "aria-label": "Destination ZIP" }))),
+      h("td", { class: "ratecell" }, datRateInput(p, rc)),
       h("td", { class: "num", title: "Carrier replies received / outreach drafts sent" }, `${p.inquiryCount || 0} / ${p.outreachCount || 0}`),
-      h("td", { class: "rowmenu" }, menu("More actions for this posting", [
-        { label: "Edit every field", run: () => detailModal(p) },
-        { label: "Open DAT RateView", run: () => rateLink(p) },
-        { label: "Weather at origin", run: () => weather(p) },
-        { label: "Download this posting (CSV)", act: "csv-one", run: () => downloadDat("one", [p], "Posting") },
-        { label: "Delete this posting", act: "del-one", danger: true, run: () => deleteMany([p.id], "this posting") }
-      ]))
+      h("td", { class: "rowmenu" }, h(
+        "div",
+        { class: "rowtools" },
+        h("button", { class: "btn small iconbtn", type: "button", "data-act": "rateview-row", title: `Open DAT RateView for ${p.originCity || "?"}, ${p.originState || "?"} to ${p.destCity || "?"}, ${p.destState || "?"}`, "aria-label": "Open DAT RateView for this posting", onclick: () => rateLink(p) }, icon("rateview", 16)),
+        menu("More actions for this posting", [
+          { label: "Edit every field", run: () => detailModal(p) },
+          { label: "Weather at origin", run: () => weather(p) },
+          { label: "Download this posting (CSV)", act: "csv-one", run: () => downloadDat("one", [p], "Posting") },
+          { label: "Delete this posting", act: "del-one", danger: true, run: () => deleteMany([p.id], "this posting") }
+        ])
+      ))
     );
   }
   function groupBox(r, collapsed, toggle2) {
@@ -5950,6 +6670,8 @@ Download anyway?`, "Download anyway");
     const attrs = { dataset: { group: b.groupId || "", lane: b.title, key: b.key } };
     const memberRate = b.members.map((m) => String(m.targetRate ?? "").trim() || String(m.datRate ?? "").trim()).find(Boolean) || "";
     const rate2 = String(head.targetRate ?? "").trim() || memberRate;
+    const rinfo = loadRateInfo(b.members, datOpts());
+    const rc = { own: rinfo.mode === "own", fallback: state.settings.postTargetOnDat !== false ? Number(String(rate2).replace(/[^0-9.]/g, "")) || 0 : 0 };
     const toggleBtn = h("button", { class: "collbtn", type: "button", "aria-expanded": String(!collapsed), title: collapsed ? "Expand this load" : "Collapse this load", "data-act": "toggle-box", onclick: toggle2 }, icon(collapsed ? "chevright" : "chevdown", 16));
     const meta = [
       [lbs(head.weight), "weight"],
@@ -5963,7 +6685,7 @@ Download anyway?`, "Download anyway");
         "div",
         { class: "lanetitle" },
         toggleBtn,
-        h("input", { type: "checkbox", checked: allSel, "aria-label": "Select every posting in this lane", "data-fk": `${b.key}:chk`, onchange: (e) => {
+        h("input", { type: "checkbox", class: "bigchk", checked: allSel, "aria-label": "Select every posting in this lane", "data-fk": `${b.key}:chk`, onchange: (e) => {
           ids.forEach((id) => e.target.checked ? selected.add(id) : selected.delete(id));
           rerender();
         } }),
@@ -5978,6 +6700,7 @@ Download anyway?`, "Download anyway");
             meta,
             h("span", { class: "meta" }, `${b.members.length} posting${b.members.length === 1 ? "" : "s"}`),
             lane ? h("span", { class: "meta" }, { local: "Local", regional: "Regional", long: "Long-distance" }[lane] || lane) : null,
+            rinfo.mode === "own" ? h("span", { class: "meta", title: "Only these postings carry a rate on DAT; the rest post without one." }, icon("target", 14), `DAT rate on ${rinfo.count} of ${rinfo.total}`) : null,
             head.broker ? h("span", { class: "meta" }, head.broker) : null,
             r.stats.inquiries.total ? h("span", { class: "meta ok" }, `${r.stats.inquiries.total} replies`) : null
           )
@@ -5985,6 +6708,8 @@ Download anyway?`, "Download anyway");
         h(
           "div",
           { class: "lanestatus" },
+          // collapsed cards have no action bar, so the copy button lives in the header (it is in the action bar when the card is open)
+          collapsed ? h("button", { class: "btn small", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted TQL text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 14), "Copy details") : null,
           h("span", { class: "badge st-" + st2.tone }, icon(st2.icon, 14), st2.label),
           h("span", { class: "score " + r.label.toLowerCase(), title: `Cover-probability score ${r.score}/100 (${r.label}): ${r.reasons.join("; ")}` }, r.score)
         )
@@ -6062,6 +6787,7 @@ Download anyway?`, "Download anyway");
         if (x) summaryOutreach(x);
       } }, icon("send", 15), "Carrier outreach"),
       h("button", { class: "btn", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted TQL text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 15), "Copy load details"),
+      h("button", { class: "btn", type: "button", "data-act": "rateview", title: "Open DAT RateView for this lane in a new tab", onclick: () => rateLink(head) }, icon("rateview", 15), "DAT RateView"),
       h("button", { class: "btn", type: "button", "data-act": "csv-group", title: "Download every posting of this load as a DAT CSV", onclick: () => downloadDat(single ? "one" : "group", b.members, "Load") }, icon("download", 15), "Download CSV"),
       h("button", { class: "btn", type: "button", "data-act": "mark-covered", title: "Log which posting and carrier covered it, then remove the load", onclick: () => coverModal(b) }, icon("check", 15), "Mark covered"),
       single ? h("button", { class: "btn", type: "button", title: "Build the 9-posting matrix", onclick: () => matrixFlow(head) }, "Build 3\xD73 matrix") : null,
@@ -6071,7 +6797,6 @@ Download anyway?`, "Download anyway");
           await actions.saveSpareFromGroup(head.id);
           toast("Saved to Spare Load Details.", "ok");
         } },
-        { label: "Open DAT RateView", run: () => rateLink(head) },
         { label: "Weather at origin", run: () => weather(head) },
         { label: single ? "Delete this load" : "Delete all postings", act: "del-group", danger: true, run: () => deleteMany(ids, single ? "this posting" : `all ${ids.length} postings in ${b.title}`) }
       ])
@@ -6082,23 +6807,55 @@ Download anyway?`, "Download anyway");
       header,
       loadDetailsBar(details, opts2),
       acts,
-      guidanceBlock(r, boardCtx()),
+      guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? "one" : "group", b.members, "Load") }),
       h("div", { class: "tablewrap" }, h(
         "table",
         { class: "lanetable" },
-        h("thead", null, h("tr", null, [["", ""], ["Post", "A-A is the original. Other cells are nearby origin/destination pairings."], ["Origin", ""], ["", ""], ["Destination", ""], ["Replies / sent", "Carrier replies received / outreach drafts created"], ["", ""]].map(([x, t2]) => h("th", { title: t2 || null }, x)))),
-        h("tbody", null, b.members.map((m) => row(m)))
-      ))
+        h("thead", null, h("tr", null, [["", ""], ["Post", "A-A is the original. Other cells are nearby origin/destination pairings."], ["Origin", ""], ["", ""], ["Destination", ""], ["DAT rate", "The rate you post on DAT for this posting. Fill it on only some postings and the rest post without a rate."], ["Replies / sent", "Carrier replies received / outreach drafts created"], ["", ""]].map(([x, t2]) => h("th", { title: t2 || null }, x)))),
+        h("tbody", null, b.members.map((m) => row(m, rc)))
+      )),
+      rateNote(b, rinfo, rate2)
+    );
+  }
+  function rateNote(b, info, rate2) {
+    const ids = b.members.map((m) => m.id);
+    const onDat = state.settings.postTargetOnDat !== false;
+    const text2 = info.mode === "own" ? `DAT rate on ${info.count} of ${info.total} postings. The other ${info.total - info.count} post without a rate.` : info.mode === "target" ? `${money2(rate2)} will be posted on all ${info.total} postings. Type a DAT rate on only the postings you want priced and the rest post without one.` : `No rate will be posted. Type a DAT rate on the postings you want priced${rate2 && !onDat ? ', or switch on "Post target rate on DAT"' : ""}.`;
+    return h(
+      "div",
+      { class: "ratenote muted small" },
+      icon("info", 14),
+      h("span", null, text2),
+      info.mode === "own" ? h("button", { class: "btn small", type: "button", "data-act": "clear-dat-rates", title: "Clear every DAT rate on this load, so the target rate is posted on all of them again", onclick: async () => {
+        await actions.clearDatRates(b.head.id);
+        toast("DAT rates cleared. The target rate is posted on every posting again.", "ok");
+      } }, "Use the target on all") : null
     );
   }
   function brokerTabs(boxesAll) {
     const brokers = state.settings.brokers || [];
     const unassigned = boxesAll.filter((x) => !(x.box.head.broker || "")).length;
     const count3 = (name) => boxesAll.filter((x) => (x.box.head.broker || "") === name).length;
-    const tab2 = (id, label2, n) => h("button", { class: "tab" + (brokerTab === id ? " on" : ""), type: "button", role: "tab", "aria-selected": String(brokerTab === id), "data-fk": "tab:" + id, onclick: () => {
-      brokerTab = id;
-      rerender();
-    } }, label2, h("em", null, n));
+    const canSort = brokers.length > 1;
+    const tab2 = (id, label2, n, isBroker = false) => h(
+      "button",
+      {
+        class: "tab" + (brokerTab === id ? " on" : "") + (isBroker && canSort ? " sortable" : ""),
+        type: "button",
+        role: "tab",
+        "aria-selected": String(brokerTab === id),
+        "data-fk": "tab:" + id,
+        dataset: isBroker ? { broker: id } : null,
+        title: isBroker && canSort ? `${label2} - drag to re-order the brokers (or hold Alt and press the arrow keys)` : null,
+        onclick: () => {
+          brokerTab = id;
+          rerender();
+        }
+      },
+      isBroker && canSort ? h("span", { class: "grip", "aria-hidden": "true" }, icon("grip", 14)) : null,
+      label2,
+      h("em", null, n)
+    );
     const addBroker = h("button", { class: "btn small", type: "button", onclick: () => {
       const inp = h("input", { placeholder: "Broker name", "data-live": "" });
       modal({
@@ -6115,14 +6872,16 @@ Download anyway?`, "Download anyway");
       });
       setTimeout(() => inp.focus(), 40);
     } }, icon("plus", 14), "Broker");
-    return h(
+    const wrap = h(
       "div",
       { class: "tabs", role: "tablist", "aria-label": "Broker boards" },
       tab2("__all", "All", boxesAll.length),
-      brokers.map((b) => tab2(b, b, count3(b))),
+      brokers.map((b) => tab2(b, b, count3(b), true)),
       brokers.length && unassigned ? tab2("", "Unassigned", unassigned) : null,
       addBroker
     );
+    if (canSort) makeSortable(wrap, { items: () => [...wrap.querySelectorAll(".tab[data-broker]")], id: (el) => el.dataset.broker, axis: "x", onReorder: (order) => actions.reorderBrokers(order) });
+    return wrap;
   }
   function render2() {
     const now = /* @__PURE__ */ new Date();
@@ -6229,7 +6988,7 @@ Download anyway?`, "Download anyway");
       })) : emptyState({ icon: "board", title: state.postings.length ? "No loads match" : "No loads yet", text: state.postings.length ? "Clear the search or pick another broker tab." : "Paste TQL load text above. The loads appear here right away." })
     );
   }
-  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, datOpts, EQ_TITLE, loadDetailsBar;
+  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, datOpts, DAT_RATE_COL, EQ_TITLE, loadDetailsBar;
   var init_board = __esm({
     "js/ui/pages/board.js"() {
       init_dom();
@@ -6245,6 +7004,7 @@ Download anyway?`, "Download anyway");
       init_icons();
       init_chrome();
       init_ctx();
+      init_sortable();
       init_status();
       init_flow();
       init_cover();
@@ -6263,7 +7023,8 @@ Download anyway?`, "Download anyway");
         saveUi({ collapsed: [...keys] });
         rerender();
       };
-      datOpts = () => ({ targetAsRate: state.settings.postTargetOnDat !== false });
+      datOpts = () => ({ targetAsRate: state.settings.postTargetOnDat !== false, all: state.postings });
+      DAT_RATE_COL = DAT_COLUMNS.findIndex((c) => c.key === "datRate");
       EQ_TITLE = EQUIPMENT.map((e) => `${e.code} = ${e.label}`).join(", ");
       document.addEventListener("click", (e) => {
         document.querySelectorAll("details.menu[open]").forEach((d) => {
@@ -6359,9 +7120,10 @@ Download anyway?`, "Download anyway");
     const active = cs.filter((c) => String(c.status || "Active").toLowerCase() !== "inactive");
     const withEmail = cs.filter((c) => String(c.email || "").trim()).length, withPhone = cs.filter((c) => String(c.phone || "").trim()).length;
     const covers = cs.reduce((n, c) => n + (Number(c.coverCount) || 0), 0);
+    const wk = weekStart(new Date(now)).getTime();
     const recent = cs.filter((c) => {
       const t2 = Date.parse(c.lastContacted);
-      return Number.isFinite(t2) && now - t2 < 7 * DAY2;
+      return Number.isFinite(t2) && t2 >= wk;
     }).length;
     const never = cs.filter((c) => !Date.parse(c.lastContacted)).length;
     const states = new Set(cs.flatMap((c) => [c.originState, c.destState]).map((x) => String(x || "").trim().toUpperCase()).filter(Boolean)).size;
@@ -6469,7 +7231,7 @@ Download anyway?`, "Download anyway");
       ))
     );
   }
-  var q, DAY2, csv;
+  var q, csv;
   var init_carriers = __esm({
     "js/ui/pages/carriers.js"() {
       init_dom();
@@ -6482,7 +7244,6 @@ Download anyway?`, "Download anyway");
       init_csv();
       init_importer();
       q = "";
-      DAY2 = 864e5;
       csv = () => toDelimited([CARRIER_HEADERS, ...state.carriers.map((c) => CARRIER_KEYS.map((k) => c[k] ?? ""))], ",");
     }
   });
@@ -6501,11 +7262,11 @@ Download anyway?`, "Download anyway");
     const states = new Set(cs.map((c) => String(c.state || "").trim().toUpperCase()).filter(Boolean)).size;
     const touched = cs.filter((c) => {
       const t2 = Date.parse(c.lastContacted);
-      return Number.isFinite(t2) && now - t2 < 30 * DAY3;
+      return Number.isFinite(t2) && now - t2 < 30 * DAY2;
     }).length;
     const stale = cs.filter((c) => {
       const t2 = Date.parse(c.lastContacted);
-      return !Number.isFinite(t2) || now - t2 >= 90 * DAY3;
+      return !Number.isFinite(t2) || now - t2 >= 90 * DAY2;
     }).length;
     return statTiles([[cs.length, "Contacts"], [companies, "Companies"], [touched, "Contacted in 30 days"], [stale, "Not contacted in 90+ days", stale ? "act" : ""]]);
   }
@@ -6593,7 +7354,7 @@ Download anyway?`, "Download anyway");
       ))
     );
   }
-  var q2, DAY3, csv2;
+  var q2, DAY2, csv2;
   var init_customers = __esm({
     "js/ui/pages/customers.js"() {
       init_dom();
@@ -6603,7 +7364,7 @@ Download anyway?`, "Download anyway");
       init_csv();
       init_importer();
       q2 = "";
-      DAY3 = 864e5;
+      DAY2 = 864e5;
       csv2 = () => toDelimited([CUSTOMER_HEADERS, ...state.customers.map((c) => CUSTOMER_KEYS.map((k) => c[k] ?? ""))], ",");
     }
   });
@@ -7198,7 +7959,8 @@ Download anyway?`, "Download anyway");
         { class: "man-hero" },
         h("div", { class: "eyebrow" }, "User guide"),
         h("h2", null, "Intelligent Carrier Sourcing Optimization System"),
-        h("p", null, "Freight Signal turns one load into nine DAT postings, sets your rates, drafts carrier outreach and tracks every reply. This guide takes about five minutes to read.")
+        h("p", null, "Freight Signal turns one load into nine DAT postings, sets your rates, drafts carrier outreach and tracks every reply. This guide takes about five minutes to read."),
+        h("p", null, h("button", { class: "btn primary", type: "button", onclick: () => startTour() }, "Take the 60-second tour"))
       ),
       h("nav", { class: "man-toc", "aria-label": "Guide sections" }, SECTIONS.map(([id, t2]) => h("button", { type: "button", onclick: () => go(id) }, t2))),
       sec(
@@ -7224,7 +7986,9 @@ Download anyway?`, "Download anyway");
           card("A-A = the original", "Postings are labelled by grid position. A is the original origin / destination, B and C are the two nearby markets. A-B means original origin to the first nearby destination."),
           card("Priority sets the target", "Changing Priority on a box updates the whole box at once: Low = 5, Medium = 10, High = 15 outreach emails. The badge in the header shows the live number."),
           card("Edit anywhere", "Every cell is editable. Change a city and its ZIP follows automatically (origin and destination). If the city is not in the ZIP Map you get a warning instead of a guess."),
-          card("Tick, then act", "Use the checkboxes to select postings across lanes, then Download selected or Delete selected from the bar that appears.")
+          card("Tick, then act", "Use the checkboxes to select postings across lanes, then Download selected or Delete selected from the bar that appears."),
+          card("Brokers, in your order", "Drag a broker tab (or hold Alt and press the arrow keys) to put the brokers in the order you want. The same order shows in System."),
+          card("Cover week", "The weekly cover count runs Monday to Sunday and resets at 12:00 AM Monday. Reach your weekly floor (50 by default) and the app celebrates.")
         ),
         h("p", null, h("b", null, "Deleting. "), "The red \u2715 deletes one posting. ", h("b", null, "Delete group"), " deletes the whole box. Both ask first. Setting a load to Covered removes the whole group and counts a cover.")
       ),
@@ -7235,11 +7999,12 @@ Download anyway?`, "Download anyway");
         h("div", { class: "man-note" }, h("b", null, "One rate per load. "), "The ", h("b", null, "Target rate"), " in the load details is the rate for every posting in the matrix. It is posted on DAT (switch \u201CPost target rate on DAT\u201D off to leave the CSV rate blank) and it is the price carrier e-mail replies are judged against."),
         table(["I want to\u2026", "Do this"], [
           ["Post the same rate on all 9", "Type it in Target rate in the load details and press Enter."],
-          ["Rate only some postings", "Open a posting\u2019s \u22EF menu, choose Edit every field and fill \u201CDAT rate override\u201D."],
+          ["Rate only some postings (say 2 of the 9)", "Type the rate in the DAT rate box on just those rows. The other postings of that load post without a rate. \u201CUse the target on all\u201D under the table undoes it."],
           ["Download everything", "Download all in the top bar."],
           ["Download one lane", "Download CSV in the lane box."],
           ["Download some postings", "Tick them, then Download selected."],
-          ["Download one posting", "CSV at the end of that row."]
+          ["Download one posting", "The \u22EF menu at the end of that row, then Download this posting."],
+          ["See the market rate", "DAT RateView on the load (or the chart button on a row, for that posting\u2019s own cities) opens RateView in a new tab."]
         ]),
         note("The file is DAT\u2019s bulk template exactly: the same 24 columns in the same order, header row and one line per posting, with no instruction rows. If a required field is missing you are told which postings DAT would reject before the file downloads."),
         h("h4", null, "Equipment codes"),
@@ -7260,8 +8025,21 @@ Download anyway?`, "Download anyway");
         )
       ),
       sec(
-        "outlook",
+        "guide",
         5,
+        "Guided notes: what to do and when",
+        h("p", null, "Every load has a Next step panel. It reads what has happened on that load (how long it has been live, inquiries, rates, what you already tried) and tells you the one best thing to do. A load starts its clock when you download its CSV for DAT."),
+        table(["Live for", "No inquiries yet? Do this"], [
+          ["0 to 30 minutes", "Hold the price. Inquiries normally start within minutes. Confirm all the postings are showing on DAT and start outreach."],
+          ["30 to 60 minutes", "Refresh: reload your DAT posts and your inbox, and re-post anything that dropped off."],
+          ["1 hour", "Something is not working. The panel lists what to check for that load: required fields, whether it shows on DAT, pickup date, rate against the last cover, contact method, equipment and weight."],
+          ["2 hours or more", "Escalate in order: reprice, second wave of outreach, fresh alternate cities, phone calls, then the customer."]
+        ]),
+        note("A pickup that is close to closing skips the waiting: after 30 minutes you go straight to the escalation steps.")
+      ),
+      sec(
+        "outlook",
+        6,
         "Outlook connection",
         h("p", null, "Outlook cannot see data inside a browser, so Freight Signal shares your postings with it through one folder on your computer. The Outlook macro reads that folder, drafts the replies, and tells the app what it did."),
         steps(
@@ -7280,13 +8058,13 @@ Download anyway?`, "Download anyway");
       ),
       sec(
         "tools",
-        6,
+        7,
         "Weather and RateView",
-        h("p", null, h("b", null, "Wx"), " on a posting opens Ventusky weather at the origin. The ", h("b", null, "Ventusky weather"), " button on HOME opens the general map. ", h("b", null, "Rate"), " opens DAT RateView for the lane and equipment in a new tab. The app never fetches or invents rates.")
+        h("p", null, "Weather at origin (in a \u22EF menu) opens Ventusky. The ", h("b", null, "Ventusky weather"), " button on HOME opens the general map. ", h("b", null, "DAT RateView"), " is a button on every load (and a chart button on every row) and opens RateView for that lane and equipment in a new tab. The app never fetches or invents rates.")
       ),
       sec(
         "safety",
-        7,
+        8,
         "Backup and safety",
         h(
           "div",
@@ -7298,7 +8076,7 @@ Download anyway?`, "Download anyway");
       ),
       sec(
         "help",
-        8,
+        9,
         "Troubleshooting",
         table(["Symptom", "Fix"], [
           ["ZIP did not change after editing a city", "The city or state is not in the ZIP Map (a warning appears). Check the spelling or type the ZIP yourself."],
@@ -7315,6 +8093,7 @@ Download anyway?`, "Download anyway");
     "js/ui/pages/manual.js"() {
       init_dom();
       init_defaults();
+      init_tour();
       go = (id) => {
         const el = document.getElementById("man-" + id);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -7324,6 +8103,7 @@ Download anyway?`, "Download anyway");
         ["board", "The board"],
         ["dat", "DAT & rates"],
         ["outreach", "Carriers & outreach"],
+        ["guide", "Guided notes"],
         ["outlook", "Outlook"],
         ["tools", "Weather & RateView"],
         ["safety", "Backup & safety"],
@@ -7825,9 +8605,9 @@ Download anyway?`, "Download anyway");
       if (!m || !Number.isFinite(m.lat) || !Number.isFinite(m.lng)) return;
       out.set(k, { key: k, lat: m.lat, lng: m.lng });
     };
-    const live = state.postings.filter((p) => String(p.status || "Active").toLowerCase() !== "covered");
-    for (const p of live) add(p.originCity, p.originState);
-    for (const p of live) if (p.variant === "Original" || !p.variant) add(p.destCity, p.destState);
+    const live2 = state.postings.filter((p) => String(p.status || "Active").toLowerCase() !== "covered");
+    for (const p of live2) add(p.originCity, p.originState);
+    for (const p of live2) if (p.variant === "Original" || !p.variant) add(p.destCity, p.destState);
     return [...out.values()].slice(0, MAX_CITIES);
   }
   async function fetchOne(w) {
@@ -7894,573 +8674,6 @@ Download anyway?`, "Download anyway");
       running = false;
       timer2 = null;
       cityKey3 = (c, s) => normalizeText(c) + "|" + normalizeText(s);
-    }
-  });
-
-  // js/ui/pages/system.js
-  var system_exports = {};
-  __export(system_exports, {
-    render: () => render11
-  });
-  async function importZip() {
-    const f = await pickFile(".csv");
-    if (!f) return;
-    try {
-      const n = await importZipCsv(await readFileText(f), f.name);
-      toast(`ZIP Map imported: ${n.toLocaleString()} rows.`, "ok");
-    } catch (e) {
-      toast("ZIP Map not imported: " + e.message, "err", 9e3);
-    }
-  }
-  async function loadSample() {
-    try {
-      const snap = typeof globalThis.__FS_SAMPLE === "string" ? JSON.parse(globalThis.__FS_SAMPLE) : await fetch("data/sample/sample-backup.json").then((r) => {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      });
-      if (!await confirmDialog("Load sample data", "Adds clearly fictional sample carriers, inquiries and one load to your existing data (merge). Continue?", "Add sample data")) return;
-      await actions.restoreBackup(snap, "merge");
-      toast("Sample data added.", "ok");
-    } catch (e) {
-      toast("Sample data unavailable: " + e.message, "err");
-    }
-  }
-  async function restore() {
-    const f = await pickFile(".json");
-    if (!f) return;
-    let snap;
-    try {
-      snap = JSON.parse(await readFileText(f));
-    } catch {
-      return toast("That file is not valid JSON.", "err");
-    }
-    const mode2 = await new Promise((resolve) => {
-      modal({
-        title: "Restore backup",
-        body: h("p", null, "Replace everything with the backup, or merge it into current data?"),
-        onClose: () => resolve(null),
-        actions: [{ label: "Cancel", onClick: () => resolve(null) }, { label: "Merge", onClick: () => resolve("merge") }, { label: "Replace all", kind: "danger", onClick: () => resolve("replace") }]
-      });
-    });
-    if (!mode2) return;
-    try {
-      await actions.restoreBackup(snap, mode2);
-      toast("Backup restored.", "ok");
-    } catch (e) {
-      toast("Restore failed (nothing was changed if validation failed): " + e.message, "err", 9e3);
-    }
-  }
-  function section(id, title, summary, body, { open = false, tone = "" } = {}) {
-    const saved = (state.settings.ui || {}).sys || {};
-    const isOpen = id in saved ? !!saved[id] : open;
-    const det = h(
-      "details",
-      { class: "sect " + tone, open: isOpen, dataset: { sect: id } },
-      h("summary", null, h("span", { class: "sect-t" }, h("b", null, title), summary ? h("small", { class: "muted" }, summary) : null), icon("chevdown", 16, "sect-ch")),
-      h("div", { class: "sect-body" }, body)
-    );
-    det.addEventListener("toggle", () => {
-      const ui2 = state.settings.ui || {};
-      actions.savePrefs({ ui: { ...ui2, sys: { ...ui2.sys || {}, [id]: det.open } } });
-    });
-    return det;
-  }
-  async function macroText() {
-    if (typeof globalThis.__FS_MACRO === "string") return globalThis.__FS_MACRO;
-    const r = await fetch(MACRO_FILE);
-    if (!r.ok) throw new Error("The macro file could not be loaded (HTTP " + r.status + ").");
-    return r.text();
-  }
-  function outlookGuide() {
-    const run2 = async (fn, okMsg) => {
-      try {
-        await fn();
-        if (okMsg) toast(okMsg, "ok");
-      } catch (e) {
-        if (e && e.name === "AbortError") return;
-        toast(String(e.message || e), "err", 8e3);
-      }
-      rerender5();
-    };
-    const on = bridge.connected, olOn = on && outlookConnected();
-    const v5 = olOn && /v5/i.test(String(bridge.outlook && bridge.outlook.macroVersion || ""));
-    const macroBtns = h(
-      "div",
-      { class: "toolbar" },
-      h("button", { class: "btn primary", type: "button", "data-act": "macro-copy", onclick: async () => {
-        try {
-          await copyText(await macroText(), "Macro copied. Now paste it into Outlook (step 5).");
-        } catch (e) {
-          toast(e.message, "err", 8e3);
-        }
-      } }, icon("copy", 15), "Copy the macro"),
-      h("button", { class: "btn", type: "button", "data-act": "macro-download", onclick: async () => {
-        try {
-          download("Outlook_v5_ThisOutlookSession.txt", await macroText(), "text/plain;charset=utf-8");
-        } catch (e) {
-          toast(e.message, "err", 8e3);
-        }
-      } }, icon("download", 15), "Download as a .txt file")
-    );
-    const steps2 = h(
-      "ol",
-      { class: "gsteps" },
-      step(
-        1,
-        on,
-        "Make a folder for the two programs to share",
-        h("p", null, "In File Explorer open ", h("b", null, "Documents"), ", right-click an empty spot, choose ", h("b", null, "New \u2192 Folder"), " and name it ", h("b", null, "FreightSignal"), ". This one folder is the only thing the browser and Outlook share."),
-        h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: () => copyText("FreightSignal", "Folder name copied.") }, "Copy the name"))
-      ),
-      step(
-        2,
-        on,
-        "Tell Freight Signal about that folder",
-        h("p", null, "Use Chrome or Edge. Click the button, pick the ", h("b", null, "FreightSignal"), " folder, then press ", h("b", null, "Edit files / View files"), " (Allow) when the browser asks."),
-        !bridge.supported ? h("div", { class: "banner err" }, "This browser cannot share a folder. Open Freight Signal in Chrome or Edge.") : null,
-        h(
-          "div",
-          { class: "toolbar" },
-          !on && !bridge.needsPermission ? h("button", { class: "btn primary", type: "button", "data-act": "bridge-connect", disabled: !bridge.supported, onclick: () => run2(connect, "Folder connected. Postings are now shared with Outlook.") }, "Choose the FreightSignal folder\u2026") : null,
-          bridge.needsPermission ? h("button", { class: "btn primary", type: "button", "data-act": "bridge-reconnect", onclick: () => run2(reconnect, "Reconnected.") }, "Reconnect folder (one click)") : null,
-          on ? h("span", { class: "pill ok" }, `Connected: ${bridge.folderName}`) : null
-        )
-      ),
-      step(3, olOn, "Use classic Outlook for Windows", h("p", null, "Macros only work in ", h("b", null, "classic Outlook"), " (the one with a File menu and a ribbon). If you see a ", h("b", null, "New Outlook"), " toggle in the top-right corner, switch it ", h("b", null, "off"), ". Outlook on the web, Mac and the Microsoft Store mail app cannot run it.")),
-      step(4, olOn, "Copy the macro", h("p", null, "This is the whole program Outlook will run. Press the button, or download it as a text file and open that in Notepad."), macroBtns),
-      step(5, olOn, "Paste it into Outlook", h(
-        "ol",
-        { class: "sub" },
-        h("li", null, "In Outlook press ", kbd("Alt"), " + ", kbd("F11"), ". A window called ", h("b", null, "Microsoft Visual Basic for Applications"), " opens."),
-        h("li", null, "On the left, click the little ", h("b", null, "+"), " beside ", h("b", null, "Project1"), ", then beside ", h("b", null, "Microsoft Outlook Objects"), "."),
-        h("li", null, "Double-click ", h("b", null, "ThisOutlookSession"), ". A big white area opens on the right."),
-        h("li", null, "Click inside that white area, press ", kbd("Ctrl"), " + ", kbd("A"), " (select everything that is there) and then ", kbd("Ctrl"), " + ", kbd("V"), " to paste the macro over it. If you had the older version, this replaces it."),
-        h("li", null, "Press ", kbd("Ctrl"), " + ", kbd("S"), " to save, then close the Visual Basic window.")
-      )),
-      step(6, olOn, "Allow the macro to run", h(
-        "ol",
-        { class: "sub" },
-        h("li", null, "In Outlook choose ", h("b", null, "File \u2192 Options \u2192 Trust Center \u2192 Trust Center Settings\u2026 \u2192 Macro Settings"), "."),
-        h("li", null, "Select ", h("b", null, "Notifications for all macros"), " (safe: Outlook asks you each time it starts) and press OK twice."),
-        h("li", null, "Close Outlook completely and open it again. When the yellow bar or pop-up appears, click ", h("b", null, "Enable Macros"), "."),
-        h("li", null, "Tip: if your company blocks macros, ask IT to allow this one, or to sign it with your certificate.")
-      )),
-      step(
-        7,
-        olOn,
-        "Test it",
-        h(
-          "ol",
-          { class: "sub" },
-          h("li", null, "In Outlook press ", kbd("Alt"), " + ", kbd("F8"), ", choose ", h("b", null, "FS_Ping"), " and press Run."),
-          h("li", null, 'Come back here and press the button below. The line at the top of this section turns green and says "Outlook connected".')
-        ),
-        h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", "data-act": "bridge-poll", disabled: !on, onclick: () => run2(async () => {
-          const n = await pollNow();
-          toast(n ? `${n} Outlook update(s) applied.` : "Checked.", n ? "ok" : "info");
-        }) }, icon("refresh", 15), "Check Outlook now"))
-      ),
-      step(
-        8,
-        v5 && bridge.draftsSaved > 0,
-        "Carrier outreach lands in your Outlook Drafts",
-        h("p", null, "With the folder connected, every outreach or truck-check draft made here is saved into the ", h("b", null, "Drafts"), " folder in Outlook. Nothing is ever sent for you: open the draft and press Send yourself."),
-        h("p", { class: "muted" }, "Outlook picks the drafts up when you click into Outlook, when a new e-mail arrives, or when it starts. To force it, press ", kbd("Alt"), " + ", kbd("F8"), ", choose ", h("b", null, "FS_DraftsNow"), " and Run."),
-        olOn && !v5 ? h("div", { class: "banner err" }, `Outlook is still running the older macro (${bridge.outlook.macroVersion || "v4"}). Repeat steps 4 and 5 to update it - drafts to Outlook need v5.`) : null
-      )
-    );
-    const fix = h(
-      "div",
-      { class: "trouble" },
-      h("details", null, h("summary", null, "Nothing happens after step 6 / the status never turns green"), h(
-        "ul",
-        null,
-        h("li", null, "Make sure you saved in the VBA window (", kbd("Ctrl"), "+", kbd("S"), ") and restarted Outlook, then clicked Enable Macros."),
-        h("li", null, "Press ", kbd("Alt"), "+", kbd("F11"), " and check the code is in ", h("b", null, "ThisOutlookSession"), ", not in a Module."),
-        h("li", null, "Press ", kbd("Alt"), "+", kbd("F8"), ", run ", h("b", null, "FS_Diagnostics"), ": it lists what it found in the folder and any error."),
-        h("li", null, "Outlook looks for the folder you chose in step 2. If it asks you for a folder path, paste the full path of the FreightSignal folder.")
-      )),
-      h("details", null, h("summary", null, "The browser asks for folder permission every day"), h("p", null, "That is Chrome protecting your files. After a restart, click ", h("b", null, "Reconnect folder"), " once. Installing Freight Signal as an app (Chrome menu \u2192 Cast, save and share \u2192 Install) reduces the prompts.")),
-      h("details", null, h("summary", null, "I only want the e-mail drafts, not Outlook"), h("p", null, "Skip this whole section. Drafts can be downloaded as .eml files (they open in Outlook as unsent drafts), opened in your mail app or copied. The Outlook connection adds automatic replies to carriers and the Drafts folder."))
-    );
-    const state_rows = [];
-    state_rows.push(h(
-      "div",
-      { class: "state", "data-bridge": on ? "connected" : bridge.needsPermission ? "permission" : "off" },
-      h("span", { class: "dot " + (on ? "on" : bridge.needsPermission ? "warn" : "off") }),
-      on ? `Folder connected: ${bridge.folderName}` : bridge.needsPermission ? `Folder "${bridge.folderName}" needs your permission again` : "Not connected"
-    ));
-    const ol = bridge.outlook;
-    state_rows.push(h(
-      "div",
-      { class: "state", "data-outlook": olOn ? "connected" : "waiting" },
-      h("span", { class: "dot " + (olOn ? "on" : "warn") }),
-      olOn ? `Outlook connected \u2014 last heard ${fmtDate(ol.lastSeen)}, read ${ol.postingsRead} posting(s)${ol.macroVersion ? ", macro " + ol.macroVersion : ""}${ol.lastEvent ? ", last action: " + ol.lastEvent : ""}` : on ? ol && ol.lastSeen ? `Outlook last heard ${fmtDate(ol.lastSeen)} (more than a day ago - restart Outlook or run FS_Ping)` : "Waiting for Outlook \u2014 follow steps 3 to 7 below" : "Outlook status unknown until a folder is connected"
-    ));
-    if (on) state_rows.push(h(
-      "dl",
-      { class: "kv" },
-      h("dt", null, "Postings shared with Outlook"),
-      h("dd", null, `${bridge.postingsWritten}` + (bridge.lastWrite ? ` (written ${fmtDate(bridge.lastWrite)})` : "")),
-      h("dt", null, "Carrier conversations from Outlook"),
-      h("dd", null, String(bridge.eventsSeen || 0)),
-      h("dt", null, "Drafts waiting for Outlook / saved this session"),
-      h("dd", null, `${bridge.draftsPending || 0} / ${bridge.draftsSaved || 0}`),
-      h("dt", null, "Last checked"),
-      h("dd", null, bridge.lastSync ? fmtDate(bridge.lastSync) : "\u2014")
-    ));
-    if (bridge.error) state_rows.push(h("div", { class: "banner err" }, bridge.error));
-    const tools = h(
-      "div",
-      { class: "toolbar" },
-      on ? h("button", { class: "btn", type: "button", onclick: () => run2(() => writeNow(true), "Postings written for Outlook.") }, "Write postings now") : null,
-      on || bridge.needsPermission ? h("button", { class: "btn danger", type: "button", onclick: () => run2(disconnect, "Disconnected.") }, "Disconnect") : null
-    );
-    return h(
-      "div",
-      { class: "bridge" },
-      h("p", { class: "muted" }, "Outlook cannot see data stored in a browser, so Freight Signal shares your live postings with it through one folder. The Outlook macro reads that folder to match carrier e-mails to your postings, drafts the replies, saves your outreach drafts, and writes what it did back so the Inquiry Log updates here. Nothing is uploaded anywhere."),
-      ...state_rows,
-      tools,
-      h("h4", null, "Step by step"),
-      steps2,
-      fix
-    );
-  }
-  function mk(s) {
-    const save = (patch) => actions.saveSettings(patch);
-    const num4 = (k, label2, hint, props = {}) => {
-      const el = h("input", { type: "number", value: s[k], "data-rerender": "", ...props });
-      el.addEventListener("change", () => save({ [k]: Number(el.value) }));
-      return field(label2, el, hint);
-    };
-    const check = (k, label2, hint) => {
-      const el = h("input", { type: "checkbox", checked: !!s[k], "data-live": "" });
-      el.addEventListener("change", () => save({ [k]: el.checked }));
-      return h("label", { class: "inl chk" }, el, " ", label2, hint ? h("small", { class: "muted" }, " - " + hint) : null);
-    };
-    const area = (k, label2, hint, conv = (v) => v, show = (v) => v) => {
-      const el = h("textarea", { "data-rerender": "" });
-      el.value = show(s[k]);
-      el.addEventListener("change", () => save({ [k]: conv(el.value) }));
-      return field(label2, el, hint);
-    };
-    const select = (k, label2, opts2, hint) => {
-      const el = h("select", { "data-rerender": "" }, opts2.map(([v, t2]) => h("option", { value: v, selected: String(s[k]) === String(v) }, t2)));
-      el.addEventListener("change", () => save({ [k]: el.value }));
-      return field(label2, el, hint);
-    };
-    return { save, num: num4, check, area, select };
-  }
-  function ladderSection(s) {
-    const { num: num4 } = mk(s);
-    const tpl = templatesOf(s);
-    const tplField = (key, label2, hint, rows = 3) => {
-      const el = h("textarea", { rows, "data-rerender": "" });
-      el.value = tpl[key];
-      el.addEventListener("change", () => actions.saveSettings({ templates: { ...s.templates || {}, [key]: el.value } }));
-      return field(label2, el, h("span", null, hint + " Fill-ins: " + TEMPLATE_VARS[key].join(" ")));
-    };
-    const ex = (target, rate2) => {
-      const st2 = ladderStage(rate2, target, s);
-      const label2 = st2.stage === "book" ? "book it (ETA)" : st2.stage === "split" ? `split at ${formatCurrency0(st2.split)}` : `counter at ${formatCurrency0(target)}`;
-      return h("tr", null, h("td", null, formatCurrency0(target)), h("td", null, formatCurrency0(rate2)), h("td", null, (st2.pct >= 0 ? "+" : "") + st2.pct.toFixed(1) + "%"), h("td", null, h("b", null, label2)));
-    };
-    return h(
-      "div",
-      null,
-      h("p", { class: "muted" }, "When a carrier quotes a rate, the app (and the Outlook macro) compares it with your target as a ", h("b", null, "percentage"), ', so $200 over is treated very differently on a $900 load than on a $6,000 load. A rate at or below target is always "book it".'),
-      h("div", { class: "grid4" }, num4("ladderBookPct", "Book it within (%)", "Up to this % over target: confirm ETA / book.", { step: "0.5", min: 0 }), num4("ladderSplitPct", "Split the difference within (%)", "Above that, up to this %: counter halfway.", { step: "0.5", min: 0 }), num4("ladderRound", "Round the split to ($)", "Usually 5 or 10.", { min: 0 })),
-      h("p", { class: "muted" }, `Beyond ${s.ladderSplitPct}% over target the counter is simply your target.`),
-      h(
-        "table",
-        { class: "lanetable exampletable" },
-        h("thead", null, h("tr", null, ["Target", "Carrier says", "Over target", "Reply"].map((x) => h("th", null, x)))),
-        h("tbody", null, ex(900, 925), ex(900, 1100), ex(6e3, 6150), ex(6e3, 6400), ex(6e3, 7e3))
-      ),
-      h("h4", null, "What the e-mails say"),
-      tplField("book", "Inside the booking band", "Sent when the rate is acceptable."),
-      tplField("split", "Split-the-difference counter", "Sent when the rate is a little high."),
-      tplField("target", "Counter at target", "Sent when the rate is too high."),
-      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: async () => {
-        const t2 = { ...s.templates || {} };
-        delete t2.book;
-        delete t2.split;
-        delete t2.target;
-        await actions.saveSettings({ templates: t2 });
-        toast("Reply wording reset to the defaults.", "ok");
-      } }, "Reset these three"))
-    );
-  }
-  function truckSection(s) {
-    const tpl = templatesOf(s);
-    const f = (key, label2, rows) => {
-      const el = key === "truckSubject" ? h("input", { "data-rerender": "" }) : h("textarea", { rows, "data-rerender": "" });
-      el.value = tpl[key];
-      el.addEventListener("change", () => actions.saveSettings({ templates: { ...s.templates || {}, [key]: el.value } }));
-      return field(label2, el, "Fill-ins: " + TEMPLATE_VARS[key].join(" "));
-    };
-    return h(
-      "div",
-      null,
-      h("p", { class: "muted" }, `The one-click "Truck?" button in the Carrier Database drafts this e-mail to a carrier. {where} becomes "in Fresno, CA heading toward Reno, NV" from the carrier's record.`),
-      f("truckSubject", "Subject"),
-      f("truckBody", "Message", 7),
-      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: async () => {
-        const t2 = { ...s.templates || {} };
-        delete t2.truckSubject;
-        delete t2.truckBody;
-        await actions.saveSettings({ templates: t2 });
-        toast("Truck-check wording reset.", "ok");
-      } }, "Reset"))
-    );
-  }
-  function strategySection(s) {
-    const { num: num4 } = mk(s);
-    const cols = ["local", "regional", "long"].map((cls) => {
-      const cur = strategyFor(s, cls);
-      return h("div", { class: "panel stratcol" }, h("h4", null, LANE_LABEL[cls]), STRAT_FIELDS.map(([k, label2]) => {
-        const el = h("input", { type: "number", value: cur[k], step: k === "outreachMultiplier" ? "0.25" : "1", "data-rerender": "" });
-        el.addEventListener("change", () => actions.saveSettings({ strategies: { ...s.strategies || {}, [cls]: { ...(s.strategies || {})[cls] || {}, [k]: Number(el.value) } } }));
-        return field(label2, el);
-      }));
-    });
-    return h(
-      "div",
-      null,
-      h("p", { class: "muted" }, "Each load is classed by its road miles. A local load needs many nearby trucks and a tight matrix; a long load needs fewer, better-matched carriers and wider alternates. Change the cut-offs and the numbers if your freight behaves differently."),
-      h("div", { class: "grid4" }, num4("laneLocalMax", "Local is under (road mi)"), num4("laneRegionalMax", "Regional runs up to (road mi)", "Longer than this = long-distance.")),
-      h("div", { class: "grid3" }, cols),
-      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: async () => {
-        await actions.saveSettings({ strategies: null, laneLocalMax: 150, laneRegionalMax: 600 });
-        toast("Strategies reset to the defaults.", "ok");
-      } }, "Reset to defaults"))
-    );
-  }
-  function matrixSection(s) {
-    const { select } = mk(s);
-    const pins = Object.entries(s.matrixPins || {});
-    return h(
-      "div",
-      null,
-      h("p", { class: "muted" }, "The 3 \xD7 3 matrix picks two alternate origins and two alternate destinations that sit where the most trucks are, using population, your own cover history and the lane length. It adapts: in a dense metro it picks the close, big markets; in thin country it reaches farther."),
-      select("matrixMode", "When a load is added", [["auto", "Build the 3 \xD7 3 automatically (ask only when the cities look odd)"], ["ask", "Always show me the cities before building"]]),
-      h("h4", null, "Cities you told it to remember"),
-      pins.length ? h(
-        "table",
-        { class: "lanetable" },
-        h("thead", null, h("tr", null, ["For", "Always use", ""].map((x) => h("th", null, x)))),
-        h("tbody", null, pins.map(([k, v]) => h(
-          "tr",
-          null,
-          h("td", null, k.replace("|", ", ").toUpperCase()),
-          h("td", null, (v || []).map((c) => `${c.city}, ${c.state}`).join(" and ")),
-          h("td", null, h("button", { class: "btn small danger", type: "button", onclick: async () => {
-            const p = { ...s.matrixPins || {} };
-            delete p[k];
-            await actions.saveSettings({ matrixPins: p });
-          } }, "Forget"))
-        )))
-      ) : h("p", { class: "muted" }, 'None. In the matrix preview, tick "Remember these picks" to pin cities for an origin or destination.')
-    );
-  }
-  function carriersSection(s) {
-    const { num: num4, select, check, area } = mk(s);
-    return h(
-      "div",
-      null,
-      h(
-        "div",
-        { class: "grid4" },
-        num4("lowTarget", "Low target"),
-        num4("mediumTarget", "Medium target"),
-        num4("highTarget", "High target"),
-        num4("maxCarriersPerLoad", "Max carriers / load (scan)"),
-        num4("carrierRadiusMiles", "Carrier match radius (mi)", "A carrier within this distance of the origin and destination counts as on the lane."),
-        num4("minReasonableRate", "Min plausible rate"),
-        num4("maxReasonableRate", "Max plausible rate")
-      ),
-      check("recogniseCommaRates", "Recognise comma-formatted carrier rates such as $1,650", "the original Outlook macro does not; leave off for exact macro behaviour"),
-      select("outreachButtonMode", 'Row "Outreach" button', [["excel", "Draft the best-ranked carriers for this posting"], ["outlook", "Scan-style: skip carriers already drafted for this load"]]),
-      select("defaultContact", "New loads are posted on DAT with", [["Email", "E-mail (default)"], ["Phone", "Phone number"]], "You can change any load from its header."),
-      check("draftsToOutlook", "Save outreach drafts into my Outlook Drafts folder when Outlook is connected", "never sends anything"),
-      h(
-        "div",
-        { class: "grid2" },
-        area("outreachBlocklist", "Outreach blocklist", 'One per line: "@domain.com" blocks a domain, a full address blocks one sender.', lines, (v) => (v || []).join("\n")),
-        area("inboundBlocklist", "Inbound e-mail blocklist", "Substring match against the sender address.", lines, (v) => (v || []).join("\n"))
-      )
-    );
-  }
-  function expirySection(s) {
-    const { num: num4, check } = mk(s);
-    return h(
-      "div",
-      null,
-      h("p", { class: "muted" }, 'Postings whose pickup day has passed are moved to the Cover Log as "Expired" so the board only shows live loads. They can be restored from the Cover Log.'),
-      check("autoExpire", "Retire loads automatically after their pickup day", "on by default"),
-      num4("expireGraceDays", "Extra days to keep a load after pickup", "0 = retire at midnight after the pickup day.", { min: 0 })
-    );
-  }
-  function brokerSection(s) {
-    const { num: num4 } = mk(s);
-    const brokers = s.brokers || [];
-    const name = h("input", { placeholder: "Broker name", "data-live": "" });
-    const add = async () => {
-      const ok = await actions.addBroker(name.value);
-      if (!ok) return toast("Enter a name that is not already in the list.", "warn");
-      name.value = "";
-    };
-    name.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        add();
-      }
-    });
-    const days = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
-    const wd = new Set((s.workDays || [1, 2, 3, 4, 5]).map(Number));
-    return h(
-      "div",
-      null,
-      h("p", { class: "muted" }, 'Add the brokers you post for. Each gets their own tab on the Freight Signal page, their own scoreboard and their own DAT CSV; "All" shows everything.'),
-      brokers.length ? h("ul", { class: "brokerlist" }, brokers.map((b) => h(
-        "li",
-        null,
-        h("b", null, b),
-        h("button", { class: "btn small", type: "button", onclick: () => {
-          const inp = h("input", { value: b, "data-live": "" });
-          modal({ title: "Rename broker", body: field("Name", inp), actions: [{ label: "Cancel" }, { label: "Rename", kind: "primary", onClick: async () => {
-            await actions.renameBroker(b, inp.value);
-          } }] });
-        } }, "Rename"),
-        h("button", { class: "btn small danger", type: "button", onclick: async () => {
-          if (await confirmDialog("Remove broker", `Remove ${b}? Their loads stay on the board as Unassigned.`, "Remove")) actions.removeBroker(b);
-        } }, "Remove")
-      ))) : h("p", { class: "muted" }, "No brokers yet."),
-      h("div", { class: "toolbar" }, name, h("button", { class: "btn primary", type: "button", onclick: add }, "Add broker")),
-      h("h4", null, "Cover pace tracker (top right)"),
-      h("div", { class: "grid4" }, num4("weeklyFloor", "Weekly floor (covers)"), num4("workStart", "Workday starts (hour, 0-23)", null, { min: 0, max: 23 }), num4("workEnd", "Workday ends (hour, 0-23)", null, { min: 1, max: 23 })),
-      h("div", { class: "daypick" }, h("span", { class: "muted" }, "Working days: "), days.map(([n, l]) => {
-        const c = h("input", { type: "checkbox", checked: wd.has(n), "data-live": "" });
-        c.addEventListener("change", () => {
-          if (c.checked) wd.add(n);
-          else wd.delete(n);
-          if (!wd.size) {
-            wd.add(n);
-            c.checked = true;
-            return toast("Keep at least one working day.", "warn");
-          }
-          actions.saveSettings({ workDays: [...wd].sort() });
-        });
-        return h("label", { class: "inl" }, c, " " + l);
-      }))
-    );
-  }
-  function weatherSection(s) {
-    const { check } = mk(s);
-    return h(
-      "div",
-      null,
-      h("p", { class: "muted" }, "Flags loads whose pickup or delivery city has a severe National Weather Service alert (winter storms, tornadoes, flooding, high wind...) during the pickup window."),
-      h("div", { class: "banner" }, h("b", null, "Privacy: "), "this is the one feature that contacts another website. Only a latitude/longitude for each pickup and delivery city is sent to api.weather.gov (U.S. government, public). No load details, customers, carriers or rates are ever sent. Turn it off and nothing is."),
-      check("weatherFlags", "Show weather flags (U.S. cities)"),
-      h("p", { class: "muted small" }, weatherStatus.lastRun ? `Last check ${fmtDate(weatherStatus.lastRun)}: ${weatherStatus.cities} cities, ${weatherStatus.failed} failed${weatherStatus.error ? " (" + weatherStatus.error + ")" : ""}. Alerts now: ${state.weather.size} cities.` : "Not checked yet this session."),
-      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", disabled: !s.weatherFlags, onclick: async () => {
-        await refreshWeather(true);
-        toast("Weather refreshed.", "ok");
-        rerender5();
-      } }, icon("refresh", 14), "Refresh now"))
-    );
-  }
-  function render11() {
-    const s = state.settings;
-    if (!est) storageEstimate().then((e) => {
-      est = e || { none: true };
-      rerender5();
-    });
-    const { area } = mk(s);
-    const olOn = bridge.connected && outlookConnected();
-    return h(
-      "div",
-      null,
-      pageHead({ icon: "system", title: "System", sub: "Settings, backup and data. All stored in this browser only. Click a section to open it.", actions: [h("a", { class: "btn", href: "#/account" }, icon("palette", 15), "Themes & appearance")] }),
-      state.persistError ? h("div", { class: "banner err" }, "Storage problem: " + state.persistError) : null,
-      section("outlook", "Connect to Outlook", olOn ? "Connected" : bridge.connected ? "Folder connected, waiting for Outlook" : "Not connected - step-by-step guide inside", outlookGuide(), { open: !olOn, tone: olOn ? "good" : "warn" }),
-      section("ladder", "Counter ladder and reply wording", `Book within ${s.ladderBookPct}%, split within ${s.ladderSplitPct}% of target`, ladderSection(s)),
-      section("truck", "Truck-availability e-mail", 'Wording for the one-click "Truck?" button', truckSection(s)),
-      section("strategy", "Posting strategy by lane length", `Local < ${s.laneLocalMax} mi \xB7 Regional to ${s.laneRegionalMax} mi \xB7 Long beyond`, strategySection(s)),
-      section("matrix", "3 \xD7 3 matrix", s.matrixMode === "ask" ? "Always asks before building" : "Builds automatically", matrixSection(s)),
-      section("carriers", "Carriers, outreach and blocklists", `Radius ${s.carrierRadiusMiles} mi \xB7 DAT contact: ${s.defaultContact}`, carriersSection(s)),
-      section("expiry", "Auto-expiry", s.autoExpire ? "On: loads retire after pickup" : "Off", expirySection(s)),
-      section("brokers", "Brokers and cover pace", `${(s.brokers || []).length} broker(s) \xB7 floor ${s.weeklyFloor}/week`, brokerSection(s)),
-      section("weather", "Weather flags", s.weatherFlags ? "On (contacts api.weather.gov)" : "Off - nothing leaves the browser", weatherSection(s)),
-      section("parsing", "Parsing", "How pasted loads are split", area("loadSeparatorRegex", "Multi-load separator (regex)", "Pasted text is split into loads at lines matching this.", (v) => v.trim() || "^\\s*\\d+\\s*pick\\s*[-\u2013]\\s*\\d+\\s*drop")),
-      section("zip", "ZIP Map", state.zip ? `${state.zip.size.toLocaleString()} rows` : "Not loaded", h(
-        "div",
-        null,
-        h("p", null, state.zip ? `${state.zip.size.toLocaleString()} rows from ${state.zipInfo.source}.` : "Not loaded."),
-        h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", onclick: importZip }, "Import a different ZIP Map CSV\u2026"), h("span", { class: "muted" }, "Required headers: zip, lat, lng, city, state_id, population."))
-      )),
-      section("backup", "Backup and restore", "Download everything as one file", h(
-        "div",
-        null,
-        h(
-          "div",
-          { class: "toolbar" },
-          h("button", { class: "btn primary", type: "button", onclick: async () => {
-            const snap = await actions.exportBackup();
-            download(`freight-signal-backup-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json`, JSON.stringify(snap, null, 1), "application/json");
-            toast("Backup downloaded. It contains your carriers, customers and loads: store it securely.", "ok", 7e3);
-          } }, "Download backup (.json)"),
-          h("button", { class: "btn", type: "button", onclick: restore }, "Restore from backup\u2026"),
-          h("button", { class: "btn", type: "button", onclick: loadSample }, "Add sample data")
-        ),
-        est && !est.none ? h("p", { class: "muted" }, `Browser storage used: ${((est.usage || 0) / 1048576).toFixed(1)} MB of ${((est.quota || 0) / 1048576).toFixed(0)} MB available.`) : null
-      )),
-      section("counters", "Counters", "Carry over numbers from Excel", h(
-        "div",
-        null,
-        h("p", { class: "muted" }, "The pace tracker counts from the Cover Log. These two counters are for your own reference (and for carrying over Excel numbers)."),
-        h("div", { class: "grid4" }, num2("Covers today", "coversToday"), num2("Lifetime covers", "lifetimeCovers"))
-      )),
-      section("danger", "Danger zone", "Erase all data", h("button", { class: "btn danger", type: "button", onclick: async () => {
-        if (await confirmDialog("Erase all data", "Delete ALL loads, carriers, customers, cover log, inquiries, drafts and spares from this browser? Download a backup first. The ZIP Map is kept.", "Erase everything")) {
-          await actions.wipe();
-          toast("All data erased.", "ok");
-        }
-      } }, "Erase all data"), { tone: "danger" })
-    );
-  }
-  function num2(label2, key) {
-    const el = h("input", { type: "number", value: state.counters[key] || 0, "data-rerender": "" });
-    el.addEventListener("change", () => actions.setCounters({ [key]: Number(el.value) || 0 }));
-    return field(label2, el);
-  }
-  var est, rerender5, MACRO_FILE, step, kbd, lines, STRAT_FIELDS;
-  var init_system = __esm({
-    "js/ui/pages/system.js"() {
-      init_dom();
-      init_chrome();
-      init_icons();
-      init_state();
-      init_db();
-      init_bridge2();
-      init_weather2();
-      init_ladder();
-      init_lanes();
-      init_util();
-      est = null;
-      rerender5 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
-      MACRO_FILE = "outlook/Outlook_v5_ThisOutlookSession.txt";
-      step = (n, done, title, ...body) => h(
-        "li",
-        { class: "gstep2" + (done ? " done" : "") },
-        h("span", { class: "gnum" }, done ? icon("check", 15) : String(n)),
-        h("div", { class: "gbody" }, h("b", null, title), ...body)
-      );
-      kbd = (t2) => h("kbd", null, t2);
-      lines = (v) => String(v || "").split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
-      STRAT_FIELDS = [["altMin", "Closest alternate city (mi)"], ["altIdeal", "Ideal alternate distance (mi)"], ["altMax", "Farthest alternate (mi)"], ["minPop", "Smallest market (people)"], ["outreachMultiplier", "Outreach size x"], ["staleHours", "Aging after (h, no inquiries)"], ["repricePct", "Reprice step (% of rate)"], ["repriceMin", "Reprice min ($)"], ["repriceMax", "Reprice max ($)"], ["closingHours", 'Pickup "closing" within (h)']];
     }
   });
 
@@ -8967,13 +9180,13 @@ Download anyway?`, "Download anyway");
       accentHex: hex6(o.accentHex, D.accentHex),
       bg: oneOf(LEGACY_BG[o.bg] || o.bg, BACKGROUNDS.map((b) => b.id), D.bg),
       motion: bool(o.motion, D.motion),
-      dim: num3(o.dim, 0, 85, D.dim),
-      blur: num3(o.blur, 0, 14, D.blur),
-      glass: num3(o.glass, 40, 100, D.glass),
+      dim: num2(o.dim, 0, 85, D.dim),
+      blur: num2(o.blur, 0, 14, D.blur),
+      glass: num2(o.glass, 40, 100, D.glass),
       glassBlur: bool(o.glassBlur, D.glassBlur),
       gradA: hex6(o.gradA, D.gradA),
       gradB: hex6(o.gradB, D.gradB),
-      gradAngle: num3(o.gradAngle, 0, 360, D.gradAngle),
+      gradAngle: num2(o.gradAngle, 0, 360, D.gradAngle),
       image: typeof o.image === "string" && o.image.startsWith("data:image/") ? o.image : "",
       density: oneOf(o.density, DENSITIES.map((x) => x[0]), D.density),
       radius: oneOf(o.radius, RADII.map((x) => x[0]), D.radius),
@@ -9152,8 +9365,7 @@ Download anyway?`, "Download anyway");
     }
   }
   function syncFromStore(stored) {
-    if (!stored) return;
-    const next = normalize(stored);
+    const next = normalize(stored || null);
     if (JSON.stringify(next) !== JSON.stringify(current)) {
       current = next;
       applyAppearance(current);
@@ -9211,7 +9423,7 @@ Download anyway?`, "Download anyway");
       fr.readAsDataURL(file);
     });
   }
-  var MIRROR_KEY, DEFAULTS, SKINS, ACCENTS, BACKGROUNDS, LEGACY_BG, DENSITIES, RADII, SIZES, FONTS, oneOf, hex6, num3, bool, hexToRgb, rgbToHex, lum, clamp3, ratio, current, persistFn, saveTimer, listeners2, mq, getAppearance, onAppearance, resolvedMode, root, APPLIED_VARS;
+  var MIRROR_KEY, DEFAULTS, SKINS, ACCENTS, BACKGROUNDS, LEGACY_BG, DENSITIES, RADII, SIZES, FONTS, oneOf, hex6, num2, bool, hexToRgb, rgbToHex, lum, clamp3, ratio, current, persistFn, saveTimer, listeners2, mq, getAppearance, onAppearance, resolvedMode, root, APPLIED_VARS;
   var init_appearance = __esm({
     "js/ui/appearance.js"() {
       init_scenes();
@@ -9223,7 +9435,8 @@ Download anyway?`, "Download anyway");
         accent: "auto",
         // 'auto' = the skin's own accent | ACCENTS key | 'custom'
         accentHex: "#1ab0ee",
-        bg: "midnight-ocean",
+        bg: "plain",
+        // the Clean background is the default: no scene, just the theme colours
         motion: true,
         // animated scenes
         dim: 34,
@@ -9313,7 +9526,7 @@ Download anyway?`, "Download anyway");
         if (s.length === 3) s = s.replace(/(.)/g, "$1$1");
         return "#" + s.toLowerCase();
       };
-      num3 = (v, lo, hi, d) => {
+      num2 = (v, lo, hi, d) => {
         const n = Number(v);
         return Number.isFinite(n) ? Math.max(lo, Math.min(hi, Math.round(n))) : d;
       };
@@ -9351,6 +9564,757 @@ Download anyway?`, "Download anyway");
       resolvedMode = (a = current) => a.mode === "auto" ? mq && mq.matches ? "light" : "dark" : a.mode;
       root = () => document.documentElement;
       APPLIED_VARS = ["--accent", "--accent-rgb", "--btn-a", "--btn-b", "--on-btn"];
+    }
+  });
+
+  // js/ui/celebrate.js
+  var celebrate_exports = {};
+  __export(celebrate_exports, {
+    celebrate: () => celebrate
+  });
+  function palette() {
+    let acc = [26, 176, 238];
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--accent-rgb");
+      if (v.trim()) acc = rgbOf(v);
+    } catch {
+    }
+    const light = resolvedMode() === "light";
+    return light ? [acc, mix(acc, [0, 0, 0], 0.32), mix(acc, [255, 255, 255], 0.4), [201, 154, 46], [58, 74, 99]] : [acc, mix(acc, [255, 255, 255], 0.45), mix(acc, [0, 0, 0], 0.2), [255, 255, 255], [230, 195, 106]];
+  }
+  function banner({ week, floor }) {
+    document.querySelectorAll(".goal-banner").forEach((n) => n.remove());
+    const el = h(
+      "div",
+      { class: "goal-banner", role: "status", "aria-live": "polite" },
+      h("span", { class: "gb-ico" }, icon("check", 20)),
+      h("div", { class: "gb-text" }, h("b", null, `${week} covers this week`), h("small", null, `You hit your weekly floor of ${floor}. Nice work.`)),
+      h("button", { class: "gb-x", type: "button", "aria-label": "Dismiss", onclick: () => el.remove() }, icon("close", 14))
+    );
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("in"));
+    setTimeout(() => {
+      el.classList.remove("in");
+      setTimeout(() => el.remove(), 500);
+    }, 6e3);
+  }
+  function pulsePace() {
+    const pace = document.getElementById("pace");
+    if (!pace) return;
+    pace.classList.add("milestone");
+    setTimeout(() => pace.classList.remove("milestone"), 7e3);
+  }
+  function confetti() {
+    if (live) live.stop();
+    const dpr2 = Math.min(2, window.devicePixelRatio || 1);
+    const canvas2 = h("canvas", { id: "confetti", "aria-hidden": "true" });
+    document.body.appendChild(canvas2);
+    const ctx2 = canvas2.getContext("2d");
+    let W2 = 0, H4 = 0;
+    const fit = () => {
+      W2 = window.innerWidth;
+      H4 = window.innerHeight;
+      canvas2.width = Math.round(W2 * dpr2);
+      canvas2.height = Math.round(H4 * dpr2);
+      ctx2.setTransform(dpr2, 0, 0, dpr2, 0, 0);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    const colors = palette();
+    const scale = Math.max(0.7, Math.min(1.25, W2 * H4 / (1400 * 800)));
+    const k = H4 / 900;
+    const pieces = [];
+    const spawn = (x, y, angle, speed, delay) => {
+      const kind = Math.random() < 0.8 ? "rect" : "dot";
+      pieces.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        delay,
+        w: kind === "rect" ? rand(6, 11) : rand(2.2, 3.4),
+        h: kind === "rect" ? rand(3, 5.5) : 0,
+        kind,
+        rot: rand(0, Math.PI * 2),
+        vr: rand(-0.22, 0.22),
+        tilt: rand(0, Math.PI * 2),
+        vt: rand(0.1, 0.28),
+        life: rand(2300, 3500),
+        age: 0,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        sway: rand(0.6, 1.6),
+        ph: rand(0, 6.28)
+      });
+    };
+    const shots = Math.round(52 * scale);
+    for (let i = 0; i < shots; i++) {
+      spawn(W2 * 0.04, H4 * 1.02, -Math.PI / 2 + rand(0.35, 0.95), rand(15, 27) * k, rand(0, 160));
+      spawn(W2 * 0.96, H4 * 1.02, -Math.PI / 2 - rand(0.35, 0.95), rand(15, 27) * k, rand(0, 160));
+    }
+    const rain = Math.round(70 * scale);
+    for (let i = 0; i < rain; i++) spawn(rand(0, W2), -14, Math.PI / 2 + rand(-0.25, 0.25), rand(1.5, 4.5) * k, rand(350, 1500));
+    let last2 = performance.now();
+    const t0 = last2;
+    let raf2 = 0;
+    let done = false;
+    const stop = () => {
+      if (done) return;
+      done = true;
+      cancelAnimationFrame(raf2);
+      window.removeEventListener("resize", fit);
+      canvas2.remove();
+      if (live && live.stop === stop) live = null;
+    };
+    const frame2 = (now) => {
+      if (done) return;
+      const dt = Math.min(48, now - last2);
+      last2 = now;
+      const f = dt / 16.667;
+      ctx2.clearRect(0, 0, W2, H4);
+      let alive = 0;
+      for (const p of pieces) {
+        if (now - t0 < p.delay) {
+          alive++;
+          continue;
+        }
+        p.age += dt;
+        if (p.age >= p.life) continue;
+        alive++;
+        p.vx *= Math.pow(0.987, f);
+        p.vy = p.vy * Math.pow(0.987, f) + 0.34 * k * f;
+        p.x += (p.vx + Math.sin(p.ph + p.age / 340) * p.sway) * f;
+        p.y += p.vy * f;
+        p.rot += p.vr * f;
+        p.tilt += p.vt * f;
+        const fade = p.age > p.life * 0.68 ? 1 - (p.age - p.life * 0.68) / (p.life * 0.32) : 1;
+        ctx2.save();
+        ctx2.globalAlpha = Math.max(0, fade) * 0.95;
+        ctx2.translate(p.x, p.y);
+        ctx2.rotate(p.rot);
+        ctx2.fillStyle = css(p.color);
+        if (p.kind === "rect") {
+          ctx2.scale(1, Math.cos(p.tilt));
+          ctx2.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        } else {
+          ctx2.beginPath();
+          ctx2.arc(0, 0, p.w, 0, Math.PI * 2);
+          ctx2.fill();
+        }
+        ctx2.restore();
+      }
+      if (alive && now - t0 < DURATION + 1600) raf2 = requestAnimationFrame(frame2);
+      else stop();
+    };
+    raf2 = requestAnimationFrame(frame2);
+    live = { stop };
+  }
+  function celebrate(info = {}) {
+    const week = info.week || info.floor || 50;
+    const floor = info.floor || week;
+    banner({ week, floor });
+    pulsePace();
+    if (!reduced2()) confetti();
+  }
+  var DURATION, live, rgbOf, mix, css, rand, reduced2;
+  var init_celebrate = __esm({
+    "js/ui/celebrate.js"() {
+      init_dom();
+      init_icons();
+      init_appearance();
+      DURATION = 3600;
+      live = null;
+      rgbOf = (s) => String(s || "").split(",").map((x) => Number(x.trim()) || 0);
+      mix = (c, to, t2) => c.map((v, i) => Math.round(v + (to[i] - v) * t2));
+      css = (c, a = 1) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
+      rand = (a, b) => a + Math.random() * (b - a);
+      reduced2 = () => {
+        try {
+          if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+        } catch {
+        }
+        try {
+          return getAppearance().motion === false;
+        } catch {
+          return false;
+        }
+      };
+    }
+  });
+
+  // js/ui/pages/system.js
+  var system_exports = {};
+  __export(system_exports, {
+    render: () => render11
+  });
+  async function importZip() {
+    const f = await pickFile(".csv");
+    if (!f) return;
+    try {
+      const n = await importZipCsv(await readFileText(f), f.name);
+      toast(`ZIP Map imported: ${n.toLocaleString()} rows.`, "ok");
+    } catch (e) {
+      toast("ZIP Map not imported: " + e.message, "err", 9e3);
+    }
+  }
+  async function loadSample() {
+    try {
+      const snap = typeof globalThis.__FS_SAMPLE === "string" ? JSON.parse(globalThis.__FS_SAMPLE) : await fetch("data/sample/sample-backup.json").then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      });
+      if (!await confirmDialog("Load sample data", "Adds clearly fictional sample carriers, inquiries and one load to your existing data (merge). Continue?", "Add sample data")) return;
+      await actions.restoreBackup(snap, "merge");
+      toast("Sample data added.", "ok");
+    } catch (e) {
+      toast("Sample data unavailable: " + e.message, "err");
+    }
+  }
+  async function restore() {
+    const f = await pickFile(".json");
+    if (!f) return;
+    let snap;
+    try {
+      snap = JSON.parse(await readFileText(f));
+    } catch {
+      return toast("That file is not valid JSON.", "err");
+    }
+    const mode2 = await new Promise((resolve) => {
+      modal({
+        title: "Restore backup",
+        body: h("p", null, "Replace everything with the backup, or merge it into current data?"),
+        onClose: () => resolve(null),
+        actions: [{ label: "Cancel", onClick: () => resolve(null) }, { label: "Merge", onClick: () => resolve("merge") }, { label: "Replace all", kind: "danger", onClick: () => resolve("replace") }]
+      });
+    });
+    if (!mode2) return;
+    try {
+      await actions.restoreBackup(snap, mode2);
+      toast("Backup restored.", "ok");
+    } catch (e) {
+      toast("Restore failed (nothing was changed if validation failed): " + e.message, "err", 9e3);
+    }
+  }
+  function section(id, title, summary, body, { open: open2 = false, tone = "" } = {}) {
+    const saved = (state.settings.ui || {}).sys || {};
+    const isOpen = id in saved ? !!saved[id] : open2;
+    const det = h(
+      "details",
+      { class: "sect " + tone, open: isOpen, dataset: { sect: id } },
+      h("summary", null, h("span", { class: "sect-t" }, h("b", null, title), summary ? h("small", { class: "muted" }, summary) : null), icon("chevdown", 16, "sect-ch")),
+      h("div", { class: "sect-body" }, body)
+    );
+    det.addEventListener("toggle", () => {
+      const ui2 = state.settings.ui || {};
+      actions.savePrefs({ ui: { ...ui2, sys: { ...ui2.sys || {}, [id]: det.open } } });
+    });
+    return det;
+  }
+  async function macroText() {
+    if (typeof globalThis.__FS_MACRO === "string") return globalThis.__FS_MACRO;
+    const r = await fetch(MACRO_FILE);
+    if (!r.ok) throw new Error("The macro file could not be loaded (HTTP " + r.status + ").");
+    return r.text();
+  }
+  function outlookGuide() {
+    const run2 = async (fn, okMsg) => {
+      try {
+        await fn();
+        if (okMsg) toast(okMsg, "ok");
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+        toast(String(e.message || e), "err", 8e3);
+      }
+      rerender5();
+    };
+    const on = bridge.connected, olOn = on && outlookConnected();
+    const v5 = olOn && /v5/i.test(String(bridge.outlook && bridge.outlook.macroVersion || ""));
+    const macroBtns = h(
+      "div",
+      { class: "toolbar" },
+      h("button", { class: "btn primary", type: "button", "data-act": "macro-copy", onclick: async () => {
+        try {
+          await copyText(await macroText(), "Macro copied. Now paste it into Outlook (step 5).");
+        } catch (e) {
+          toast(e.message, "err", 8e3);
+        }
+      } }, icon("copy", 15), "Copy the macro"),
+      h("button", { class: "btn", type: "button", "data-act": "macro-download", onclick: async () => {
+        try {
+          download("Outlook_v5_ThisOutlookSession.txt", await macroText(), "text/plain;charset=utf-8");
+        } catch (e) {
+          toast(e.message, "err", 8e3);
+        }
+      } }, icon("download", 15), "Download as a .txt file")
+    );
+    const steps2 = h(
+      "ol",
+      { class: "gsteps" },
+      step(
+        1,
+        on,
+        "Make a folder for the two programs to share",
+        h("p", null, "In File Explorer open ", h("b", null, "Documents"), ", right-click an empty spot, choose ", h("b", null, "New \u2192 Folder"), " and name it ", h("b", null, "FreightSignal"), ". This one folder is the only thing the browser and Outlook share."),
+        h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: () => copyText("FreightSignal", "Folder name copied.") }, "Copy the name"))
+      ),
+      step(
+        2,
+        on,
+        "Tell Freight Signal about that folder",
+        h("p", null, "Use Chrome or Edge. Click the button, pick the ", h("b", null, "FreightSignal"), " folder, then press ", h("b", null, "Edit files / View files"), " (Allow) when the browser asks."),
+        !bridge.supported ? h("div", { class: "banner err" }, "This browser cannot share a folder. Open Freight Signal in Chrome or Edge.") : null,
+        h(
+          "div",
+          { class: "toolbar" },
+          !on && !bridge.needsPermission ? h("button", { class: "btn primary", type: "button", "data-act": "bridge-connect", disabled: !bridge.supported, onclick: () => run2(connect, "Folder connected. Postings are now shared with Outlook.") }, "Choose the FreightSignal folder\u2026") : null,
+          bridge.needsPermission ? h("button", { class: "btn primary", type: "button", "data-act": "bridge-reconnect", onclick: () => run2(reconnect, "Reconnected.") }, "Reconnect folder (one click)") : null,
+          on ? h("span", { class: "pill ok" }, `Connected: ${bridge.folderName}`) : null
+        )
+      ),
+      step(3, olOn, "Use classic Outlook for Windows", h("p", null, "Macros only work in ", h("b", null, "classic Outlook"), " (the one with a File menu and a ribbon). If you see a ", h("b", null, "New Outlook"), " toggle in the top-right corner, switch it ", h("b", null, "off"), ". Outlook on the web, Mac and the Microsoft Store mail app cannot run it.")),
+      step(4, olOn, "Copy the macro", h("p", null, "This is the whole program Outlook will run. Press the button, or download it as a text file and open that in Notepad."), macroBtns),
+      step(5, olOn, "Paste it into Outlook", h(
+        "ol",
+        { class: "sub" },
+        h("li", null, "In Outlook press ", kbd("Alt"), " + ", kbd("F11"), ". A window called ", h("b", null, "Microsoft Visual Basic for Applications"), " opens."),
+        h("li", null, "On the left, click the little ", h("b", null, "+"), " beside ", h("b", null, "Project1"), ", then beside ", h("b", null, "Microsoft Outlook Objects"), "."),
+        h("li", null, "Double-click ", h("b", null, "ThisOutlookSession"), ". A big white area opens on the right."),
+        h("li", null, "Click inside that white area, press ", kbd("Ctrl"), " + ", kbd("A"), " (select everything that is there) and then ", kbd("Ctrl"), " + ", kbd("V"), " to paste the macro over it. If you had the older version, this replaces it."),
+        h("li", null, "Press ", kbd("Ctrl"), " + ", kbd("S"), " to save, then close the Visual Basic window.")
+      )),
+      step(6, olOn, "Allow the macro to run", h(
+        "ol",
+        { class: "sub" },
+        h("li", null, "In Outlook choose ", h("b", null, "File \u2192 Options \u2192 Trust Center \u2192 Trust Center Settings\u2026 \u2192 Macro Settings"), "."),
+        h("li", null, "Select ", h("b", null, "Notifications for all macros"), " (safe: Outlook asks you each time it starts) and press OK twice."),
+        h("li", null, "Close Outlook completely and open it again. When the yellow bar or pop-up appears, click ", h("b", null, "Enable Macros"), "."),
+        h("li", null, "Tip: if your company blocks macros, ask IT to allow this one, or to sign it with your certificate.")
+      )),
+      step(
+        7,
+        olOn,
+        "Test it",
+        h(
+          "ol",
+          { class: "sub" },
+          h("li", null, "In Outlook press ", kbd("Alt"), " + ", kbd("F8"), ", choose ", h("b", null, "FS_Ping"), " and press Run."),
+          h("li", null, 'Come back here and press the button below. The line at the top of this section turns green and says "Outlook connected".')
+        ),
+        h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", "data-act": "bridge-poll", disabled: !on, onclick: () => run2(async () => {
+          const n = await pollNow();
+          toast(n ? `${n} Outlook update(s) applied.` : "Checked.", n ? "ok" : "info");
+        }) }, icon("refresh", 15), "Check Outlook now"))
+      ),
+      step(
+        8,
+        v5 && bridge.draftsSaved > 0,
+        "Carrier outreach lands in your Outlook Drafts",
+        h("p", null, "With the folder connected, every outreach or truck-check draft made here is saved into the ", h("b", null, "Drafts"), " folder in Outlook. Nothing is ever sent for you: open the draft and press Send yourself."),
+        h("p", { class: "muted" }, "Outlook picks the drafts up when you click into Outlook, when a new e-mail arrives, or when it starts. To force it, press ", kbd("Alt"), " + ", kbd("F8"), ", choose ", h("b", null, "FS_DraftsNow"), " and Run."),
+        olOn && !v5 ? h("div", { class: "banner err" }, `Outlook is still running the older macro (${bridge.outlook.macroVersion || "v4"}). Repeat steps 4 and 5 to update it - drafts to Outlook need v5.`) : null
+      )
+    );
+    const fix = h(
+      "div",
+      { class: "trouble" },
+      h("details", null, h("summary", null, "Nothing happens after step 6 / the status never turns green"), h(
+        "ul",
+        null,
+        h("li", null, "Make sure you saved in the VBA window (", kbd("Ctrl"), "+", kbd("S"), ") and restarted Outlook, then clicked Enable Macros."),
+        h("li", null, "Press ", kbd("Alt"), "+", kbd("F11"), " and check the code is in ", h("b", null, "ThisOutlookSession"), ", not in a Module."),
+        h("li", null, "Press ", kbd("Alt"), "+", kbd("F8"), ", run ", h("b", null, "FS_Diagnostics"), ": it lists what it found in the folder and any error."),
+        h("li", null, "Outlook looks for the folder you chose in step 2. If it asks you for a folder path, paste the full path of the FreightSignal folder.")
+      )),
+      h("details", null, h("summary", null, "The browser asks for folder permission every day"), h("p", null, "That is Chrome protecting your files. After a restart, click ", h("b", null, "Reconnect folder"), " once. Installing Freight Signal as an app (Chrome menu \u2192 Cast, save and share \u2192 Install) reduces the prompts.")),
+      h("details", null, h("summary", null, "I only want the e-mail drafts, not Outlook"), h("p", null, "Skip this whole section. Drafts can be downloaded as .eml files (they open in Outlook as unsent drafts), opened in your mail app or copied. The Outlook connection adds automatic replies to carriers and the Drafts folder."))
+    );
+    const state_rows = [];
+    state_rows.push(h(
+      "div",
+      { class: "state", "data-bridge": on ? "connected" : bridge.needsPermission ? "permission" : "off" },
+      h("span", { class: "dot " + (on ? "on" : bridge.needsPermission ? "warn" : "off") }),
+      on ? `Folder connected: ${bridge.folderName}` : bridge.needsPermission ? `Folder "${bridge.folderName}" needs your permission again` : "Not connected"
+    ));
+    const ol = bridge.outlook;
+    state_rows.push(h(
+      "div",
+      { class: "state", "data-outlook": olOn ? "connected" : "waiting" },
+      h("span", { class: "dot " + (olOn ? "on" : "warn") }),
+      olOn ? `Outlook connected \u2014 last heard ${fmtDate(ol.lastSeen)}, read ${ol.postingsRead} posting(s)${ol.macroVersion ? ", macro " + ol.macroVersion : ""}${ol.lastEvent ? ", last action: " + ol.lastEvent : ""}` : on ? ol && ol.lastSeen ? `Outlook last heard ${fmtDate(ol.lastSeen)} (more than a day ago - restart Outlook or run FS_Ping)` : "Waiting for Outlook \u2014 follow steps 3 to 7 below" : "Outlook status unknown until a folder is connected"
+    ));
+    if (on) state_rows.push(h(
+      "dl",
+      { class: "kv" },
+      h("dt", null, "Postings shared with Outlook"),
+      h("dd", null, `${bridge.postingsWritten}` + (bridge.lastWrite ? ` (written ${fmtDate(bridge.lastWrite)})` : "")),
+      h("dt", null, "Carrier conversations from Outlook"),
+      h("dd", null, String(bridge.eventsSeen || 0)),
+      h("dt", null, "Drafts waiting for Outlook / saved this session"),
+      h("dd", null, `${bridge.draftsPending || 0} / ${bridge.draftsSaved || 0}`),
+      h("dt", null, "Last checked"),
+      h("dd", null, bridge.lastSync ? fmtDate(bridge.lastSync) : "\u2014")
+    ));
+    if (bridge.error) state_rows.push(h("div", { class: "banner err" }, bridge.error));
+    const tools = h(
+      "div",
+      { class: "toolbar" },
+      on ? h("button", { class: "btn", type: "button", onclick: () => run2(() => writeNow(true), "Postings written for Outlook.") }, "Write postings now") : null,
+      on || bridge.needsPermission ? h("button", { class: "btn danger", type: "button", onclick: () => run2(disconnect, "Disconnected.") }, "Disconnect") : null
+    );
+    return h(
+      "div",
+      { class: "bridge" },
+      h("p", { class: "muted" }, "Outlook cannot see data stored in a browser, so Freight Signal shares your live postings with it through one folder. The Outlook macro reads that folder to match carrier e-mails to your postings, drafts the replies, saves your outreach drafts, and writes what it did back so the Inquiry Log updates here. Nothing is uploaded anywhere."),
+      ...state_rows,
+      tools,
+      h("h4", null, "Step by step"),
+      steps2,
+      fix
+    );
+  }
+  function mk(s) {
+    const save = (patch) => actions.saveSettings(patch);
+    const num3 = (k, label2, hint, props = {}) => {
+      const el = h("input", { type: "number", value: s[k], "data-rerender": "", ...props });
+      el.addEventListener("change", () => save({ [k]: Number(el.value) }));
+      return field(label2, el, hint);
+    };
+    const check = (k, label2, hint) => {
+      const el = h("input", { type: "checkbox", checked: !!s[k], "data-live": "" });
+      el.addEventListener("change", () => save({ [k]: el.checked }));
+      return h("label", { class: "inl chk" }, el, " ", label2, hint ? h("small", { class: "muted" }, " - " + hint) : null);
+    };
+    const area = (k, label2, hint, conv = (v) => v, show = (v) => v) => {
+      const el = h("textarea", { "data-rerender": "" });
+      el.value = show(s[k]);
+      el.addEventListener("change", () => save({ [k]: conv(el.value) }));
+      return field(label2, el, hint);
+    };
+    const select = (k, label2, opts2, hint) => {
+      const el = h("select", { "data-rerender": "" }, opts2.map(([v, t2]) => h("option", { value: v, selected: String(s[k]) === String(v) }, t2)));
+      el.addEventListener("change", () => save({ [k]: el.value }));
+      return field(label2, el, hint);
+    };
+    return { save, num: num3, check, area, select };
+  }
+  function ladderSection(s) {
+    const { num: num3 } = mk(s);
+    const tpl = templatesOf(s);
+    const tplField = (key, label2, hint, rows = 3) => {
+      const el = h("textarea", { rows, "data-rerender": "" });
+      el.value = tpl[key];
+      el.addEventListener("change", () => actions.saveSettings({ templates: { ...s.templates || {}, [key]: el.value } }));
+      return field(label2, el, h("span", null, hint + " Fill-ins: " + TEMPLATE_VARS[key].join(" ")));
+    };
+    const ex = (target, rate2) => {
+      const st2 = ladderStage(rate2, target, s);
+      const label2 = st2.stage === "book" ? "book it (ETA)" : st2.stage === "split" ? `split at ${formatCurrency0(st2.split)}` : `counter at ${formatCurrency0(target)}`;
+      return h("tr", null, h("td", null, formatCurrency0(target)), h("td", null, formatCurrency0(rate2)), h("td", null, (st2.pct >= 0 ? "+" : "") + st2.pct.toFixed(1) + "%"), h("td", null, h("b", null, label2)));
+    };
+    return h(
+      "div",
+      null,
+      h("p", { class: "muted" }, "When a carrier quotes a rate, the app (and the Outlook macro) compares it with your target as a ", h("b", null, "percentage"), ', so $200 over is treated very differently on a $900 load than on a $6,000 load. A rate at or below target is always "book it".'),
+      h("div", { class: "grid4" }, num3("ladderBookPct", "Book it within (%)", "Up to this % over target: confirm ETA / book.", { step: "0.5", min: 0 }), num3("ladderSplitPct", "Split the difference within (%)", "Above that, up to this %: counter halfway.", { step: "0.5", min: 0 }), num3("ladderRound", "Round the split to ($)", "Usually 5 or 10.", { min: 0 })),
+      h("p", { class: "muted" }, `Beyond ${s.ladderSplitPct}% over target the counter is simply your target.`),
+      h(
+        "table",
+        { class: "lanetable exampletable" },
+        h("thead", null, h("tr", null, ["Target", "Carrier says", "Over target", "Reply"].map((x) => h("th", null, x)))),
+        h("tbody", null, ex(900, 925), ex(900, 1100), ex(6e3, 6150), ex(6e3, 6400), ex(6e3, 7e3))
+      ),
+      h("h4", null, "What the e-mails say"),
+      tplField("book", "Inside the booking band", "Sent when the rate is acceptable."),
+      tplField("split", "Split-the-difference counter", "Sent when the rate is a little high."),
+      tplField("target", "Counter at target", "Sent when the rate is too high."),
+      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: async () => {
+        const t2 = { ...s.templates || {} };
+        delete t2.book;
+        delete t2.split;
+        delete t2.target;
+        await actions.saveSettings({ templates: t2 });
+        toast("Reply wording reset to the defaults.", "ok");
+      } }, "Reset these three"))
+    );
+  }
+  function truckSection(s) {
+    const tpl = templatesOf(s);
+    const f = (key, label2, rows) => {
+      const el = key === "truckSubject" ? h("input", { "data-rerender": "" }) : h("textarea", { rows, "data-rerender": "" });
+      el.value = tpl[key];
+      el.addEventListener("change", () => actions.saveSettings({ templates: { ...s.templates || {}, [key]: el.value } }));
+      return field(label2, el, "Fill-ins: " + TEMPLATE_VARS[key].join(" "));
+    };
+    return h(
+      "div",
+      null,
+      h("p", { class: "muted" }, `The one-click "Truck?" button in the Carrier Database drafts this e-mail to a carrier. {where} becomes "in Fresno, CA heading toward Reno, NV" from the carrier's record.`),
+      f("truckSubject", "Subject"),
+      f("truckBody", "Message", 7),
+      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: async () => {
+        const t2 = { ...s.templates || {} };
+        delete t2.truckSubject;
+        delete t2.truckBody;
+        await actions.saveSettings({ templates: t2 });
+        toast("Truck-check wording reset.", "ok");
+      } }, "Reset"))
+    );
+  }
+  function strategySection(s) {
+    const { num: num3 } = mk(s);
+    const cols = ["local", "regional", "long"].map((cls) => {
+      const cur = strategyFor(s, cls);
+      return h("div", { class: "panel stratcol" }, h("h4", null, LANE_LABEL[cls]), STRAT_FIELDS.map(([k, label2]) => {
+        const el = h("input", { type: "number", value: cur[k], step: k === "outreachMultiplier" ? "0.25" : "1", "data-rerender": "" });
+        el.addEventListener("change", () => actions.saveSettings({ strategies: { ...s.strategies || {}, [cls]: { ...(s.strategies || {})[cls] || {}, [k]: Number(el.value) } } }));
+        return field(label2, el);
+      }));
+    });
+    return h(
+      "div",
+      null,
+      h("p", { class: "muted" }, "Each load is classed by its road miles. A local load needs many nearby trucks and a tight matrix; a long load needs fewer, better-matched carriers and wider alternates. Change the cut-offs and the numbers if your freight behaves differently."),
+      h("div", { class: "grid4" }, num3("laneLocalMax", "Local is under (road mi)"), num3("laneRegionalMax", "Regional runs up to (road mi)", "Longer than this = long-distance.")),
+      h("div", { class: "grid3" }, cols),
+      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: async () => {
+        await actions.saveSettings({ strategies: null, laneLocalMax: 150, laneRegionalMax: 600 });
+        toast("Strategies reset to the defaults.", "ok");
+      } }, "Reset to defaults"))
+    );
+  }
+  function matrixSection(s) {
+    const { select } = mk(s);
+    const pins = Object.entries(s.matrixPins || {});
+    return h(
+      "div",
+      null,
+      h("p", { class: "muted" }, "The 3 \xD7 3 matrix picks two alternate origins and two alternate destinations that sit where the most trucks are, using population, your own cover history and the lane length. It adapts: in a dense metro it picks the close, big markets; in thin country it reaches farther."),
+      select("matrixMode", "When a load is added", [["auto", "Build the 3 \xD7 3 automatically (ask only when the cities look odd)"], ["ask", "Always show me the cities before building"]]),
+      h("h4", null, "Cities you told it to remember"),
+      pins.length ? h(
+        "table",
+        { class: "lanetable" },
+        h("thead", null, h("tr", null, ["For", "Always use", ""].map((x) => h("th", null, x)))),
+        h("tbody", null, pins.map(([k, v]) => h(
+          "tr",
+          null,
+          h("td", null, k.replace("|", ", ").toUpperCase()),
+          h("td", null, (v || []).map((c) => `${c.city}, ${c.state}`).join(" and ")),
+          h("td", null, h("button", { class: "btn small danger", type: "button", onclick: async () => {
+            const p = { ...s.matrixPins || {} };
+            delete p[k];
+            await actions.saveSettings({ matrixPins: p });
+          } }, "Forget"))
+        )))
+      ) : h("p", { class: "muted" }, 'None. In the matrix preview, tick "Remember these picks" to pin cities for an origin or destination.')
+    );
+  }
+  function carriersSection(s) {
+    const { num: num3, select, check, area } = mk(s);
+    return h(
+      "div",
+      null,
+      h(
+        "div",
+        { class: "grid4" },
+        num3("lowTarget", "Low target"),
+        num3("mediumTarget", "Medium target"),
+        num3("highTarget", "High target"),
+        num3("maxCarriersPerLoad", "Max carriers / load (scan)"),
+        num3("carrierRadiusMiles", "Carrier match radius (mi)", "A carrier within this distance of the origin and destination counts as on the lane."),
+        num3("minReasonableRate", "Min plausible rate"),
+        num3("maxReasonableRate", "Max plausible rate")
+      ),
+      check("recogniseCommaRates", "Recognise comma-formatted carrier rates such as $1,650", "the original Outlook macro does not; leave off for exact macro behaviour"),
+      select("outreachButtonMode", 'Row "Outreach" button', [["excel", "Draft the best-ranked carriers for this posting"], ["outlook", "Scan-style: skip carriers already drafted for this load"]]),
+      select("defaultContact", "New loads are posted on DAT with", [["Email", "E-mail (default)"], ["Phone", "Phone number"]], "You can change any load from its header."),
+      check("draftsToOutlook", "Save outreach drafts into my Outlook Drafts folder when Outlook is connected", "never sends anything"),
+      h(
+        "div",
+        { class: "grid2" },
+        area("outreachBlocklist", "Outreach blocklist", 'One per line: "@domain.com" blocks a domain, a full address blocks one sender.', lines, (v) => (v || []).join("\n")),
+        area("inboundBlocklist", "Inbound e-mail blocklist", "Substring match against the sender address.", lines, (v) => (v || []).join("\n"))
+      )
+    );
+  }
+  function expirySection(s) {
+    const { num: num3, check } = mk(s);
+    return h(
+      "div",
+      null,
+      h("p", { class: "muted" }, 'Postings whose pickup day has passed are moved to the Cover Log as "Expired" so the board only shows live loads. They can be restored from the Cover Log.'),
+      check("autoExpire", "Retire loads automatically after their pickup day", "on by default"),
+      num3("expireGraceDays", "Extra days to keep a load after pickup", "0 = retire at midnight after the pickup day.", { min: 0 })
+    );
+  }
+  function brokerSection(s) {
+    const { num: num3 } = mk(s);
+    const brokers = s.brokers || [];
+    const name = h("input", { placeholder: "Broker name", "data-live": "" });
+    const add = async () => {
+      const ok = await actions.addBroker(name.value);
+      if (!ok) return toast("Enter a name that is not already in the list.", "warn");
+      name.value = "";
+    };
+    name.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        add();
+      }
+    });
+    const days = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
+    const wd = new Set((s.workDays || [1, 2, 3, 4, 5]).map(Number));
+    return h(
+      "div",
+      null,
+      h("p", { class: "muted" }, 'Add the brokers you post for. Each gets their own tab on the Freight Signal page, their own scoreboard and their own DAT CSV; "All" shows everything.'),
+      brokers.length ? brokerList(brokers) : h("p", { class: "muted" }, "No brokers yet."),
+      h("div", { class: "toolbar" }, name, h("button", { class: "btn primary", type: "button", onclick: add }, "Add broker")),
+      h("h4", null, "Cover pace tracker (top right)"),
+      h("p", { class: "muted small" }, `The cover week runs Monday to Sunday (this week: ${weekRangeText()}). The weekly count resets at 12:00 AM Monday, the moment Sunday ends. Reach the weekly floor and the app celebrates with a short burst of confetti.`),
+      h("div", { class: "grid4" }, num3("weeklyFloor", "Weekly floor (covers)"), num3("workStart", "Workday starts (hour, 0-23)", null, { min: 0, max: 23 }), num3("workEnd", "Workday ends (hour, 0-23)", null, { min: 1, max: 23 })),
+      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: () => Promise.resolve().then(() => (init_celebrate(), celebrate_exports)).then((m) => m.celebrate({ week: state.settings.weeklyFloor || 50, floor: state.settings.weeklyFloor || 50 })) }, icon("sparkle", 14), "Preview the celebration")),
+      h("div", { class: "daypick" }, h("span", { class: "muted" }, "Working days: "), days.map(([n, l]) => {
+        const c = h("input", { type: "checkbox", checked: wd.has(n), "data-live": "" });
+        c.addEventListener("change", () => {
+          if (c.checked) wd.add(n);
+          else wd.delete(n);
+          if (!wd.size) {
+            wd.add(n);
+            c.checked = true;
+            return toast("Keep at least one working day.", "warn");
+          }
+          actions.saveSettings({ workDays: [...wd].sort() });
+        });
+        return h("label", { class: "inl" }, c, " " + l);
+      }))
+    );
+  }
+  function brokerList(brokers) {
+    const ul = h("ul", { class: "brokerlist" }, brokers.map((b) => h(
+      "li",
+      { dataset: { broker: b }, tabindex: 0, title: brokers.length > 1 ? "Drag to re-order (or hold Alt and press the arrow keys)" : null },
+      brokers.length > 1 ? h("span", { class: "grip", "aria-hidden": "true" }, icon("grip", 16)) : null,
+      h("b", null, b),
+      h("button", { class: "btn small", type: "button", onclick: () => {
+        const inp = h("input", { value: b, "data-live": "" });
+        modal({ title: "Rename broker", body: field("Name", inp), actions: [{ label: "Cancel" }, { label: "Rename", kind: "primary", onClick: async () => {
+          await actions.renameBroker(b, inp.value);
+        } }] });
+      } }, "Rename"),
+      h("button", { class: "btn small danger", type: "button", onclick: async () => {
+        if (await confirmDialog("Remove broker", `Remove ${b}? Their loads stay on the board as Unassigned.`, "Remove")) actions.removeBroker(b);
+      } }, "Remove")
+    )));
+    if (brokers.length > 1) makeSortable(ul, { items: () => [...ul.querySelectorAll("li[data-broker]")], id: (el) => el.dataset.broker, axis: "y", onReorder: (order) => actions.reorderBrokers(order) });
+    return ul;
+  }
+  function weatherSection(s) {
+    const { check } = mk(s);
+    return h(
+      "div",
+      null,
+      h("p", { class: "muted" }, "Flags loads whose pickup or delivery city has a severe National Weather Service alert (winter storms, tornadoes, flooding, high wind...) during the pickup window."),
+      h("div", { class: "banner" }, h("b", null, "Privacy: "), "this is the one feature that contacts another website. Only a latitude/longitude for each pickup and delivery city is sent to api.weather.gov (U.S. government, public). No load details, customers, carriers or rates are ever sent. Turn it off and nothing is."),
+      check("weatherFlags", "Show weather flags (U.S. cities)"),
+      h("p", { class: "muted small" }, weatherStatus.lastRun ? `Last check ${fmtDate(weatherStatus.lastRun)}: ${weatherStatus.cities} cities, ${weatherStatus.failed} failed${weatherStatus.error ? " (" + weatherStatus.error + ")" : ""}. Alerts now: ${state.weather.size} cities.` : "Not checked yet this session."),
+      h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", disabled: !s.weatherFlags, onclick: async () => {
+        await refreshWeather(true);
+        toast("Weather refreshed.", "ok");
+        rerender5();
+      } }, icon("refresh", 14), "Refresh now"))
+    );
+  }
+  function render11() {
+    const s = state.settings;
+    if (!est) storageEstimate().then((e) => {
+      est = e || { none: true };
+      rerender5();
+    });
+    const { area } = mk(s);
+    const olOn = bridge.connected && outlookConnected();
+    return h(
+      "div",
+      null,
+      pageHead({ icon: "system", title: "System", sub: "Settings, backup and data. All stored in this browser only. Click a section to open it.", actions: [h("a", { class: "btn", href: "#/account" }, icon("palette", 15), "Themes & appearance")] }),
+      state.persistError ? h("div", { class: "banner err" }, "Storage problem: " + state.persistError) : null,
+      section("outlook", "Connect to Outlook", olOn ? "Connected" : bridge.connected ? "Folder connected, waiting for Outlook" : "Not connected - step-by-step guide inside", outlookGuide(), { open: !olOn, tone: olOn ? "good" : "warn" }),
+      section("ladder", "Counter ladder and reply wording", `Book within ${s.ladderBookPct}%, split within ${s.ladderSplitPct}% of target`, ladderSection(s)),
+      section("truck", "Truck-availability e-mail", 'Wording for the one-click "Truck?" button', truckSection(s)),
+      section("strategy", "Posting strategy by lane length", `Local < ${s.laneLocalMax} mi \xB7 Regional to ${s.laneRegionalMax} mi \xB7 Long beyond`, strategySection(s)),
+      section("matrix", "3 \xD7 3 matrix", s.matrixMode === "ask" ? "Always asks before building" : "Builds automatically", matrixSection(s)),
+      section("carriers", "Carriers, outreach and blocklists", `Radius ${s.carrierRadiusMiles} mi \xB7 DAT contact: ${s.defaultContact}`, carriersSection(s)),
+      section("expiry", "Auto-expiry", s.autoExpire ? "On: loads retire after pickup" : "Off", expirySection(s)),
+      section("brokers", "Brokers and cover pace", `${(s.brokers || []).length} broker(s) \xB7 floor ${s.weeklyFloor}/week`, brokerSection(s)),
+      section("weather", "Weather flags", s.weatherFlags ? "On (contacts api.weather.gov)" : "Off - nothing leaves the browser", weatherSection(s)),
+      section("parsing", "Parsing", "How pasted loads are split", area("loadSeparatorRegex", "Multi-load separator (regex)", "Pasted text is split into loads at lines matching this.", (v) => v.trim() || "^\\s*\\d+\\s*pick\\s*[-\u2013]\\s*\\d+\\s*drop")),
+      section("zip", "ZIP Map", state.zip ? `${state.zip.size.toLocaleString()} rows` : "Not loaded", h(
+        "div",
+        null,
+        h("p", null, state.zip ? `${state.zip.size.toLocaleString()} rows from ${state.zipInfo.source}.` : "Not loaded."),
+        h("div", { class: "toolbar" }, h("button", { class: "btn", type: "button", onclick: importZip }, "Import a different ZIP Map CSV\u2026"), h("span", { class: "muted" }, "Required headers: zip, lat, lng, city, state_id, population."))
+      )),
+      section("backup", "Backup and restore", "Download everything as one file", h(
+        "div",
+        null,
+        h(
+          "div",
+          { class: "toolbar" },
+          h("button", { class: "btn primary", type: "button", onclick: async () => {
+            const snap = await actions.exportBackup();
+            download(`freight-signal-backup-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json`, JSON.stringify(snap, null, 1), "application/json");
+            toast("Backup downloaded. It contains your carriers, customers and loads: store it securely.", "ok", 7e3);
+          } }, "Download backup (.json)"),
+          h("button", { class: "btn", type: "button", onclick: restore }, "Restore from backup\u2026"),
+          h("button", { class: "btn", type: "button", onclick: loadSample }, "Add sample data")
+        ),
+        est && !est.none ? h("p", { class: "muted" }, `Browser storage used: ${((est.usage || 0) / 1048576).toFixed(1)} MB of ${((est.quota || 0) / 1048576).toFixed(0)} MB available.`) : null
+      )),
+      section("counters", "Counters", "Carry over numbers from Excel", h(
+        "div",
+        null,
+        h("p", { class: "muted" }, "The pace tracker counts from the Cover Log. These two counters are for your own reference (and for carrying over Excel numbers)."),
+        h("div", { class: "grid4" }, num22("Covers today", "coversToday"), num22("Lifetime covers", "lifetimeCovers"))
+      )),
+      section("danger", "Danger zone", "Erase all data", h("button", { class: "btn danger", type: "button", onclick: async () => {
+        if (await confirmDialog("Erase all data", "Delete ALL loads, carriers, customers, cover log, inquiries, drafts and spares from this browser? Download a backup first. The ZIP Map is kept.", "Erase everything")) {
+          await actions.wipe();
+          toast("All data erased.", "ok");
+        }
+      } }, "Erase all data"), { tone: "danger" })
+    );
+  }
+  function num22(label2, key) {
+    const el = h("input", { type: "number", value: state.counters[key] || 0, "data-rerender": "" });
+    el.addEventListener("change", () => actions.setCounters({ [key]: Number(el.value) || 0 }));
+    return field(label2, el);
+  }
+  var est, rerender5, MACRO_FILE, step, kbd, lines, STRAT_FIELDS;
+  var init_system = __esm({
+    "js/ui/pages/system.js"() {
+      init_dom();
+      init_chrome();
+      init_icons();
+      init_state();
+      init_db();
+      init_bridge2();
+      init_weather2();
+      init_ladder();
+      init_lanes();
+      init_util();
+      init_sortable();
+      init_coverlog();
+      est = null;
+      rerender5 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
+      MACRO_FILE = "outlook/Outlook_v5_ThisOutlookSession.txt";
+      step = (n, done, title, ...body) => h(
+        "li",
+        { class: "gstep2" + (done ? " done" : "") },
+        h("span", { class: "gnum" }, done ? icon("check", 15) : String(n)),
+        h("div", { class: "gbody" }, h("b", null, title), ...body)
+      );
+      kbd = (t2) => h("kbd", null, t2);
+      lines = (v) => String(v || "").split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+      STRAT_FIELDS = [["altMin", "Closest alternate city (mi)"], ["altIdeal", "Ideal alternate distance (mi)"], ["altMax", "Farthest alternate (mi)"], ["minPop", "Smallest market (people)"], ["outreachMultiplier", "Outreach size x"], ["staleHours", "Aging after (h, no inquiries)"], ["repricePct", "Reprice step (% of rate)"], ["repriceMin", "Reprice min ($)"], ["repriceMax", "Reprice max ($)"], ["closingHours", 'Pickup "closing" within (h)']];
     }
   });
 
@@ -9538,13 +10502,13 @@ Download anyway?`, "Download anyway");
     return w;
   }
   function render12() {
-    const live = [];
+    const live2 = [];
     const track = (el) => {
-      live.push(el);
+      live2.push(el);
       return el;
     };
     const refreshAll = () => {
-      live.forEach((el) => el.refresh && el.refresh());
+      live2.forEach((el) => el.refresh && el.refresh());
     };
     const pf = { name: "", title: "", company: "", startPage: "home", ...state.settings.profile || {} };
     const savedHint = h("small", { class: "muted" }, "Stored only in this browser. Used for the greeting on Home and the header chip.");
@@ -10174,7 +11138,7 @@ Download anyway?`, "Download anyway");
     clear(el);
     const p = paceStats(state.coverLog, state.settings, /* @__PURE__ */ new Date(), null);
     el.className = "pace-strip " + p.status;
-    el.title = p.text + (p.status === "early" ? "" : ` You need about ${p.perDay} a day for the rest of the week.`) + " Click for the Cover Log.";
+    el.title = p.text + (p.status === "early" ? "" : ` You need about ${p.perDay} a day for the rest of the week.`) + ` Week: ${weekRangeText(/* @__PURE__ */ new Date())}; the count resets Monday 12:00 AM. Click for the Cover Log.`;
     el.append(
       h("span", { class: "pc" }, h("b", null, p.today), h("small", null, "today")),
       h("span", { class: "pc" }, h("b", null, p.week), h("small", null, `week / ${p.floor}`)),
@@ -10265,6 +11229,23 @@ Download anyway?`, "Download anyway");
       render13();
     });
     await render13();
+    const rollover = () => {
+      const ms = Math.max(1e3, nextWeekStart(/* @__PURE__ */ new Date()).getTime() - Date.now() + 2e3);
+      setTimeout(() => {
+        renderPace();
+        render13();
+        rollover();
+      }, Math.min(ms, 2 ** 31 - 1));
+    };
+    rollover();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        renderPace();
+        render13();
+      }
+    });
+    state.hooks.onWeeklyGoal = (g) => celebrate(g);
+    setTimeout(maybeStartTour, 350);
     onBridge(() => {
       if (current2 && (current2.id === "system" || current2.id === "drafts")) render13();
     });
@@ -10315,6 +11296,8 @@ Download anyway?`, "Download anyway");
       init_chrome();
       init_auth();
       init_auth2();
+      init_tour();
+      init_celebrate();
       init_appearance();
       TABS = [
         { id: "home", label: "Home", icon: "home", group: "Workspace", page: home_exports },

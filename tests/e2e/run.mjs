@@ -32,7 +32,10 @@ const go = async (tab) => {
   await page.waitForSelector('#nav a, .authgate', { state: 'attached', timeout: 20000 });
   if (await page.locator('.authgate').count()) { await page.click('.authgate >> text=Skip for now'); }
   await page.waitForSelector('#nav a', { timeout: 20000 });
+  // The first-login tour opens ~350 ms after the first render. Dismiss it once so it does not sit over every later step.
+  if (!tourHandled) { tourHandled = true; if (await page.locator('.tour-layer').waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await page.click('.tour-skip'); }
 };
+let tourHandled = false;
 // Click something that triggers a CSV download; if DAT's "incomplete postings" confirm shows up, accept it.
 // System page sections are collapsible: open one before using its controls.
 const openSys = async (id) => { const d = page.locator(`details[data-sect="${id}"]`); await d.waitFor(); if (!(await d.evaluate(e => e.open))) await d.locator('summary').first().click(); };
@@ -92,18 +95,16 @@ try {
   await page.locator('.lanebox .loaddetails select').selectOption('V');
 
   // ONE target rate per matrix: sets every posting, posted on DAT, never a per-row field
-  check('there is exactly one target-rate field per load and no per-row rate inputs', (await page.locator('.lanebox .dfield.rate input').count()) === 1 && (await page.locator('.lanebox tbody input.datrate').count()) === 0);
+  check('there is one target-rate field per load and a DAT rate box on each of the 9 postings', (await page.locator('.lanebox .dfield.rate input').count()) === 1 && (await page.locator('.lanebox tbody input.datrate').count()) === 9);
   const rateIn = page.locator('.lanebox .dfield.rate input');
   await rateIn.fill('$1,800'); await rateIn.press('Enter');
   await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings.every(p => String(p.targetRate) === '1800'));
   check('Target rate sets every posting in the box', true);
-  // a per-posting DAT override still exists in the Edit dialog
-  const row3 = page.locator('.lanebox tbody tr').nth(3);
-  await row3.locator('.menu summary').click();
-  await row3.locator('.menu-item:has-text("Edit every field")').click();
-  await page.locator('.modal .field', { hasText: 'DAT Loadboard Rate' }).locator('input').fill('2100');
-  await page.click('.modal >> text=Save');
+  // type the rate actually posted on DAT into ONE posting's DAT-rate box
+  const rateBox = page.locator('.lanebox tbody tr').nth(3).locator('input.datrate');
+  await rateBox.fill('2100'); await rateBox.press('Enter');
   await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings[3].datRate === '2100');
+  check('a rate typed in the DAT rate box sticks to that posting only', await page.evaluate(async () => (await import('/js/store/state.js')).state.postings.filter(p => p.datRate).length) === 1);
 
   const grp = await downloadVia(() => page.click('[data-act="csv-group"]'));
   const gtxt = grp.buf.toString('utf8');
@@ -112,10 +113,10 @@ try {
   check('lane CSV has header + 9 postings, LF endings, no BOM', glines.length === 10 && !gtxt.includes('\r') && grp.buf[0] !== 0xEF && !gtxt.startsWith('\ufeff'));
   check('lane CSV file name carries the lane', /^freight-signal-dat-.+-to-.+-\d{4}-\d{2}-\d{2}\.csv$/.test(grp.name), grp.name);
   const col = (line, i) => line.split(',')[i];
-  check('target rate is posted as the DAT rate (1800 x8, per-posting override 2100 x1)', glines.slice(1).filter(l => col(l, 11) === '1800').length === 8 && glines.slice(1).filter(l => col(l, 11) === '2100').length === 1);
+  check('rated posting carries its own DAT rate and the other 8 go out blank (2 of 9 style posting)', glines.slice(1).filter(l => col(l, 11) === '2100').length === 1 && glines.slice(1).filter(l => col(l, 11) === '').length === 8 && glines.slice(1).filter(l => col(l, 11) === '1800').length === 0);
   await page.locator('.boardbar .tgl input').uncheck(); await page.waitForTimeout(200);
   const noRate = (await downloadVia(() => page.click('[data-act="csv-group"]'))).buf.toString('utf8').split('\n').filter(Boolean).slice(1);
-  check('with "Post target rate on DAT" off, only the override posts a rate', noRate.filter(l => col(l, 11) === '1800').length === 0 && noRate.filter(l => col(l, 11) === '2100').length === 1);
+  check('with "Post target rate on DAT" off, the typed DAT rate still posts', noRate.filter(l => col(l, 11) === '1800').length === 0 && noRate.filter(l => col(l, 11) === '2100').length === 1);
   await page.locator('.boardbar .tgl input').check(); await page.waitForTimeout(200);
   check('destination ZIP column is filled', glines.slice(1).every(l => /^\d{5}$/.test(col(l, 20))), glines[1]);
 
@@ -342,6 +343,47 @@ try {
   check('a broker tab shows only that broker\'s loads (none yet)', (await page.locator('.lanebox').count()) === 0);
   await page.click('.tabs .tab[data-fk="tab:__all"]');
   await page.waitForSelector('.lanebox', { timeout: 8000 });
+
+  // --- v6: RateView button, collapsed copy, broker drag-and-drop, celebration, tour
+  check('DAT RateView is a real button on the lane bar (not inside the menu)', (await page.locator('.lanebox [data-act="rateview"]').count()) >= 1 && (await page.locator('.lanebox .menu [data-act="rateview"]').count()) === 0);
+  check('the per-posting checkboxes are the bigger size', await page.locator('.lanebox tbody input.bigchk').first().evaluate(e => e.getBoundingClientRect().width >= 20));
+  await page.click('.boardbar .menu summary'); await page.click('[data-act="collapse-all"]');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox.collapsed').length >= 1);
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+  await page.locator('.lanebox.collapsed [data-act="copy-lane-details"]').first().click();
+  await page.waitForTimeout(250);
+  const collapsedClip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  check('load details can be copied while the load is collapsed', collapsedClip.length > 30, collapsedClip.slice(0, 60));
+  await page.click('.boardbar .menu summary'); await page.click('[data-act="expand-all"]');
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9);
+
+  const tabNames = () => page.locator('.tabs .tab[data-broker]').evaluateAll(els => els.map(e => e.dataset.broker));
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.addBroker('Pat Doe'); });
+  await page.waitForSelector('.tabs .tab[data-broker="Pat Doe"]');
+  const before = await tabNames();
+  await page.locator('.tabs .tab[data-broker="Pat Doe"]').dragTo(page.locator('.tabs .tab[data-broker]').first());
+  await page.waitForFunction(async () => (await import('/js/store/state.js')).state.settings.brokers[0] === 'Pat Doe').catch(() => {});
+  const after = await tabNames();
+  check('brokers can be dragged into a new order and the order is saved', after[0] === 'Pat Doe' && after.length === before.length, after.join(','));
+  await page.reload(); await page.waitForSelector('#nav a');
+  check('the broker order survives a reload', (await tabNames())[0] === 'Pat Doe');
+
+  await page.evaluate(async () => { const m = await import('/js/ui/celebrate.js'); m.celebrate({ week: 50, floor: 50 }); });
+  await page.waitForSelector('.goal-banner.in', { timeout: 4000 });
+  check('hitting the weekly goal shows the banner and a confetti canvas', (await page.locator('#confetti').count()) === 1 && /50/.test(await page.locator('.goal-banner').innerText()));
+  await page.waitForSelector('#confetti', { state: 'detached', timeout: 9000 }).catch(() => {});
+  check('the confetti cleans itself up and never blocks clicks', (await page.locator('#confetti').count()) === 0);
+
+  await page.evaluate(async () => { const m = await import('/js/ui/tour.js'); m.startTour({ from: 0 }); });
+  await page.waitForSelector('.tour-card', { timeout: 5000 });
+  const stepsTotal = await page.evaluate(async () => (await import('/js/core/tourSteps.js')).TOUR_STEPS.length);
+  check('the guided tour opens with a card and a skip link', (await page.locator('.tour-skip').count()) === 1 && stepsTotal >= 7 && stepsTotal <= 10);
+  await page.keyboard.press('ArrowRight'); await page.waitForTimeout(500);
+  check('the tour moves to the next step with the arrow key', /2/.test(await page.locator('.tour-count').innerText()));
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.tour-layer', { state: 'detached', timeout: 4000 });
+  check('Escape closes the tour', (await page.locator('.tour-layer').count()) === 0);
+  await go('board'); await page.click('.tabs .tab[data-fk="tab:__all"]'); await page.waitForSelector('.lanebox', { timeout: 8000 });
   check('the All tab shows everything and offers the whole-board CSV', (await page.locator('.lanebox').count()) >= 1 && (await page.locator('[data-act="csv-all"]').count()) === 1);
 
   await go('customers');

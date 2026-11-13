@@ -64,7 +64,7 @@ export function scoreboard(tabBroker) {
 }
 
 // ------------------------------------------------------------------ next steps per load
-async function runAction(box, a) {
+async function runAction(box, a, hooks = {}) {
   const head = box.head; const ids = box.members.map(m => m.id);
   switch (a.type) {
     case 'reprice': {
@@ -88,19 +88,21 @@ async function runAction(box, a) {
     }
     case 'call': { await actions.logOp(head.id, 'call', 'opened the call list'); callListModal(box); return; }
     case 'cover': return coverModal(box);
+    case 'csv': return hooks.csv ? hooks.csv() : undefined;
     default: return undefined;
   }
 }
 
-export function guidanceBlock(row, ctx) {
+export function guidanceBlock(row, ctx, hooks = {}) {
   const adv = nextSteps(row.stats, adviceExtra(row.box, ctx));
   const [first, ...rest] = adv.steps;
-  const btn = (s, primary) => (s.action ? h('button', { class: 'btn small' + (primary ? ' primary' : ''), type: 'button', onclick: () => runAction(row.box, s.action) }, s.action.label || 'Do it') : null);
+  const btn = (s, primary) => (s.action ? h('button', { class: 'btn small' + (primary ? ' primary' : ''), type: 'button', onclick: () => runAction(row.box, s.action, hooks) }, s.action.label || 'Do it') : null);
+  const checks = (s) => (s.checks && s.checks.length ? h('ul', { class: 'gchecks' }, s.checks.map(c => h('li', null, c))) : null);
   return h('div', { class: 'guide g-' + adv.level },
     h('div', { class: 'guide-head' }, icon('bulb', 16), h('b', null, adv.headline || 'Next step'), h('span', { class: 'pill' }, adv.phase)),
-    first ? h('div', { class: 'gstep' }, h('div', null, h('b', null, first.title), h('p', null, first.detail)), btn(first, true)) : null,
+    first ? h('div', { class: 'gstep' }, h('div', null, h('b', null, first.title), h('p', null, first.detail), checks(first)), btn(first, true)) : null,
     rest.length ? h('details', { class: 'gmore' }, h('summary', null, `${rest.length} other option${rest.length === 1 ? '' : 's'}`),
-      rest.map(s => h('div', { class: 'gstep sub' }, h('div', null, h('b', null, s.title), h('p', null, s.detail)), btn(s, false)))) : null,
+      rest.map(s => h('div', { class: 'gstep sub' }, h('div', null, h('b', null, s.title), h('p', null, s.detail), checks(s)), btn(s, false)))) : null,
     adv.wait ? h('p', { class: 'muted small' }, adv.wait) : null);
 }
 

@@ -3,9 +3,11 @@
 //   * header + postings only (DAT's three instruction rows are NOT included - you must delete them before upload anyway)
 //   * value styles copied from the template's sample rows: dates m/d/yyyy, Full/Partial capitalised, yes/no lower-case,
 //     contact method lower-case, equipment code (V, R, F ...), rates as whole dollars.
-// The "DAT Loadboard Rate" column is a posting's own DAT rate when it has one (set in the Edit dialog). Otherwise, when
+// The "DAT Loadboard Rate" column is a posting's own DAT rate when it has one (the "DAT rate" box on each posting row). Otherwise, when
 // `targetAsRate` is on (the board's "Post target rate on DAT" switch, on by default), it is the load's Target rate: the one
 // rate typed per load. With the switch off the column stays blank and the target rate is only used to judge carrier replies.
+// Posting only SOME of a load's postings with a rate: the moment any posting of a load has its own DAT rate, ONLY the postings that
+// have one carry a rate; the rest of that load post without a rate (the target-rate fallback is switched off for that load).
 
 import { DAT_COLUMNS } from './defaults.js';
 import { toDelimited } from './csv.js';
@@ -50,7 +52,7 @@ export function datRow(p, opts = {}) {
     allowPrivBooking: yn(p.allowPrivBooking, 'no'),
     allowPrivBidding: yn(p.allowPrivBidding, 'no'),
     useDat,
-    datRate: useDat === 'yes' ? (rate(p.datRate) || (opts.targetAsRate ? rate(p.targetRate) : '')) : '',
+    datRate: useDat === 'yes' ? (rate(p.datRate) || (opts.targetAsRate && !opts.ownRates ? rate(p.targetRate) : '')) : '',
     allowDatBooking: yn(p.allowDatBooking, 'no'),
     useExtended: yn(p.useExtended, 'no'),
     contact: String(p.contact ?? 'email').trim().toLowerCase() || 'email',
@@ -83,7 +85,32 @@ export function datProblems(postings) {
 /** Postings that go to DAT (covered rows never do). */
 export const datPostings = (postings) => postings.filter(p => String(p.status ?? 'Active').toLowerCase() !== 'covered');
 
-export function datRows(postings, opts = {}) { return datPostings(postings).map(p => datRow(p, opts)); }
+/** Key of the load a posting belongs to (its group id, or its own id when it has none). */
+export const loadKey = (p) => { const g = String(p.groupId ?? '').trim().toLowerCase(); return g ? 'g:' + g : 'p:' + p.id; };
+
+/**
+ * Loads where at least one posting has its OWN DAT rate: Set of loadKey. `all` is every posting on the board, so a single posting
+ * downloaded on its own still knows whether its siblings carry rates.
+ */
+export function loadsWithOwnRates(all) {
+  const out = new Set();
+  for (const p of all || []) if (String(p.status ?? 'Active').toLowerCase() !== 'covered' && rate(p.datRate)) out.add(loadKey(p));
+  return out;
+}
+
+/** How a load's rate will go out: { own: true, count } when only some postings carry one, else the target rate on every posting (when on). */
+export function loadRateInfo(members, opts = {}) {
+  const live = datPostings(members);
+  const own = live.filter(p => rate(p.datRate));
+  if (own.length) return { mode: 'own', count: own.length, total: live.length };
+  const t = live.some(p => rate(p.targetRate));
+  return opts.targetAsRate && t ? { mode: 'target', count: live.length, total: live.length } : { mode: 'none', count: 0, total: live.length };
+}
+
+export function datRows(postings, opts = {}) {
+  const own = loadsWithOwnRates(opts.all || postings);
+  return datPostings(postings).map(p => datRow(p, { ...opts, ownRates: own.has(loadKey(p)) }));
+}
 
 /** The upload file: header + one line per posting, LF endings, no BOM. */
 export function datCsv(postings, opts = {}) {

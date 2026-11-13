@@ -3,7 +3,7 @@ import { state, actions } from '../../store/state.js';
 import { rateViewUrl, ventuskyUrl } from '../../core/links.js';
 import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
 import { PRIORITIES, laneBoxes, gridLabel, targetForPriority } from '../../core/model.js';
-import { datTsv, datCsv, datProblems, datPostings, datFileName } from '../../core/dat.js';
+import { datTsv, datCsv, datRows, datProblems, datPostings, datFileName, loadRateInfo } from '../../core/dat.js';
 import { originalLoadDetails, copyDetailsMessage } from '../../core/loaddetails.js';
 import { analyseBoard, matchesQuick } from '../../core/worklist.js';
 import { laneMemory, laneMemoryText, rateVsMemory, paceStats } from '../../core/coverlog.js';
@@ -11,6 +11,7 @@ import { safeNumeric } from '../../core/util.js';
 import { icon } from '../icons.js';
 import { pageHead, emptyState, flash } from '../chrome.js';
 import { boardCtx } from '../board/ctx.js';
+import { makeSortable } from '../sortable.js';
 import { loadStatus, equipLabel, shortDate, lbs, FLAG_ICON, QUICK_FILTERS } from '../board/status.js';
 import { pastePanel, matrixFlow } from '../board/flow.js';
 import { coverModal } from '../board/cover.js';
@@ -82,7 +83,8 @@ function rateLink(p) {
   openExternal(r.url);
 }
 
-const datOpts = () => ({ targetAsRate: state.settings.postTargetOnDat !== false });
+/** `all` = every posting on the board, so a single posting downloaded alone still knows whether its siblings carry their own DAT rates. */
+const datOpts = () => ({ targetAsRate: state.settings.postTargetOnDat !== false, all: state.postings });
 
 /** Download a DAT-template CSV for a list of postings (whole board, one lane group, a selection, or a single posting). */
 async function downloadDat(kind, list, what) {
@@ -96,8 +98,9 @@ async function downloadDat(kind, list, what) {
   }
   const o = datOpts();
   download(datFileName(kind, rows), datCsv(rows, o), 'text/csv;charset=utf-8');
-  const priced = rows.filter(p => String(p.datRate ?? '').trim() || (o.targetAsRate && String(p.targetRate ?? '').trim())).length;
-  toast(`${what}: ${rows.length} posting(s) downloaded (${priced} with a rate). Upload the file in DAT's bulk posting tool.`, 'ok', 7000);
+  const withRate = datRows(rows, o).filter(r => String(r[DAT_RATE_COL] ?? '').trim()).length;
+  actions.markPosted(rows.map(p => p.id));            // starts the "live for N min" clock the guided notes use
+  toast(`${what}: ${rows.length} posting(s) downloaded (${withRate} with a rate). Upload the file in DAT's bulk posting tool.`, 'ok', 7000);
 }
 
 async function deleteMany(ids, what) {
@@ -108,6 +111,7 @@ async function deleteMany(ids, what) {
   toast(`${n} posting(s) deleted.`, 'ok');
 }
 
+const DAT_RATE_COL = DAT_COLUMNS.findIndex(c => c.key === 'datRate');
 const EQ_TITLE = EQUIPMENT.map(e => `${e.code} = ${e.label}`).join(', ');
 
 /** Equipment select that applies to every posting of the load. */
@@ -138,25 +142,40 @@ function issuesStrip(r) {
   return chips.length ? h('div', { class: 'issues' }, chips) : null;
 }
 
+/**
+ * The "DAT rate" box on a posting row: the rate you actually post on DAT for THIS posting. Fill it on only a few postings (say 2 of the 9)
+ * and only those carry a rate; leave every box blank and the load's target rate is posted on all of them (when that switch is on).
+ */
+function datRateInput(p, rc) {
+  const ph = rc.own ? 'no rate' : (rc.fallback ? money(rc.fallback) : 'no rate');
+  const el = h('input', { class: 'cell datrate', size: 6, value: p.datRate ?? '', placeholder: ph, inputmode: 'decimal', 'aria-label': 'DAT rate for this posting', 'data-fk': `${p.id}:datRate`,
+    title: 'The rate you post on DAT for this posting. Leave it blank to post it with the load\'s target rate. Fill it on only some postings and the rest of the load post without a rate.' });
+  el.addEventListener('change', async () => { await actions.setDatRate([p.id], el.value); });
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } });
+  return el;
+}
+
 /** One row of the compact matrix: position, lane, replies, and a ⋯ menu for the rarely used actions. */
-function row(p) {
+function row(p, rc) {
   const upd = (k) => (v) => actions.updatePosting(p.id, { [k]: v });
   const ci = (k, size, extra = {}) => inputEl(p[k], upd(k), { size, 'data-fk': `${p.id}:${k}`, ...extra });
   const lbl = gridLabel(p.variant);
   const orig = p.variant === 'Original';
   return h('tr', { class: 'lrow' + (orig ? ' orig' : ''), dataset: { posting: p.id } },
-    h('td', { class: 'chk' }, h('input', { type: 'checkbox', checked: selected.has(p.id), 'aria-label': 'Select posting', 'data-fk': `${p.id}:chk`, onchange: (e) => { if (e.target.checked) selected.add(p.id); else selected.delete(p.id); rerender(); } })),
+    h('td', { class: 'chk' }, h('input', { type: 'checkbox', class: 'bigchk', checked: selected.has(p.id), 'aria-label': 'Select posting', 'data-fk': `${p.id}:chk`, onchange: (e) => { if (e.target.checked) selected.add(p.id); else selected.delete(p.id); rerender(); } })),
     h('td', null, p.variant ? h('span', { class: 'pos ' + (orig ? 'orig' : ''), title: orig ? 'Original posting (A-A)' : `${p.variant}: origin ${p.originAltMiles ?? 0} mi and destination ${p.destAltMiles ?? 0} mi from the original` }, lbl || p.variant) : h('span', { class: 'pos' }, 'Single')),
     h('td', null, h('div', { class: 'endpoint' }, ci('originCity', 14, { 'aria-label': 'Origin city' }), ci('originState', 2, { class: 'cell st', 'aria-label': 'Origin state' }), ci('originZip', 5, { class: 'cell zip', 'aria-label': 'Origin ZIP' }))),
     h('td', { class: 'arrow' }, icon('chevright', 14)),
     h('td', null, h('div', { class: 'endpoint' }, ci('destCity', 14, { 'aria-label': 'Destination city' }), ci('destState', 2, { class: 'cell st', 'aria-label': 'Destination state' }), ci('destZip', 5, { class: 'cell zip', 'aria-label': 'Destination ZIP' }))),
+    h('td', { class: 'ratecell' }, datRateInput(p, rc)),
     h('td', { class: 'num', title: 'Carrier replies received / outreach drafts sent' }, `${p.inquiryCount || 0} / ${p.outreachCount || 0}`),
-    h('td', { class: 'rowmenu' }, menu('More actions for this posting', [
-      { label: 'Edit every field', run: () => detailModal(p) },
-      { label: 'Open DAT RateView', run: () => rateLink(p) },
-      { label: 'Weather at origin', run: () => weather(p) },
-      { label: 'Download this posting (CSV)', act: 'csv-one', run: () => downloadDat('one', [p], 'Posting') },
-      { label: 'Delete this posting', act: 'del-one', danger: true, run: () => deleteMany([p.id], 'this posting') }])));
+    h('td', { class: 'rowmenu' }, h('div', { class: 'rowtools' },
+      h('button', { class: 'btn small iconbtn', type: 'button', 'data-act': 'rateview-row', title: `Open DAT RateView for ${p.originCity || '?'}, ${p.originState || '?'} to ${p.destCity || '?'}, ${p.destState || '?'}`, 'aria-label': 'Open DAT RateView for this posting', onclick: () => rateLink(p) }, icon('rateview', 16)),
+      menu('More actions for this posting', [
+        { label: 'Edit every field', run: () => detailModal(p) },
+        { label: 'Weather at origin', run: () => weather(p) },
+        { label: 'Download this posting (CSV)', act: 'csv-one', run: () => downloadDat('one', [p], 'Posting') },
+        { label: 'Delete this posting', act: 'del-one', danger: true, run: () => deleteMany([p.id], 'this posting') }]))));
 }
 
 function groupBox(r, collapsed, toggle) {
@@ -169,6 +188,8 @@ function groupBox(r, collapsed, toggle) {
   const attrs = { dataset: { group: b.groupId || '', lane: b.title, key: b.key } };
   const memberRate = b.members.map(m => String(m.targetRate ?? '').trim() || String(m.datRate ?? '').trim()).find(Boolean) || '';
   const rate = String(head.targetRate ?? '').trim() || memberRate;
+  const rinfo = loadRateInfo(b.members, datOpts());
+  const rc = { own: rinfo.mode === 'own', fallback: state.settings.postTargetOnDat !== false ? Number(String(rate).replace(/[^0-9.]/g, '')) || 0 : 0 };
 
   const toggleBtn = h('button', { class: 'collbtn', type: 'button', 'aria-expanded': String(!collapsed), title: collapsed ? 'Expand this load' : 'Collapse this load', 'data-act': 'toggle-box', onclick: toggle }, icon(collapsed ? 'chevright' : 'chevdown', 16));
   const meta = [
@@ -176,16 +197,19 @@ function groupBox(r, collapsed, toggle) {
   ].filter(x => x[0]).map(([t, ic]) => h('span', { class: 'meta' }, icon(ic, 14), t));
   const header = h('header', { class: 'lanehead' },
     h('div', { class: 'lanetitle' }, toggleBtn,
-      h('input', { type: 'checkbox', checked: allSel, 'aria-label': 'Select every posting in this lane', 'data-fk': `${b.key}:chk`, onchange: (e) => { ids.forEach(id => (e.target.checked ? selected.add(id) : selected.delete(id))); rerender(); } }),
+      h('input', { type: 'checkbox', class: 'bigchk', checked: allSel, 'aria-label': 'Select every posting in this lane', 'data-fk': `${b.key}:chk`, onchange: (e) => { ids.forEach(id => (e.target.checked ? selected.add(id) : selected.delete(id))); rerender(); } }),
       h('div', { class: 'truck' }, icon('truck', 20)),
       h('div', { class: 'lanemain' },
         h('h3', { class: 'lane', onclick: toggle }, b.title),
         h('div', { class: 'metarow' }, meta,
           h('span', { class: 'meta' }, `${b.members.length} posting${b.members.length === 1 ? '' : 's'}`),
           lane ? h('span', { class: 'meta' }, ({ local: 'Local', regional: 'Regional', long: 'Long-distance' })[lane] || lane) : null,
+          rinfo.mode === 'own' ? h('span', { class: 'meta', title: 'Only these postings carry a rate on DAT; the rest post without one.' }, icon('target', 14), `DAT rate on ${rinfo.count} of ${rinfo.total}`) : null,
           head.broker ? h('span', { class: 'meta' }, head.broker) : null,
           r.stats.inquiries.total ? h('span', { class: 'meta ok' }, `${r.stats.inquiries.total} replies`) : null)),
       h('div', { class: 'lanestatus' },
+        // collapsed cards have no action bar, so the copy button lives in the header (it is in the action bar when the card is open)
+        collapsed ? h('button', { class: 'btn small', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 14), 'Copy details') : null,
         h('span', { class: 'badge st-' + st.tone }, icon(st.icon, 14), st.label),
         h('span', { class: 'score ' + r.label.toLowerCase(), title: `Cover-probability score ${r.score}/100 (${r.label}): ${r.reasons.join('; ')}` }, r.score))),
     collapsed ? null : issuesStrip(r));
@@ -229,22 +253,34 @@ function groupBox(r, collapsed, toggle) {
   const acts = h('div', { class: 'laneact' },
     h('button', { class: 'btn primary', type: 'button', 'data-act': 'outreach', title: 'Draft carrier outreach for this load, best-matched carriers first (nothing is sent)', onclick: async () => { const x = await actions.runOutreach(head.id); if (x) summaryOutreach(x); } }, icon('send', 15), 'Carrier outreach'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy load details'),
+    h('button', { class: 'btn', type: 'button', 'data-act': 'rateview', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 15), 'DAT RateView'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'csv-group', title: 'Download every posting of this load as a DAT CSV', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }, icon('download', 15), 'Download CSV'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'mark-covered', title: 'Log which posting and carrier covered it, then remove the load', onclick: () => coverModal(b) }, icon('check', 15), 'Mark covered'),
     single ? h('button', { class: 'btn', type: 'button', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3×3 matrix') : null,
     menu('More actions for this load', [
       { label: 'View original details', act: 'view-lane-details', run: () => viewDetails(b) },
       { label: 'Save to Spare Load Details', run: async () => { await actions.saveSpareFromGroup(head.id); toast('Saved to Spare Load Details.', 'ok'); } },
-      { label: 'Open DAT RateView', run: () => rateLink(head) },
       { label: 'Weather at origin', run: () => weather(head) },
       { label: single ? 'Delete this load' : 'Delete all postings', act: 'del-group', danger: true, run: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }]));
 
   return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), ...attrs },
     header, loadDetailsBar(details, opts), acts,
-    guidanceBlock(r, boardCtx()),
+    guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
     h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable' },
-      h('thead', null, h('tr', null, [['', ''], ['Post', 'A-A is the original. Other cells are nearby origin/destination pairings.'], ['Origin', ''], ['', ''], ['Destination', ''], ['Replies / sent', 'Carrier replies received / outreach drafts created'], ['', '']].map(([x, t]) => h('th', { title: t || null }, x)))),
-      h('tbody', null, b.members.map(m => row(m))))));
+      h('thead', null, h('tr', null, [['', ''], ['Post', 'A-A is the original. Other cells are nearby origin/destination pairings.'], ['Origin', ''], ['', ''], ['Destination', ''], ['DAT rate', 'The rate you post on DAT for this posting. Fill it on only some postings and the rest post without a rate.'], ['Replies / sent', 'Carrier replies received / outreach drafts created'], ['', '']].map(([x, t]) => h('th', { title: t || null }, x)))),
+      h('tbody', null, b.members.map(m => row(m, rc))))),
+    rateNote(b, rinfo, rate));
+}
+
+/** One line under the postings that says exactly how this load's rate will go out on DAT. */
+function rateNote(b, info, rate) {
+  const ids = b.members.map(m => m.id);
+  const onDat = state.settings.postTargetOnDat !== false;
+  const text = info.mode === 'own' ? `DAT rate on ${info.count} of ${info.total} postings. The other ${info.total - info.count} post without a rate.`
+    : info.mode === 'target' ? `${money(rate)} will be posted on all ${info.total} postings. Type a DAT rate on only the postings you want priced and the rest post without one.`
+    : `No rate will be posted. Type a DAT rate on the postings you want priced${rate && !onDat ? ', or switch on "Post target rate on DAT"' : ''}.`;
+  return h('div', { class: 'ratenote muted small' }, icon('info', 14), h('span', null, text),
+    info.mode === 'own' ? h('button', { class: 'btn small', type: 'button', 'data-act': 'clear-dat-rates', title: 'Clear every DAT rate on this load, so the target rate is posted on all of them again', onclick: async () => { await actions.clearDatRates(b.head.id); toast('DAT rates cleared. The target rate is posted on every posting again.', 'ok'); } }, 'Use the target on all') : null);
 }
 
 const loadDetailsBar = (details, opts) => h('div', { class: 'lanesetup' }, details, opts);
@@ -253,15 +289,20 @@ function brokerTabs(boxesAll) {
   const brokers = state.settings.brokers || [];
   const unassigned = boxesAll.filter(x => !(x.box.head.broker || '')).length;
   const count = (name) => boxesAll.filter(x => (x.box.head.broker || '') === name).length;
-  const tab = (id, label, n) => h('button', { class: 'tab' + (brokerTab === id ? ' on' : ''), type: 'button', role: 'tab', 'aria-selected': String(brokerTab === id), 'data-fk': 'tab:' + id, onclick: () => { brokerTab = id; rerender(); } }, label, h('em', null, n));
+  const canSort = brokers.length > 1;
+  const tab = (id, label, n, isBroker = false) => h('button', { class: 'tab' + (brokerTab === id ? ' on' : '') + (isBroker && canSort ? ' sortable' : ''), type: 'button', role: 'tab', 'aria-selected': String(brokerTab === id), 'data-fk': 'tab:' + id, dataset: isBroker ? { broker: id } : null,
+    title: isBroker && canSort ? `${label} - drag to re-order the brokers (or hold Alt and press the arrow keys)` : null, onclick: () => { brokerTab = id; rerender(); } },
+    isBroker && canSort ? h('span', { class: 'grip', 'aria-hidden': 'true' }, icon('grip', 14)) : null, label, h('em', null, n));
   const addBroker = h('button', { class: 'btn small', type: 'button', onclick: () => {
     const inp = h('input', { placeholder: 'Broker name', 'data-live': '' });
     modal({ title: 'Add a broker', body: h('div', null, h('p', { class: 'muted' }, 'Each broker gets their own tab, scoreboard and CSV. You can also assign a load to a broker from its card.'), field('Name', inp)),
       actions: [{ label: 'Cancel' }, { label: 'Add', kind: 'primary', onClick: async () => { const ok = await actions.addBroker(inp.value); if (!ok) { toast('Enter a new name (it must not already exist).', 'warn'); return false; } brokerTab = inp.value.trim(); } }] });
     setTimeout(() => inp.focus(), 40);
   } }, icon('plus', 14), 'Broker');
-  return h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Broker boards' },
-    tab('__all', 'All', boxesAll.length), brokers.map(b => tab(b, b, count(b))), brokers.length && unassigned ? tab('', 'Unassigned', unassigned) : null, addBroker);
+  const wrap = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Broker boards' },
+    tab('__all', 'All', boxesAll.length), brokers.map(b => tab(b, b, count(b), true)), brokers.length && unassigned ? tab('', 'Unassigned', unassigned) : null, addBroker);
+  if (canSort) makeSortable(wrap, { items: () => [...wrap.querySelectorAll('.tab[data-broker]')], id: (el) => el.dataset.broker, axis: 'x', onReorder: (order) => actions.reorderBrokers(order) });
+  return wrap;
 }
 
 export function render() {

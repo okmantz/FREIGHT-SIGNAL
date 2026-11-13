@@ -7,11 +7,11 @@ import { targetForPriority, blankPosting, reindex, initializeLoadControls, recon
 import { planMatrix, applyMatrix, hasAlternates } from '../core/matrix.js';
 import { planExcelOutreach, planOutlookScan } from '../core/outreach.js';
 import { planRankedOutreach, planRankedScan, buildTruckCheck } from '../core/ranking.js';
-import { buildCoverEntry } from '../core/coverlog.js';
+import { buildCoverEntry, weeklyGoalHit } from '../core/coverlog.js';
 import { expiredGroups } from '../core/expiry.js';
 import { classifyLane } from '../core/lanes.js';
 import { processIncomingEmail } from '../core/inbound.js';
-import { todayKey, uid, safeNumeric, normalizeText } from '../core/util.js';
+import { todayKey, uid, safeNumeric, normalizeText, applyOrder } from '../core/util.js';
 import { parseTqlLoad } from '../core/parser.js';
 import { toast } from '../ui/dom.js';
 
@@ -29,8 +29,8 @@ export const state = {
   postings: [], carriers: [], inquiries: [], outreach: [], spares: [], drafts: [], customers: [], coverLog: [],
   weather: new Map(),          // "city|st" -> alerts[] (filled by store/weather.js)
   carrierRev: 0,               // bumped whenever the carrier list changes (invalidates cached lane depth)
-  hooks: { sendToOutlook: null }, // set by store/bridge.js when an Outlook folder is connected
-  counters: { lifetimeCovers: 0, coversToday: 0, coversTodayDate: todayKey() },
+  hooks: { sendToOutlook: null, onWeeklyGoal: null }, // sendToOutlook: set by store/bridge.js when an Outlook folder is connected. onWeeklyGoal: set by main.js (confetti)
+  counters: { lifetimeCovers: 0, coversToday: 0, coversTodayDate: todayKey(), goalWeek: '' },
   zip: null, zipInfo: { source: '', importedAt: '' },
   listeners: new Set(),
   persistError: '',
@@ -86,6 +86,8 @@ export async function importZipCsv(text, source = 'imported file') {
 
 const savePostings = () => guard(() => db.replaceAll('postings', reindex(state.postings)));
 const saveCounters = () => guard(() => db.kvSet('counters', state.counters));
+/** Tell the UI the weekly cover floor was just reached (it plays the confetti). A moment later, so the cover dialog has closed first. */
+const announceGoal = (goal) => { if (goal && state.hooks.onWeeklyGoal) setTimeout(() => { try { state.hooks.onWeeklyGoal(goal); } catch (e) { console.error(e); } }, 450); };
 
 export const actions = {
   async saveSettings(patch) {
@@ -130,15 +132,37 @@ export const actions = {
     await savePostings(); emit(); return n;
   },
   /**
-   * The ONE rate per load: sets the Target rate on every posting in the box (or clears it with ''). It judges carrier e-mail replies and,
-   * unless "Post target rate on DAT" is switched off, it is the rate in the DAT CSV. Any per-posting DAT override is cleared so the box
-   * has one rate again.
+   * The ONE target rate per load: sets the Target rate on every posting in the box (or clears it with ''). It judges carrier e-mail replies
+   * and, unless "Post target rate on DAT" is switched off, it is the rate in the DAT CSV for postings that have no DAT rate of their own.
+   * A posting's own DAT rate (the box on its row) is never touched here: changing the target must not wipe the rates you typed.
    */
   async setTargetRate(ids, rate) {
     const r = cleanRate(rate); const set = new Set(ids);
     let n = 0;
-    for (const p of state.postings) if (set.has(p.id)) { p.targetRate = r; p.datRate = ''; n++; }
+    for (const p of state.postings) if (set.has(p.id)) { p.targetRate = r; n++; }
     await savePostings(); emit(); return n;
+  },
+  /** Back to "target rate on every posting": clears the DAT rate on every posting of the box that contains `id`. */
+  async clearDatRates(id) {
+    const p = state.postings.find(x => x.id === id); if (!p) return 0;
+    const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+    let n = 0; for (const m of members) if (m.datRate) { m.datRate = ''; n++; }
+    await savePostings(); emit(); return n;
+  },
+  /**
+   * The load was downloaded for DAT (the person is about to upload it, or re-upload it to refresh it). The Original posting remembers when,
+   * so the guided notes can say "posted 34 min ago" instead of guessing from when the load was pasted into the app.
+   */
+  async markPosted(ids, detail = 'CSV downloaded') {
+    const set = new Set(ids); const seen = new Set(); const at = new Date().toISOString();
+    for (const p of state.postings.filter(x => set.has(x.id))) {
+      const key = String(p.groupId || '').trim().toLowerCase() || p.id;
+      if (seen.has(key)) continue; seen.add(key);
+      const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+      const head = members.find(m => m.variant === 'Original') || members[0];
+      head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'posted', at, detail }].slice(-40);
+    }
+    await savePostings(); emit(); return seen.size;
   },
   /** Apply basic load details (pickup, weight, equipment, ...) to every posting of the box at once. */
   async updateGroup(id, patch) {
@@ -205,6 +229,7 @@ export const actions = {
       carrier, rate: opts.rate ?? '', inquiries: state.inquiries, note: opts.note || '', laneClass: lane.cls,
     });
     // 1) log first (if this fails nothing is deleted)
+    const goal = weeklyGoalHit({ logBefore: state.coverLog, entry, settings: state.settings, goalWeek: state.counters.goalWeek });
     await guard(() => db.put('coverLog', entry));
     state.coverLog.unshift(entry);
     // 2) the carrier's own record learns from it
@@ -224,9 +249,11 @@ export const actions = {
       const today = todayKey();
       if (state.counters.coversTodayDate !== today) { state.counters.coversTodayDate = today; state.counters.coversToday = 0; }
       state.counters.coversToday += 1; state.counters.lifetimeCovers += 1;
+      if (goal) state.counters.goalWeek = goal.key;
       await saveCounters();
     }
     await savePostings(); emit();
+    announceGoal(goal);
     return entry;
   },
   /** Retire groups whose pickup has passed (logged as "Expired", restorable from the Cover Log). Returns how many groups were retired. */
@@ -258,8 +285,11 @@ export const actions = {
     e.outcome = f.counts === false ? 'Manual' : 'Covered';  // "Covered" feeds lane memory, ranking and the pace tracker
     e.postings = []; e.rows = [];
     e.covered = { variant: '', grid: '', originCity: e.lane.originCity, originState: e.lane.originState, destCity: e.lane.destCity, destState: e.lane.destState, datRate: '', targetRate: '', inquiryCount: 0, contact: '' };
+    const goal = weeklyGoalHit({ logBefore: state.coverLog, entry: e, settings: state.settings, goalWeek: state.counters.goalWeek });
     state.coverLog.unshift(e); state.coverLog.sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt)));
-    await guard(() => db.put('coverLog', e)); emit(); return e;
+    await guard(() => db.put('coverLog', e));
+    if (goal) { state.counters.goalWeek = goal.key; await saveCounters(); }
+    emit(); announceGoal(goal); return e;
   },
   async deleteLogEntry(id) { state.coverLog = state.coverLog.filter(x => x.id !== id); await guard(() => db.del('coverLog', id)); emit(); },
   async saveLogEntry(e) { const i = state.coverLog.findIndex(x => x.id === e.id); if (i >= 0) state.coverLog[i] = e; await guard(() => db.put('coverLog', e)); emit(); },
@@ -270,6 +300,13 @@ export const actions = {
     const list = state.settings.brokers || [];
     if (list.some(b => b.toLowerCase() === n.toLowerCase())) return false;
     await actions.saveSettings({ brokers: [...list, n] }); return true;
+  },
+  /** Save a new broker order (drag and drop). `order` is the full list of names in the new order; unknown names are ignored, missing ones keep their place at the end. */
+  async reorderBrokers(order) {
+    const cur = state.settings.brokers || [];
+    const next = applyOrder(cur, order);
+    if (next.join('\u0000') === cur.join('\u0000')) return false;
+    await actions.saveSettings({ brokers: next }); return true;
   },
   async renameBroker(oldName, newName) {
     const n = String(newName || '').trim(); if (!n) return false;

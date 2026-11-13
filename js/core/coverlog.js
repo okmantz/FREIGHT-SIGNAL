@@ -157,8 +157,16 @@ export function rateVsMemory(rate, mem) {
 // ------------------------------------------------------------------------------------------------ pace
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
-/** Monday 00:00 of the week containing d. */
+/**
+ * Monday 00:00 (local time) of the week containing d.
+ * The cover week runs Monday through Sunday: Monday is the first day of a new week, so the weekly count resets the moment
+ * Sunday ends (12:00 AM Monday). Anything closed on a Sunday still belongs to the week that is finishing.
+ */
 export function weekStart(d) { const x = startOfDay(d); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return x; }
+/** The Monday 00:00 that starts the NEXT week (when the weekly count resets). */
+export function nextWeekStart(d) { const x = weekStart(d); x.setDate(x.getDate() + 7); return x; }
+/** "2026-11-09": a stable id for the week containing d (its Monday). */
+export function weekKey(d) { const x = weekStart(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; }
 
 /** Fraction (0..1) of this week's WORKING time that has passed, and how many working days remain (fractional). */
 export function workWeekProgress(now, s) {
@@ -184,11 +192,12 @@ export function workWeekProgress(now, s) {
  */
 export function paceStats(log, settings, now = new Date(), broker = null) {
   const floor = Number(settings.weeklyFloor) > 0 ? Number(settings.weeklyFloor) : 50;
-  const ws = weekStart(now), ds = startOfDay(now);
+  const ws = weekStart(now), we = nextWeekStart(now), ds = startOfDay(now), de = new Date(ds); de.setDate(de.getDate() + 1);
   const mine = (log || []).filter(e => isCover(e) && (broker === null || broker === undefined || (e.broker || '') === broker));
   const t = (e) => Date.parse(e.closedAt);
-  const today = mine.filter(e => t(e) >= ds.getTime()).length;
-  const week = mine.filter(e => t(e) >= ws.getTime()).length;
+  const today = mine.filter(e => t(e) >= ds.getTime() && t(e) < de.getTime()).length;
+  // Only this Monday-to-Sunday week counts: a cover dated in the future (or a manual cover for a later week) is not this week's.
+  const week = mine.filter(e => t(e) >= ws.getTime() && t(e) < we.getTime()).length;
   const prog = workWeekProgress(now, settings);
   let projection = null, status = 'early';
   if (prog.fraction >= 1) { projection = week; }
@@ -199,7 +208,32 @@ export function paceStats(log, settings, now = new Date(), broker = null) {
   const word = status === 'on' ? 'on pace' : status === 'close' ? 'just short' : status === 'short' ? 'short' : '';
   const text = projection === null ? `Too early in the week to project - ${need} to go to reach ${floor}.`
     : `At the current rate you land at ${projection} — ${word}.`;
-  return { today, week, floor, projection, status, need, perDay, text, fraction: prog.fraction, daysLeft: prog.daysLeft };
+  return { today, week, floor, projection, status, need, perDay, text, fraction: prog.fraction, daysLeft: prog.daysLeft, weekStart: ws, resetsAt: we, weekKey: weekKey(now) };
+}
+
+/** "Mon 11/9 - Sun 11/15" for the week containing d. */
+export function weekRangeText(d = new Date()) {
+  const a = weekStart(d), b = new Date(a); b.setDate(a.getDate() + 6);
+  const f = (x) => `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][x.getDay()]} ${x.getMonth() + 1}/${x.getDate()}`;
+  return `${f(a)} - ${f(b)}`;
+}
+
+/**
+ * Did logging `entry` just carry this week's cover count up to the weekly floor (default 50)? Pure: pass the log as it was BEFORE the
+ * entry was added and the week that was already celebrated (counters.goalWeek). Fires once per week, at the moment of crossing, never
+ * on a reload, a restore, or a week that was already over the line.
+ * Returns null, or { week, floor, key }.
+ */
+export function weeklyGoalHit({ logBefore, entry, settings, goalWeek = '', now = new Date() }) {
+  if (!entry || entry.outcome !== 'Covered') return null;
+  const ws = weekStart(now).getTime(), we = nextWeekStart(now).getTime();
+  const at = Date.parse(entry.closedAt);
+  if (!(at >= ws && at < we)) return null;                       // a cover dated in some other week does not count toward this one
+  const before = paceStats(logBefore, settings, now, null).week;
+  const floor = Number(settings && settings.weeklyFloor) > 0 ? Number(settings.weeklyFloor) : 50;
+  const key = weekKey(now);
+  if (before + 1 !== floor || goalWeek === key) return null;     // exactly the cover that reaches the floor, once per week
+  return { week: before + 1, floor, key };
 }
 
 export function coverStatsByBroker(log, brokers, settings, now = new Date()) {

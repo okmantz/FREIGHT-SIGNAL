@@ -131,3 +131,22 @@ export function todayKey(d = new Date()) {
 }
 
 export const CRLF = '\r\n';
+
+/**
+ * Re-order `current` to follow `desired`: names in `desired` that exist in `current` come first in that order (each once), then any name
+ * `desired` left out keeps its relative place at the end. Never adds or drops a name, so a stale drop can not lose a broker.
+ */
+export function applyOrder(current, desired) {
+  const have = new Set(current); const out = []; const seen = new Set();
+  for (const n of desired || []) if (have.has(n) && !seen.has(n)) { out.push(n); seen.add(n); }
+  for (const n of current) if (!seen.has(n)) out.push(n);
+  return out;
+}
+
+/** Move `name` so it sits at `index` (0-based, counted after it has been taken out of the list). Returns a new array. */
+export function moveItem(list, name, index) {
+  const from = list.indexOf(name); if (from < 0) return [...list];
+  const out = list.filter((_, i) => i !== from);
+  out.splice(Math.max(0, Math.min(out.length, index)), 0, name);
+  return out;
+}

@@ -8,6 +8,8 @@ import { refreshWeather, weatherStatus } from '../../store/weather.js';
 import { DEFAULT_TEMPLATES, TEMPLATE_VARS, templatesOf, ladderStage, fillTemplate } from '../../core/ladder.js';
 import { strategyFor, LANE_LABEL } from '../../core/lanes.js';
 import { formatCurrency0 } from '../../core/util.js';
+import { makeSortable } from '../sortable.js';
+import { weekRangeText } from '../../core/coverlog.js';
 
 let est = null;
 const rerender = () => import('../../main.js').then(m => m.render());
@@ -230,13 +232,23 @@ function brokerSection(s) {
   const wd = new Set((s.workDays || [1, 2, 3, 4, 5]).map(Number));
   return h('div', null,
     h('p', { class: 'muted' }, 'Add the brokers you post for. Each gets their own tab on the Freight Signal page, their own scoreboard and their own DAT CSV; "All" shows everything.'),
-    brokers.length ? h('ul', { class: 'brokerlist' }, brokers.map(b => h('li', null, h('b', null, b),
-      h('button', { class: 'btn small', type: 'button', onclick: () => { const inp = h('input', { value: b, 'data-live': '' }); modal({ title: 'Rename broker', body: field('Name', inp), actions: [{ label: 'Cancel' }, { label: 'Rename', kind: 'primary', onClick: async () => { await actions.renameBroker(b, inp.value); } }] }); } }, 'Rename'),
-      h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Remove broker', `Remove ${b}? Their loads stay on the board as Unassigned.`, 'Remove')) actions.removeBroker(b); } }, 'Remove')))) : h('p', { class: 'muted' }, 'No brokers yet.'),
+    brokers.length ? brokerList(brokers) : h('p', { class: 'muted' }, 'No brokers yet.'),
     h('div', { class: 'toolbar' }, name, h('button', { class: 'btn primary', type: 'button', onclick: add }, 'Add broker')),
     h('h4', null, 'Cover pace tracker (top right)'),
+    h('p', { class: 'muted small' }, `The cover week runs Monday to Sunday (this week: ${weekRangeText()}). The weekly count resets at 12:00 AM Monday, the moment Sunday ends. Reach the weekly floor and the app celebrates with a short burst of confetti.`),
     h('div', { class: 'grid4' }, num('weeklyFloor', 'Weekly floor (covers)'), num('workStart', 'Workday starts (hour, 0-23)', null, { min: 0, max: 23 }), num('workEnd', 'Workday ends (hour, 0-23)', null, { min: 1, max: 23 })),
+    h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: () => import('../celebrate.js').then(m => m.celebrate({ week: state.settings.weeklyFloor || 50, floor: state.settings.weeklyFloor || 50 })) }, icon('sparkle', 14), 'Preview the celebration')),
     h('div', { class: 'daypick' }, h('span', { class: 'muted' }, 'Working days: '), days.map(([n, l]) => { const c = h('input', { type: 'checkbox', checked: wd.has(n), 'data-live': '' }); c.addEventListener('change', () => { if (c.checked) wd.add(n); else wd.delete(n); if (!wd.size) { wd.add(n); c.checked = true; return toast('Keep at least one working day.', 'warn'); } actions.saveSettings({ workDays: [...wd].sort() }); }); return h('label', { class: 'inl' }, c, ' ' + l); })));
+}
+
+/** The broker list in System: drag the grip (or hold Alt and use the arrow keys) to re-order. The order is the order of the tabs on the board. */
+function brokerList(brokers) {
+  const ul = h('ul', { class: 'brokerlist' }, brokers.map(b => h('li', { dataset: { broker: b }, tabindex: 0, title: brokers.length > 1 ? 'Drag to re-order (or hold Alt and press the arrow keys)' : null },
+    brokers.length > 1 ? h('span', { class: 'grip', 'aria-hidden': 'true' }, icon('grip', 16)) : null, h('b', null, b),
+      h('button', { class: 'btn small', type: 'button', onclick: () => { const inp = h('input', { value: b, 'data-live': '' }); modal({ title: 'Rename broker', body: field('Name', inp), actions: [{ label: 'Cancel' }, { label: 'Rename', kind: 'primary', onClick: async () => { await actions.renameBroker(b, inp.value); } }] }); } }, 'Rename'),
+      h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Remove broker', `Remove ${b}? Their loads stay on the board as Unassigned.`, 'Remove')) actions.removeBroker(b); } }, 'Remove'))));
+  if (brokers.length > 1) makeSortable(ul, { items: () => [...ul.querySelectorAll('li[data-broker]')], id: (el) => el.dataset.broker, axis: 'y', onReorder: (order) => actions.reorderBrokers(order) });
+  return ul;
 }
 
 function weatherSection(s) {

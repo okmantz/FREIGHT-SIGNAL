@@ -887,3 +887,79 @@ details.set-card > .set-body { padding: 14px 20px 18px; }
 .lanebox th:nth-child(2) { width: 64px; }
 .lanebox th:nth-child(6) { width: 110px; text-align: center; }
 .toolbar.boardbar input[type="search"] { width: 160px; }
+
+/* =====================================================================================================================
+   v6 additions: bigger checkboxes, DAT-rate column, RateView buttons, draggable brokers, guided-note checklists,
+   the weekly-goal celebration and the first-login tour.
+   ===================================================================================================================== */
+
+/* ---- bigger tick boxes on every posting row (and the "select every posting" box in the lane header) */
+input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 6px; vertical-align: middle; flex: none; cursor: pointer; }
+.lanebox td.chk, .lanebox th:first-child { width: 46px; padding-left: 14px; }
+.lanebox td.chk { padding-top: 4px; padding-bottom: 4px; }
+.lanebox td.chk input.bigchk { margin: 0 4px; }
+
+/* ---- per-posting DAT rate box, and the RateView / menu buttons at the end of each row */
+.lanebox td.ratecell { width: 92px; text-align: right; }
+.lanebox td.ratecell input.cell.datrate { width: 82px; text-align: right; font-variant-numeric: tabular-nums; }
+.lanebox td.ratecell input.cell.datrate:not(:placeholder-shown) { border-color: rgba(var(--accent-rgb), .65); font-weight: 800; }
+.lanebox td.rowmenu { width: 92px; }
+.rowtools { display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.btn.iconbtn svg { display: block; }
+.ratenote { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 18px 12px; border-top: 1px solid var(--line); }
+.ratenote .ico { flex: none; color: var(--accent); }
+.ratenote .btn { margin-left: auto; }
+
+/* ---- guided notes: the per-load checklist */
+.gchecks { margin: 8px 0 2px; padding-left: 20px; display: grid; gap: 5px; font-size: .92em; line-height: 1.4; }
+.gchecks li::marker { color: var(--accent); }
+
+/* ---- drag to re-order brokers */
+.tab.sortable { cursor: grab; padding-left: 10px; }
+.tab.sortable:active { cursor: grabbing; }
+.tab .grip, .brokerlist .grip { display: inline-flex; align-items: center; color: var(--muted); opacity: .7; }
+.tab.dragging, .brokerlist li.dragging { opacity: .4; }
+.tab.drop-before { box-shadow: -4px 0 0 -1px var(--accent); }
+.tab.drop-after { box-shadow: 4px 0 0 -1px var(--accent); }
+.brokerlist li { cursor: grab; }
+.brokerlist li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.brokerlist li.drop-before { box-shadow: 0 -3px 0 -1px var(--accent); }
+.brokerlist li.drop-after { box-shadow: 0 3px 0 -1px var(--accent); }
+.brokerlist li button { cursor: pointer; }
+
+/* ---- weekly goal celebration (js/ui/celebrate.js) */
+#confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 120; }
+.goal-banner { position: fixed; top: 16px; left: 50%; z-index: 121; display: flex; align-items: center; gap: 12px; max-width: min(470px, calc(100vw - 24px)); padding: 11px 12px 11px 11px; border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 95%, transparent); border: 1px solid rgba(var(--accent-rgb), .5); box-shadow: var(--shadow-lg), 0 0 0 5px rgba(var(--accent-rgb), .12);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; transform: translate(-50%, -150%); transition: transform .55s var(--ease), opacity .4s ease; }
+.goal-banner.in { opacity: 1; transform: translate(-50%, 0); }
+.gb-ico { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: var(--on-btn); background: linear-gradient(180deg, var(--btn-a), var(--btn-b)); box-shadow: 0 6px 18px -6px rgba(var(--accent-rgb), .9); }
+.gb-text b { display: block; font-size: 1.05em; letter-spacing: -.005em; }
+.gb-text small { color: var(--muted); }
+.gb-x { flex: none; margin-left: 4px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.gb-x:hover { background: var(--hover); color: var(--text); }
+.pace-strip.milestone { border-color: var(--good); animation: pacegoal 1.7s ease-out 3; }
+@keyframes pacegoal { 0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), .75); } 100% { box-shadow: 0 0 0 18px rgba(var(--accent-rgb), 0); } }
+
+/* ---- first-login tour (js/ui/tour.js) */
+.tour-layer { position: fixed; inset: 0; z-index: 150; }
+.tour-dim { position: absolute; inset: 0; background: transparent; }
+.tour-dim.solid { background: rgba(2, 6, 12, .7); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.tour-spot { position: absolute; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(2, 6, 12, .68), 0 0 0 2px var(--accent), 0 0 28px 4px rgba(var(--accent-rgb), .5);
+  transition: left .32s var(--ease), top .32s var(--ease), width .32s var(--ease), height .32s var(--ease); }
+.tour-spot[hidden] { display: none; }
+.tour-card { position: absolute; width: min(390px, calc(100vw - 24px)); padding: 16px 18px 14px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-lg); transition: left .32s var(--ease), top .32s var(--ease); animation: pop .24s var(--ease) both; }
+.tour-card.center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.tour-card.sheet { left: 12px; right: 12px; bottom: 12px; top: auto; width: auto; transform: none; }
+.tour-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.tour-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--accent); background: rgba(var(--accent-rgb), .14); border: 1px solid rgba(var(--accent-rgb), .32); }
+.tour-count { flex: 1; font-size: .72em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tour-skip { background: none; border: 0; padding: 4px 2px; font: inherit; font-size: .84em; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.tour-skip:hover { color: var(--text); }
+.tour-bar { display: block; height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: 13px; }
+.tour-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--accent); transition: width .38s var(--ease); }
+.tour-card h3 { margin: 0 0 6px; font-size: 1.16em; letter-spacing: -.005em; }
+.tour-body { margin: 0 0 15px; line-height: 1.52; opacity: .93; }
+.tour-foot { display: flex; justify-content: flex-end; gap: 8px; }
+.tour-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
+@media print { .tour-layer, #confetti, .goal-banner { display: none !important; } }
