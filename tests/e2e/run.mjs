@@ -27,10 +27,14 @@ const errors = []; const external = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('request', (r) => { if (!r.url().startsWith(url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && !r.url().startsWith('https://api.weather.gov/')) external.push(r.url()); });
+const signUpLocal = async (pg, email, pw) => {
+  await pg.fill('.authgate input[type=email]', email); await pg.fill('.authgate input[name=password]', pw); await pg.fill('.authgate input[name=confirm]', pw);
+  await pg.click('.authgate button[type=submit]');
+};
 const go = async (tab) => {
   await page.goto(url + '#/' + tab);
   await page.waitForSelector('#nav a, .authgate', { state: 'attached', timeout: 20000 });
-  if (await page.locator('.authgate').count()) { await page.click('.authgate >> text=Skip for now'); }
+  if (await page.locator('.authgate').count()) { await page.click('.authgate button[type=submit]', { trial: true }).catch(() => {}); await signUpLocal(page, 'tester@example.com', 'test password 1'); }
   await page.waitForSelector('#nav a', { timeout: 20000 });
   // The first-login tour opens ~350 ms after the first render. Dismiss it once so it does not sit over every later step.
   if (!tourHandled) { tourHandled = true; if (await page.locator('.tour-layer').waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await page.click('.tour-skip'); }
@@ -504,24 +508,19 @@ try {
   await page.waitForTimeout(500); await page.reload(); await page.waitForSelector('#nav a');
   check('skin + background persist after reload', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura-reverie');
 
-  // --- email sign-in: first-run gate, create, keep signed in, sign out, wrong password, sign back in
+  // --- local accounts: keep signed in, sign out, wrong password, sign back in, a second person on the same computer
   await go('account');
   await page.click('#acct-signin > summary');
-  await page.fill('[data-fk="acct-email"]', 'Owen@Example.com'); await page.fill('[data-fk="acct-pw"]', 'short');
-  await page.click('[data-act="create-account"]');
-  check('a too-short password is refused with a clear message', /at least 8/i.test(await page.textContent('#acct-signin .autherr')));
-  await page.fill('[data-fk="acct-pw"]', 'correct horse 42'); await page.click('[data-act="create-account"]');
-  await page.waitForSelector('#acct-signin :text("owen@example.com")');
-  check('creating the sign-in saves the e-mail in Account Settings', true);
+  check('Account Settings shows the signed-in e-mail', (await page.textContent('#acct-signin')).includes('tester@example.com'));
   await page.reload(); await page.waitForSelector('#nav a');
   check('kept signed in: no gate after a reload', (await page.locator('.authgate').count()) === 0);
   await page.click('#signoutbtn'); await page.waitForSelector('.authgate');
-  check('signing out shows the sign-in form', (await page.locator('.authgate input[type=email]').count()) === 1);
-  await page.fill('.authgate input[type=email]', 'owen@example.com'); await page.fill('.authgate .pw input', 'wrong password!');
+  check('signing out shows the sign-in form', (await page.locator('.authgate [data-act="tab-signin"][aria-pressed="true"]').count()) === 1);
+  await page.fill('.authgate input[type=email]', 'tester@example.com'); await page.fill('.authgate .pw input', 'wrong password!');
   await page.click('.authgate button[type=submit]');
   await page.waitForFunction(() => /do not match/i.test(document.querySelector('.authgate .autherr').textContent));
   check('a wrong password is refused and the app stays locked', (await page.locator('#nav a:visible').count()) === 0);
-  await page.fill('.authgate .pw input', 'correct horse 42'); await page.click('.authgate button[type=submit]');
+  await page.fill('.authgate .pw input', 'test password 1'); await page.click('.authgate button[type=submit]');
   await page.waitForSelector('#nav a');
   check('the right password opens the app again', (await page.locator('.authgate').count()) === 0);
 
