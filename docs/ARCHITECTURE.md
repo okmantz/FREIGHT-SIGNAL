@@ -7,7 +7,8 @@ js/
   core/              PURE logic, no DOM, no storage - unit-tested in Node
     util csv defaults parser zipmap model matrix outreach inbound dat links eml ziparchive stats bridge
   store/
-    db.js            IndexedDB wrapper (8 stores, atomic replaceAll, validated import)
+    db.js            IndexedDB wrapper (8 stores, atomic replaceAll, validated import, per-user database name, write hook)
+    cloud.js         v9 cloud accounts: Firebase Auth + Realtime Database over REST, push/pull sync (config in js/config.js)
     state.js         in-memory state, write-through persistence, `actions` (all mutations)
   ui/
     dom.js           h() element builder (text nodes only - never innerHTML), modal, toast, download, clipboard
