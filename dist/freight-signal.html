@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-6AKp2GnwLccRxaY5patXJTfQ+tVDTugXEugJYL7lH5I='; style-src 'sha256-aI1qKUgpb4isR1e9MN/pMxXdIUOFnll1PSr3f23NlQg='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-+s0jpPVgS83tx7IOhaGKbGuLPhB1pAHWDOgrGPy5CMs='; style-src 'sha256-i/LqIACzw/0Y8QceBg04ltPXEzFC42XO7l2rGIwCjWc='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -1040,6 +1040,39 @@ input[type="checkbox"].bigchk { width: 22px; height: 22px; border-radius: 7px; }
 /* dialogs and toasts opened from the sign-in screen (forgot password, messages) must sit above it */
 html.locked .overlay { z-index: 260; }
 html.locked #toasts { z-index: 270; }
+
+/* v10: sortable database headers, carrier filters, contact links */
+th .thbtn { appearance: none; background: none; border: 0; margin: 0; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+th .thbtn:hover, th .thbtn:focus-visible { color: var(--text); }
+th .thbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+th .sortmark { font-size: .9em; opacity: .3; transition: opacity .15s; }
+th .thbtn:hover .sortmark { opacity: .75; }
+th.sorted .thbtn { color: var(--text); }
+th.sorted .sortmark { opacity: 1; color: var(--tbl, var(--accent)); }
+.filterbar { margin: -2px 0 12px; gap: 6px; }
+.filterbar select.cell { min-width: 0; font-size: .88em; padding: 4px 8px; }
+a.xlink { color: inherit; text-decoration: none; border-bottom: 1px dotted color-mix(in srgb, var(--accent) 55%, transparent); }
+a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style: solid; }
+
+/* v10: target rate on a collapsed load (quiet pill beside the lane title) */
+.titlerow { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.titlerow h3.lane { min-width: 0; flex: 0 1 auto; }
+.tgtpeek { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 1px 10px 1px 8px; border-radius: 999px; font-size: .8em; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .01em;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent); }
+.tgtpeek em { font-style: normal; font-weight: 600; font-size: .78em; letter-spacing: .09em; text-transform: uppercase; opacity: .6; }
+.tgtpeek.none { color: var(--muted); background: transparent; border-style: dashed; border-color: var(--line); font-weight: 500; opacity: .75; }
+
+/* v10: Find trucks menu on a load, and the Home cover toolkit */
+.laneact .menu.covertools { margin-left: 0; }
+.laneact .menu.covertools > summary { display: inline-flex; align-items: center; gap: 7px; }
+.menu.covertools .menu-pop { right: auto; left: 0; min-width: 310px; }
+.menu-head { padding: 8px 11px 3px; font-size: .68em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.menu-head:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line); }
+.toolkit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; margin-bottom: var(--gap); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.tk-title { display: inline-flex; align-items: center; gap: 7px; margin-right: 6px; font-size: .74em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tk-link { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface2); color: var(--text); text-decoration: none; font-size: .88em; font-weight: 600; }
+.tk-link:hover, .tk-link:focus-visible { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 760px) { .tgtpeek { font-size: .74em; } .menu.covertools .menu-pop { min-width: 260px; } }
 </style>
 <script>/* Runs before first paint (classic script, loaded in <head>): replays the last saved appearance from localStorage so the
  * theme, accent and background never flash. The real engine is js/ui/appearance.js; this file only reads what it wrote. */
@@ -4584,13 +4617,17 @@ html.locked #toasts { z-index: 270; }
           if (state.settings.draftsToOutlook && state.hooks.sendToOutlook && stamped.length) await actions.sendDraftsToOutlook(stamped.map((d) => d.id));
           return { ...scan, drafts: stamped };
         },
-        /** "Do you have any trucks available?" - one draft per carrier. Returns the saved draft records. */
-        async truckCheck(carrierIds) {
+        /**
+         * "Do you have any trucks available?" - one draft per carrier. Returns the saved draft records.
+         * With `load` (a posting) the question is about THAT lane ("in Joliet, IL heading toward Atlanta, GA") instead of the carrier's own lane.
+         */
+        async truckCheck(carrierIds, load = null) {
           const made = [];
           for (const cid of carrierIds) {
             const c = state.carriers.find((x) => x.id === cid);
             if (!c || !String(c.email || "").trim()) continue;
-            made.push({ id: uid(), createdAt: (/* @__PURE__ */ new Date()).toISOString(), ...buildTruckCheck(c, state.settings) });
+            const asked = load ? { ...c, originCity: load.originCity, originState: load.originState, destCity: load.destCity, destState: load.destState } : c;
+            made.push({ id: uid(), createdAt: (/* @__PURE__ */ new Date()).toISOString(), ...load ? { postingId: load.id } : {}, ...buildTruckCheck(asked, state.settings) });
           }
           if (!made.length) return [];
           state.drafts.unshift(...made);
@@ -4609,6 +4646,35 @@ html.locked #toasts { z-index: 270; }
           emit();
           if (state.settings.draftsToOutlook && state.hooks.sendToOutlook) await actions.sendDraftsToOutlook(made.map((d) => d.id));
           return made;
+        },
+        /**
+         * Truck check for one load: the best-matched carriers (lane fit, cover history, response rate) are asked whether they have a truck near the
+         * pickup. Skips anyone already contacted about this load and anyone contacted in the last 24 hours. Drafts only; nothing is sent.
+         */
+        async truckCheckForLoad(id, count3) {
+          const p = state.postings.find((x) => x.id === id);
+          if (!p) return { drafts: [], created: 0, detail: "That load is no longer on the board." };
+          const n = Math.max(1, Math.trunc(Number(count3) || Number(state.settings.truckCheckCount) || 15));
+          const asked = new Set(state.outreach.filter((o) => o.postingId === p.id).map((o) => String(o.email || "").toLowerCase()).filter(Boolean));
+          const cutoff = Date.now() - 864e5;
+          for (const c of state.carriers) {
+            const t2 = Date.parse(c.lastContacted);
+            if (Number.isFinite(t2) && t2 > cutoff) asked.add(String(c.email || "").toLowerCase());
+          }
+          const ranked = rankCarriers(p, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, exclude: asked });
+          const seen = /* @__PURE__ */ new Set();
+          const ids = [];
+          for (const r of ranked) {
+            const em = String(r.carrier.email || "").toLowerCase();
+            if (!em || seen.has(em)) continue;
+            seen.add(em);
+            ids.push(r.carrier.id);
+            if (ids.length >= n) break;
+          }
+          if (!ids.length) return { drafts: [], created: 0, detail: "No carrier in the database fits this lane (or all of them were asked in the last 24 hours). Add carriers, or widen the carrier radius in System." };
+          const drafts = await actions.truckCheck(ids, p);
+          await actions.logOp(p.id, "truckcheck", `${drafts.length} truck-check draft(s)`);
+          return { drafts, created: drafts.length, detail: `${drafts.length} truck-availability draft(s) for the carriers best matched to ${p.originCity}, ${p.originState} to ${p.destCity}, ${p.destState}. Best matches first. Nothing has been sent.` };
         },
         /** Queue drafts for the Outlook macro to save in the Drafts folder (nothing is ever sent). Returns how many were queued. */
         async sendDraftsToOutlook(ids) {
@@ -4942,6 +5008,57 @@ html.locked #toasts { z-index: 270; }
     }
   });
 
+  // js/core/resources.js
+  function parseMcDot(text2) {
+    const t2 = clean(text2);
+    if (!t2) return null;
+    const dot = t2.match(/(?:us\s*)?dot\s*(?:no\.?|#|:)?\s*(\d{3,9})/i);
+    if (dot) return { type: "DOT", num: dot[1] };
+    const mc = t2.match(/\b(?:mc|mx|ff)\s*(?:no\.?|#|:|-)?\s*(\d{3,8})/i);
+    if (mc) return { type: "MC", num: mc[1] };
+    const bare = t2.match(/^\D*(\d{3,9})\D*$/);
+    if (bare) return { type: bare[1].length >= 7 ? "DOT" : "MC", num: bare[1] };
+    return null;
+  }
+  function fmcsaUrl(mcDot) {
+    const p = parseMcDot(mcDot);
+    if (!p) return "";
+    return `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=${p.type === "DOT" ? "USDOT" : "MC_MX"}&query_string=${p.num}`;
+  }
+  function mapsRouteUrl(p) {
+    const o = place(p.originCity, p.originState), d = place(p.destCity, p.destState);
+    if (!o || !d) return "";
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}&travelmode=driving`;
+  }
+  function mapsCarriersNearUrl(p) {
+    const o = place(p.originCity, p.originState);
+    if (!o) return "";
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("trucking companies near " + o)}`;
+  }
+  function telHref(phone) {
+    const main = clean(phone).split(/\b(?:ext\.?|x)\s*\d+/i)[0];
+    const d = main.replace(/\D/g, "");
+    if (d.length < 7 || d.length > 15) return "";
+    return "tel:" + (/^\s*\+/.test(main) ? "+" : "") + d;
+  }
+  var FMCSA_SAFER_URL, clean, place, mailHref, TOOLKIT;
+  var init_resources = __esm({
+    "js/core/resources.js"() {
+      init_defaults();
+      FMCSA_SAFER_URL = "https://safer.fmcsa.dot.gov/CompanySnapshot.aspx";
+      clean = (s) => String(s ?? "").trim();
+      place = (city, st2) => [clean(city), clean(st2).toUpperCase()].filter(Boolean).join(", ");
+      mailHref = (email) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(clean(email)) ? "mailto:" + clean(email) : "";
+      TOOLKIT = [
+        { id: "dat-trucks", label: "DAT Find Trucks", note: "Search posted trucks", url: FINDTRUCK_URL, icon: "truck" },
+        { id: "dat-rates", label: "DAT RateView", note: "Lane rate averages", url: RATEVIEW_BASE, icon: "rateview" },
+        { id: "fmcsa", label: "FMCSA SAFER", note: "Check authority and insurance", url: FMCSA_SAFER_URL, icon: "shield" },
+        { id: "maps", label: "Google Maps", note: "Routes and carriers near a pickup", url: "https://www.google.com/maps", icon: "route" },
+        { id: "weather", label: "Ventusky weather", note: "Weather along the lane", url: VENTUSKY_URL, icon: "storm" }
+      ];
+    }
+  });
+
   // js/ui/icons.js
   function icon(name, size = 18, extraClass = "") {
     const svg = document.createElementNS(NS, "svg");
@@ -5231,7 +5348,7 @@ html.locked #toasts { z-index: 270; }
     let token = 0;
     let raf2 = 0;
     const app = document.getElementById("app");
-    const place = () => {
+    const place2 = () => {
       raf2 = 0;
       target = find(steps2[i].target);
       const small = window.innerWidth < 720;
@@ -5281,7 +5398,7 @@ html.locked #toasts { z-index: 270; }
       card4.style.top = `${Math.round(y)}px`;
     };
     const schedule = () => {
-      if (!raf2) raf2 = requestAnimationFrame(place);
+      if (!raf2) raf2 = requestAnimationFrame(place2);
     };
     window.addEventListener("resize", schedule);
     window.addEventListener("scroll", schedule, true);
@@ -5329,7 +5446,7 @@ html.locked #toasts { z-index: 270; }
         } catch {
         }
       }
-      place();
+      place2();
       next.focus({ preventScroll: true });
     };
     next.addEventListener("click", () => {
@@ -5442,6 +5559,12 @@ html.locked #toasts { z-index: 270; }
         h("div", { class: "tc-text" }, h("b", null, "The 60-second tour"), h("span", null, "Setting up Outlook, posting your first load, the carrier database and logging a cover. Replay it any time.")),
         h("button", { class: "btn primary", type: "button", "data-act": "take-tour-card", onclick: () => startTour() }, icon("play", 15), "Start the tour")
       ),
+      h(
+        "div",
+        { class: "toolkit", "aria-label": "Cover toolkit" },
+        h("span", { class: "tk-title" }, icon("truck", 15), "Cover toolkit"),
+        TOOLKIT.map((t2) => h("a", { class: "tk-link", href: t2.url, target: "_blank", rel: "noopener noreferrer", title: t2.note + " (opens in a new tab)", "data-tool": t2.id }, icon(t2.icon, 15), t2.label))
+      ),
       h("div", { class: "tiles" }, TILES.map(([id, ic, t2, s, c]) => h("a", { class: "tile", href: "#/" + id }, h("span", { class: "t-ico" }, icon(ic, 20)), h("b", null, t2), h("span", null, s), h("i", null, c)))),
       !state.zip ? h("div", { class: "banner err" }, "The ZIP Map is not loaded. Matrix building needs it: open System and import uszips.csv.") : null,
       h("div", { class: "footline" }, "ALL DATA STAYS IN THIS BROWSER  \u2022  NOTHING IS EVER SENT AUTOMATICALLY")
@@ -5454,6 +5577,7 @@ html.locked #toasts { z-index: 270; }
       init_state();
       init_stats();
       init_links();
+      init_resources();
       init_icons();
       init_chrome();
       init_tour();
@@ -7238,12 +7362,12 @@ Download anyway?`, "Download anyway");
     sel.addEventListener("change", () => actions.updateGroup(head.id, { equip: sel.value }));
     return sel;
   }
-  function menu(label2, items) {
+  function menu(label2, items, trigger) {
     const d = h(
       "details",
-      { class: "menu" },
-      h("summary", { class: "btn small iconbtn", "aria-label": label2, title: label2 }, icon("more", 16)),
-      h("div", { class: "menu-pop" }, items.filter(Boolean).map((it) => h("button", { class: "menu-item" + (it.danger ? " danger" : ""), type: "button", "data-act": it.act || null, onclick: (e) => {
+      { class: "menu" + (trigger ? " " + (trigger.cls || "") : "") },
+      trigger ? h("summary", { class: "btn", "aria-label": label2, title: trigger.title || label2, "data-act": trigger.act || null }, trigger.icon ? icon(trigger.icon, 15) : null, trigger.text, icon("chevdown", 13)) : h("summary", { class: "btn small iconbtn", "aria-label": label2, title: label2 }, icon("more", 16)),
+      h("div", { class: "menu-pop" }, items.filter(Boolean).map((it) => it.heading ? h("div", { class: "menu-head" }, it.heading) : h("button", { class: "menu-item" + (it.danger ? " danger" : ""), type: "button", "data-act": it.act || null, onclick: (e) => {
         d.removeAttribute("open");
         it.run(e);
       } }, it.label)))
@@ -7346,7 +7470,7 @@ Download anyway?`, "Download anyway");
         h(
           "div",
           { class: "lanemain" },
-          h("h3", { class: "lane", onclick: toggle2 }, b.title),
+          h("div", { class: "titlerow" }, h("h3", { class: "lane", onclick: toggle2 }, b.title), collapsed ? targetPeek(r.stats.target) : null),
           h(
             "div",
             { class: "metarow" },
@@ -7440,6 +7564,7 @@ Download anyway?`, "Download anyway");
         const x = await actions.runOutreach(head.id);
         if (x) summaryOutreach(x);
       } }, icon("send", 15), "Carrier outreach"),
+      coverTools(b, head),
       h("button", { class: "btn", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted TQL text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 15), "Copy load details"),
       h("button", { class: "btn", type: "button", "data-act": "find-carriers", title: "Open DAT Find Trucks for this load (the lane is copied so you can paste it in)", onclick: () => findCarriers(head) }, icon("search", 15), "Find more carriers"),
       h("button", { class: "btn", type: "button", "data-act": "rateview", title: "Open DAT RateView for this lane in a new tab", onclick: () => rateLink(head) }, icon("rateview", 15), "DAT RateView"),
@@ -7477,6 +7602,36 @@ Download anyway?`, "Download anyway");
         h("tbody", null, b.members.map((m) => row(m, rc)))
       )),
       rateNote(b, rinfo, rate2)
+    );
+  }
+  function coverTools(b, head) {
+    const truckCheck2 = async () => {
+      const ok = await confirmDialog("Truck check for this load", `Draft "Do you have any trucks available near ${head.originCity || "the pickup"}, ${head.originState || ""}?" to the best-matched carriers in your database (up to 15, skipping anyone already asked about this load or contacted in the last 24 hours).
+
+Nothing is sent. The drafts appear for you to review.`, "Create drafts");
+      if (!ok) return;
+      const res = await actions.truckCheckForLoad(head.id);
+      if (!res.created) return toast(res.detail, "warn", 7e3);
+      summaryOutreach({ detail: res.detail, drafts: res.drafts, created: res.created });
+    };
+    return menu(
+      "Find trucks for this load",
+      [
+        { heading: "Ask your carriers" },
+        { label: "Call list: best matches with phone numbers", act: "call-list", run: async () => {
+          await actions.logOp(head.id, "call", "opened the call list");
+          callListModal(b);
+        } },
+        { label: "Truck check: ask who has a truck near the pickup", act: "truck-check", run: truckCheck2 },
+        { heading: "Look beyond your database" },
+        { label: "DAT Find Trucks", act: "tools-find-trucks", run: () => findCarriers(head) },
+        { label: "Truck companies near the pickup (Google Maps)", act: "tools-maps-near", run: () => openLink(mapsCarriersNearUrl(head), "This load needs an origin city and state first.") },
+        { label: "Check a carrier on FMCSA SAFER", act: "tools-fmcsa", run: () => openExternal(FMCSA_SAFER_URL) },
+        { heading: "Plan the move" },
+        { label: "Route and miles (Google Maps)", act: "tools-route", run: () => openLink(mapsRouteUrl(head), "This load needs an origin and a destination first.") },
+        { label: "Weather at the pickup", act: "tools-weather", run: () => weather(head) }
+      ],
+      { text: "Find trucks", icon: "truck", cls: "covertools", act: "cover-tools", title: "Call list, truck check e-mails, DAT, Google Maps and FMCSA for this load" }
     );
   }
   function rateNote(b, info, rate2) {
@@ -7650,7 +7805,7 @@ Download anyway?`, "Download anyway");
       })) : emptyState({ icon: "board", title: state.postings.length ? "No loads match" : "No loads yet", text: state.postings.length ? "Clear the search or pick another broker tab." : "Paste TQL load text above. The loads appear here right away." })
     );
   }
-  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, agoText, datOpts, DAT_RATE_COL, EQ_TITLE, targetChip, loadDetailsBar;
+  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, agoText, datOpts, DAT_RATE_COL, EQ_TITLE, targetChip, targetPeek, openLink, loadDetailsBar;
   var init_board = __esm({
     "js/ui/pages/board.js"() {
       init_dom();
@@ -7672,6 +7827,7 @@ Download anyway?`, "Download anyway");
       init_cover();
       init_insights();
       init_outreachview();
+      init_resources();
       init_util2();
       filter = "";
       quick = "";
@@ -7700,6 +7856,11 @@ Download anyway?`, "Download anyway");
         });
       });
       targetChip = (t2) => t2 > 0 ? h("span", { class: "meta targetchip", title: "Target rate: the number carrier replies are judged against", "data-act": "target-chip" }, icon("target", 14), "$" + Math.round(t2).toLocaleString("en-US"), h("em", null, "target")) : null;
+      targetPeek = (t2) => t2 > 0 ? h("span", { class: "tgtpeek", "data-act": "target-peek", title: "Target rate for this load. Open the load to change it." }, h("em", null, "Target"), "$" + Math.round(t2).toLocaleString("en-US")) : h("span", { class: "tgtpeek none", "data-act": "target-peek", title: "No target rate yet. Open the load and type one." }, h("em", null, "Target"), "\u2014");
+      openLink = (url, why) => {
+        if (!url) return toast(why, "warn");
+        openExternal(url);
+      };
       loadDetailsBar = (details, opts2) => h("div", { class: "lanesetup" }, details, opts2);
     }
   });
@@ -8343,11 +8504,187 @@ Download anyway?`, "Download anyway");
     }
   });
 
+  // js/core/tablesort.js
+  function nextSort(cur, key, rand2 = Math.random) {
+    if (!cur || cur.key !== key) return { key, mode: "asc", seed: 0 };
+    const mode2 = CYCLE[(CYCLE.indexOf(cur.mode) + 1) % CYCLE.length];
+    return { key, mode: mode2, seed: mode2 === "random" ? newSeed(rand2) : 0 };
+  }
+  function columnKind(values) {
+    const filled = values.filter((v) => !isBlank(v));
+    if (!filled.length) return "text";
+    if (filled.every((v) => asNumber(v) !== null)) return "number";
+    if (filled.every((v) => asTime(v) !== null)) return "date";
+    return "text";
+  }
+  function hash(str, seed) {
+    let h2 = (2166136261 ^ seed) >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h2 ^= str.charCodeAt(i);
+      h2 = Math.imul(h2, 16777619);
+    }
+    h2 ^= h2 >>> 13;
+    h2 = Math.imul(h2, 1540483477);
+    h2 ^= h2 >>> 15;
+    return h2 >>> 0;
+  }
+  function sortRows(rows, sort, get2 = (r, k) => r[k], id = (r) => r.id) {
+    const list = rows.map((row3, i) => ({ row: row3, i }));
+    if (!sort || !sort.key) return list.map((x) => x.row);
+    if (sort.mode === "random") {
+      const seed = sort.seed || 1;
+      list.forEach((x) => {
+        x.h = hash(String(id(x.row) ?? x.i), seed);
+      });
+      return list.sort((a, b) => a.h - b.h || a.i - b.i).map((x) => x.row);
+    }
+    const kind = columnKind(rows.map((r) => get2(r, sort.key)));
+    const dir = sort.mode === "desc" ? -1 : 1;
+    const key = (r) => {
+      const v = get2(r, sort.key);
+      return kind === "number" ? asNumber(v) : kind === "date" ? asTime(v) : String(v).trim();
+    };
+    list.forEach((x) => {
+      x.blank = isBlank(get2(x.row, sort.key));
+      if (!x.blank) x.k = key(x.row);
+    });
+    return list.sort((a, b) => {
+      if (a.blank !== b.blank) return a.blank ? 1 : -1;
+      if (a.blank && b.blank) return a.i - b.i;
+      const c = kind === "text" ? a.k.localeCompare(b.k, void 0, { numeric: true, sensitivity: "base" }) : a.k - b.k;
+      return c * dir || a.i - b.i;
+    }).map((x) => x.row);
+  }
+  var CYCLE, newSeed, isBlank, asNumber, DATE_LIKE, asTime;
+  var init_tablesort = __esm({
+    "js/core/tablesort.js"() {
+      CYCLE = ["asc", "desc", "random"];
+      newSeed = (rand2 = Math.random) => 1 + Math.floor(rand2() * 2147483646);
+      isBlank = (v) => String(v ?? "").trim() === "";
+      asNumber = (v) => {
+        const s = String(v ?? "").trim().replace(/[$,%\s]/g, "");
+        return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(s) ? Number(s) : null;
+      };
+      DATE_LIKE = /^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}\/\d{2,4})/;
+      asTime = (v) => {
+        const s = String(v ?? "").trim();
+        if (!DATE_LIKE.test(s)) return null;
+        const t2 = Date.parse(s);
+        return Number.isFinite(t2) ? t2 : null;
+      };
+    }
+  });
+
+  // js/ui/tablesort.js
+  function createTableSort(onChange) {
+    let cur = null;
+    return {
+      get state() {
+        return cur;
+      },
+      /** The rows in the current order (a new array). */
+      sort(rows, get2, id) {
+        return sortRows(rows, cur, get2, id);
+      },
+      /** A <th> whose label is a button. */
+      th(key, label2) {
+        const on = cur && cur.key === key ? cur.mode : "";
+        const after = on === "asc" ? "Z to A" : on === "desc" ? "random order" : on === "random" ? "A to Z" : "A to Z";
+        return h(
+          "th",
+          { class: on ? "sorted" : null, "aria-sort": on === "asc" ? "ascending" : on === "desc" ? "descending" : "none" },
+          h(
+            "button",
+            {
+              class: "thbtn",
+              type: "button",
+              "data-sort": key,
+              "data-fk": "sort:" + key,
+              title: on ? `Sorted ${WORD[on]}. Click for ${after}.` : `Sort by ${label2} (click again for Z to A, then random)`,
+              onclick: () => {
+                cur = nextSort(cur, key);
+                onChange();
+              }
+            },
+            label2,
+            h("span", { class: "sortmark", "aria-hidden": "true" }, on ? MARK[on] : "\u2195")
+          )
+        );
+      }
+    };
+  }
+  var MARK, WORD;
+  var init_tablesort2 = __esm({
+    "js/ui/tablesort.js"() {
+      init_dom();
+      init_tablesort();
+      MARK = { asc: "\u25B2", desc: "\u25BC", random: "\u21C4" };
+      WORD = { asc: "A to Z", desc: "Z to A", random: "random order" };
+    }
+  });
+
+  // js/ui/cells.js
+  function contactCell(key, value) {
+    const v = String(value ?? "");
+    if (!v.trim()) return h("td", null, "");
+    if (key === "phone") {
+      const href = telHref(v);
+      return h("td", null, href ? h("a", { class: "xlink", href, title: "Call " + v }, v) : v);
+    }
+    if (key === "email") {
+      const href = mailHref(v);
+      return h("td", null, href ? h("a", { class: "xlink", href, title: "Write to " + v }, v) : v);
+    }
+    if (key === "mc") {
+      const href = fmcsaUrl(v);
+      return h("td", null, href ? h("a", { class: "xlink", href, target: "_blank", rel: "noopener noreferrer", title: "Check authority, insurance and safety rating on FMCSA SAFER" }, v) : v);
+    }
+    return h("td", null, v);
+  }
+  var init_cells = __esm({
+    "js/ui/cells.js"() {
+      init_dom();
+      init_resources();
+    }
+  });
+
   // js/ui/pages/carriers.js
   var carriers_exports = {};
   __export(carriers_exports, {
     render: () => render4
   });
+  function filterBar() {
+    const cs = state.carriers;
+    const sel = (key, label2, options, fk) => {
+      const s = h(
+        "select",
+        { class: "cell", "aria-label": label2, title: label2, "data-fk": "f:" + fk },
+        h("option", { value: "" }, label2),
+        options.map(([v, t2]) => h("option", { value: v, selected: v === F[key] }, t2 ?? v))
+      );
+      s.addEventListener("change", () => {
+        F[key] = s.value;
+        rerender2();
+      });
+      return s;
+    };
+    return h(
+      "div",
+      { class: "toolbar filterbar" },
+      h("span", { class: "muted small" }, "Filter"),
+      sel("equip", "Any equipment", uniq(cs.flatMap(eqTokens)).map((x) => [x]), "equip"),
+      sel("state", "Any origin state", uniq(cs.map((c) => String(c.originState ?? "").trim().toUpperCase()).filter(Boolean)).map((x) => [x]), "state"),
+      sel("status", "Any status", uniq(cs.map((c) => String(c.status || "Active").trim())).map((x) => [x]), "status"),
+      sel("contacted", "Any last contact", [["never", "Never contacted"], ["7", "Not contacted in 7+ days"], ["30", "Not contacted in 30+ days"]], "contacted"),
+      sel("mail", "With or without e-mail", [["yes", "Has an e-mail address"]], "mail"),
+      filtersOn() ? h("button", { class: "btn small", type: "button", onclick: () => {
+        Object.keys(F).forEach((k) => {
+          F[k] = "";
+        });
+        rerender2();
+      } }, "Clear filters") : null
+    );
+  }
   function overview() {
     const cs = state.carriers;
     const now = Date.now();
@@ -8420,7 +8757,7 @@ Download anyway?`, "Download anyway");
     });
   }
   function render4() {
-    const rows = state.carriers.filter((c) => !q || CARRIER_KEYS.some((k) => String(c[k] ?? "").toLowerCase().includes(q.toLowerCase())));
+    const rows = sorter.sort(state.carriers.filter(passes).filter((c) => !q || CARRIER_KEYS.some((k) => String(c[k] ?? "").toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
     const search = h("input", { type: "search", placeholder: "Search carriers\u2026", value: q, "data-rerender": "" });
     search.addEventListener("input", () => {
       q = search.value;
@@ -8431,7 +8768,7 @@ Download anyway?`, "Download anyway");
     return h(
       "div",
       null,
-      pageHead({ icon: "carriers", title: "Carrier Database", sub: "Approved carriers used by outreach. " + storedWhere() + " Use the Truck? button to ask any carrier if they have trucks available." }),
+      pageHead({ icon: "carriers", title: "Carrier Database", sub: "Approved carriers used by outreach. " + storedWhere() + " Use the Truck? button to ask any carrier if they have trucks available, or filter the list and use Truck check to ask a whole group. Click a column header to sort." }),
       overview(),
       h(
         "div",
@@ -8439,15 +8776,16 @@ Download anyway?`, "Download anyway");
         search,
         h("button", { class: "btn primary", type: "button", onclick: () => edit(null) }, "Add carrier"),
         h("button", { class: "btn", type: "button", onclick: importDialog }, "Import\u2026"),
-        h("button", { class: "btn", type: "button", disabled: !rows.length, title: "Draft a truck-availability e-mail to every carrier shown (with an e-mail address)", onclick: () => truckCheck(rows) }, icon("mail", 15), `Truck check (${rows.filter((c) => String(c.email || "").trim()).length})`),
+        h("button", { class: "btn", type: "button", disabled: !rows.length, title: "Draft a truck-availability e-mail to every carrier shown (with an e-mail address). Use the filters first to ask just one group.", onclick: () => truckCheck(rows) }, icon("mail", 15), `Truck check (${rows.filter((c) => String(c.email || "").trim()).length})`),
         h("button", { class: "btn", type: "button", disabled: !state.carriers.length, onclick: () => download("carrier-database.csv", "\uFEFF" + csv(), "text/csv;charset=utf-8") }, "Export CSV"),
         h("button", { class: "btn", type: "button", disabled: !state.carriers.length, onclick: () => copyText(toDelimited([CARRIER_HEADERS, ...state.carriers.map((c) => CARRIER_KEYS.map((k) => c[k] ?? ""))], "	"), "Copied (paste into Excel).") }, "Copy for Excel"),
         h("span", { class: "muted" }, `${rows.length} of ${state.carriers.length}`)
       ),
+      state.carriers.length ? filterBar() : null,
       h("div", { class: "tablewrap" }, h(
         "table",
         { class: "carrier" },
-        h("thead", null, h("tr", null, h("th", null, ""), CARRIER_HEADERS.map((x) => h("th", null, x)))),
+        h("thead", null, h("tr", null, h("th", null, ""), CARRIER_HEADERS.map((x, i) => sorter.th(CARRIER_KEYS[i], x)))),
         h("tbody", null, rows.length ? rows.map((c) => h(
           "tr",
           null,
@@ -8460,12 +8798,12 @@ Download anyway?`, "Download anyway");
               if (await confirmDialog("Delete carrier", `Delete ${c.carrierName || c.email}?`, "Delete")) actions.deleteCarrier(c.id);
             } }, "\u2715")
           )),
-          CARRIER_KEYS.map((k) => h("td", null, c[k] ?? ""))
+          CARRIER_KEYS.map((k) => contactCell(k, c[k]))
         )) : h("tr", null, h("td", { colspan: 18, class: "muted" }, "No carriers yet. Add one, import from Excel, or approve a sender in the Inquiry Log.")))
       ))
     );
   }
-  var q, csv;
+  var q, F, DAY2, rerender2, sorter, eqTokens, uniq, passes, filtersOn, csv;
   var init_carriers = __esm({
     "js/ui/pages/carriers.js"() {
       init_dom();
@@ -8478,7 +8816,29 @@ Download anyway?`, "Download anyway");
       init_csv();
       init_importer();
       init_cloud();
+      init_tablesort2();
+      init_cells();
       q = "";
+      F = { equip: "", state: "", status: "", contacted: "", mail: "" };
+      DAY2 = 864e5;
+      rerender2 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
+      sorter = createTableSort(rerender2);
+      eqTokens = (c) => String(c.equipment ?? "").split(/[,/;|]+/).map((x) => x.trim()).filter(Boolean);
+      uniq = (list) => [...new Set(list)].sort((a, b) => a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" }));
+      passes = (c) => {
+        if (F.equip && !eqTokens(c).some((x) => x.toLowerCase() === F.equip.toLowerCase())) return false;
+        if (F.state && String(c.originState ?? "").trim().toUpperCase() !== F.state) return false;
+        if (F.status && String(c.status || "Active").trim().toLowerCase() !== F.status.toLowerCase()) return false;
+        if (F.mail === "yes" && !String(c.email ?? "").trim()) return false;
+        if (F.contacted) {
+          const t2 = Date.parse(c.lastContacted);
+          if (F.contacted === "never") return !Number.isFinite(t2);
+          const days = Number(F.contacted);
+          if (Number.isFinite(t2) && Date.now() - t2 < days * DAY2) return false;
+        }
+        return true;
+      };
+      filtersOn = () => Object.values(F).some(Boolean);
       csv = () => toDelimited([CARRIER_HEADERS, ...state.carriers.map((c) => CARRIER_KEYS.map((k) => c[k] ?? ""))], ",");
     }
   });
@@ -8497,11 +8857,11 @@ Download anyway?`, "Download anyway");
     const states = new Set(cs.map((c) => String(c.state || "").trim().toUpperCase()).filter(Boolean)).size;
     const touched = cs.filter((c) => {
       const t2 = Date.parse(c.lastContacted);
-      return Number.isFinite(t2) && now - t2 < 30 * DAY2;
+      return Number.isFinite(t2) && now - t2 < 30 * DAY3;
     }).length;
     const stale = cs.filter((c) => {
       const t2 = Date.parse(c.lastContacted);
-      return !Number.isFinite(t2) || now - t2 >= 90 * DAY2;
+      return !Number.isFinite(t2) || now - t2 >= 90 * DAY3;
     }).length;
     return statTiles([[cs.length, "Contacts"], [companies, "Companies"], [touched, "Contacted in 30 days"], [stale, "Not contacted in 90+ days", stale ? "act" : ""]]);
   }
@@ -8546,7 +8906,7 @@ Download anyway?`, "Download anyway");
     });
   }
   function render5() {
-    const rows = state.customers.filter((c) => !q2 || CUSTOMER_KEYS.some((k) => String(c[k] ?? "").toLowerCase().includes(q2.toLowerCase())));
+    const rows = sorter2.sort(state.customers.filter((c) => !q2 || CUSTOMER_KEYS.some((k) => String(c[k] ?? "").toLowerCase().includes(q2.toLowerCase()))), (c, k) => c[k]);
     const search = h("input", { type: "search", placeholder: "Search customers\u2026", value: q2, "data-rerender": "" });
     search.addEventListener("input", () => {
       q2 = search.value;
@@ -8572,7 +8932,7 @@ Download anyway?`, "Download anyway");
       h("div", { class: "tablewrap" }, h(
         "table",
         { class: "carrier" },
-        h("thead", null, h("tr", null, h("th", null, ""), CUSTOMER_HEADERS.map((x) => h("th", null, x)))),
+        h("thead", null, h("tr", null, h("th", null, ""), CUSTOMER_HEADERS.map((x, i) => sorter2.th(CUSTOMER_KEYS[i], x)))),
         h("tbody", null, rows.length ? rows.map((c) => h(
           "tr",
           null,
@@ -8584,12 +8944,12 @@ Download anyway?`, "Download anyway");
               if (await confirmDialog("Delete customer", `Delete ${c.company || c.contactName || c.email}?`, "Delete")) actions.deleteCustomer(c.id);
             } }, "\u2715")
           )),
-          CUSTOMER_KEYS.map((k) => h("td", null, c[k] ?? ""))
+          CUSTOMER_KEYS.map((k) => contactCell(k, c[k]))
         )) : h("tr", null, h("td", { colspan: CUSTOMER_KEYS.length + 1, class: "muted" }, "No customers yet. Add one, or import your contact list from Excel.")))
       ))
     );
   }
-  var q2, DAY2, csv2;
+  var q2, rerender3, sorter2, DAY3, csv2;
   var init_customers = __esm({
     "js/ui/pages/customers.js"() {
       init_dom();
@@ -8599,8 +8959,12 @@ Download anyway?`, "Download anyway");
       init_csv();
       init_importer();
       init_cloud();
+      init_tablesort2();
+      init_cells();
       q2 = "";
-      DAY2 = 864e5;
+      rerender3 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
+      sorter2 = createTableSort(rerender3);
+      DAY3 = 864e5;
       csv2 = () => toDelimited([CUSTOMER_HEADERS, ...state.customers.map((c) => CUSTOMER_KEYS.map((k) => c[k] ?? ""))], ",");
     }
   });
@@ -8677,7 +9041,7 @@ Download anyway?`, "Download anyway");
       ) : null,
       h("div", { class: "toolbar" }, h("label", { class: "inl" }, "Show ", h("select", { class: "cell", "data-live": "", onchange: (e) => {
         outcome = e.target.value;
-        rerender2();
+        rerender4();
       } }, ["All", "Covered", "Expired", "Manual"].map((o) => h("option", { value: o, selected: o === outcome }, o === "Manual" ? "Closed without cover" : o)))), h("span", { class: "muted" }, `${shown.length} of ${log2.length}`)),
       shown.length ? h("div", { class: "tablewrap" }, h(
         "table",
@@ -8713,7 +9077,7 @@ Download anyway?`, "Download anyway");
       )) : emptyState({ icon: "covers", title: "Nothing logged yet", text: 'Use "Mark covered" on a load (or Log a cover by hand). Expired loads are logged here too, and can be restored.' })
     );
   }
-  var outcome, rerender2, pct, gridTable, cityTable;
+  var outcome, rerender4, pct, gridTable, cityTable;
   var init_covers = __esm({
     "js/ui/pages/covers.js"() {
       init_dom();
@@ -8725,7 +9089,7 @@ Download anyway?`, "Download anyway");
       init_util2();
       init_util();
       outcome = "All";
-      rerender2 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
+      rerender4 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
       pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "-";
       gridTable = (a) => h(
         "table",
@@ -8822,7 +9186,7 @@ Download anyway?`, "Download anyway");
       q3 = search.value;
     });
     search.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") rerender3();
+      if (e.key === "Enter") rerender5();
     });
     const csv3 = () => toDelimited([INQUIRY_HEADERS, ...state.inquiries.map((i) => INQUIRY_KEYS.map((k) => i[k] ?? ""))], ",");
     return h(
@@ -8834,7 +9198,7 @@ Download anyway?`, "Download anyway");
         search,
         selectEl(statuses, statusF, (v) => {
           statusF = v;
-          rerender3();
+          rerender5();
         }, { "data-rerender": "" }),
         h("button", { class: "btn primary", type: "button", onclick: () => editInquiry(Object.fromEntries(INQUIRY_KEYS.map((k) => [k, k === "dateCounted" ? (/* @__PURE__ */ new Date()).toISOString() : k === "approved" ? "No" : ""]))) }, "Add entry"),
         h("button", { class: "btn", type: "button", onclick: importDialog3 }, "Import\u2026"),
@@ -8891,11 +9255,11 @@ Download anyway?`, "Download anyway");
           if (!mail.from.trim()) return toast("Enter the sender address.", "warn");
           lastResult = await actions.processEmail({ from: mail.from.trim(), subject: mail.subject, body: mail.body, sent: (/* @__PURE__ */ new Date()).toLocaleString(), to: "" });
           if (lastResult.action && lastResult.draft) toast("Draft created.", "ok");
-          rerender3();
+          rerender5();
         } }, "Process e-mail"), h("button", { class: "btn", type: "button", onclick: () => {
           mail.from = mail.subject = mail.body = "";
           lastResult = null;
-          rerender3();
+          rerender5();
         } }, "Clear"))
       ),
       lastResult ? h(
@@ -8916,12 +9280,12 @@ Download anyway?`, "Download anyway");
       pageHead({ icon: "inquiry", title: "Inquiry Log", sub: "Carrier inquiries, replies and your performance dashboard." }),
       h("div", { class: "toolbar" }, tabs.map(([id, l]) => h("button", { class: "btn" + (tab === id ? " primary" : ""), type: "button", onclick: () => {
         tab = id;
-        rerender3();
+        rerender5();
       } }, l))),
       tab === "log" ? log() : tab === "dash" ? dashboard() : processor()
     );
   }
-  var tab, q3, statusF, mail, lastResult, rerender3;
+  var tab, q3, statusF, mail, lastResult, rerender5;
   var init_inquiry = __esm({
     "js/ui/pages/inquiry.js"() {
       init_dom();
@@ -8938,7 +9302,7 @@ Download anyway?`, "Download anyway");
       statusF = "All";
       mail = { from: "", subject: "", body: "" };
       lastResult = null;
-      rerender3 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
+      rerender5 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
     }
   });
 
@@ -8966,7 +9330,7 @@ Download anyway?`, "Download anyway");
       const el = h("input", { value: val, "data-rerender": "", ...props });
       el.addEventListener("input", () => set(el.value));
       el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") rerender4();
+        if (e.key === "Enter") rerender6();
       });
       return el;
     };
@@ -8979,11 +9343,11 @@ Download anyway?`, "Download anyway");
         { class: "toolbar" },
         h("button", { class: "btn" + (mode === "search" ? " primary" : ""), type: "button", onclick: () => {
           mode = "search";
-          rerender4();
+          rerender6();
         } }, "Search"),
         h("button", { class: "btn" + (mode === "radius" ? " primary" : ""), type: "button", onclick: () => {
           mode = "radius";
-          rerender4();
+          rerender6();
         } }, "Nearby markets")
       ),
       h(
@@ -9002,7 +9366,7 @@ Download anyway?`, "Download anyway");
             maxM = Number(v) || 0;
           }, { size: 5 }))
         ],
-        h("button", { class: "btn", type: "button", onclick: rerender4 }, "Go"),
+        h("button", { class: "btn", type: "button", onclick: rerender6 }, "Go"),
         h("span", { class: "muted" }, note2)
       ),
       h("div", { class: "tablewrap" }, h(
@@ -9024,7 +9388,7 @@ Download anyway?`, "Download anyway");
       ))
     );
   }
-  var mode, query, center, minM, maxM, rerender4;
+  var mode, query, center, minM, maxM, rerender6;
   var init_zipmap2 = __esm({
     "js/ui/pages/zipmap.js"() {
       init_dom();
@@ -9036,7 +9400,7 @@ Download anyway?`, "Download anyway");
       center = "";
       minM = 20;
       maxM = 60;
-      rerender4 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
+      rerender6 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
     }
   });
 
@@ -11093,7 +11457,7 @@ Download anyway?`, "Download anyway");
         if (e && e.name === "AbortError") return;
         toast(String(e.message || e), "err", 8e3);
       }
-      rerender5();
+      rerender7();
     };
     const on = bridge.connected, olOn = on && outlookConnected();
     const v5 = olOn && /v[56]/i.test(String(bridge.outlook && bridge.outlook.macroVersion || ""));
@@ -11530,7 +11894,7 @@ Download anyway?`, "Download anyway");
       h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", disabled: !s.weatherFlags, onclick: async () => {
         await refreshWeather(true);
         toast("Weather refreshed.", "ok");
-        rerender5();
+        rerender7();
       } }, icon("refresh", 14), "Refresh now"))
     );
   }
@@ -11538,7 +11902,7 @@ Download anyway?`, "Download anyway");
     const s = state.settings;
     if (!est) storageEstimate().then((e) => {
       est = e || { none: true };
-      rerender5();
+      rerender7();
     });
     const { area } = mk2(s);
     const olOn = bridge.connected && outlookConnected();
@@ -11598,7 +11962,7 @@ Download anyway?`, "Download anyway");
     el.addEventListener("change", () => actions.setCounters({ [key]: Number(el.value) || 0 }));
     return field(label2, el);
   }
-  var est, rerender5, MACRO_FILE, step, kbd, lines, STRAT_FIELDS;
+  var est, rerender7, MACRO_FILE, step, kbd, lines, STRAT_FIELDS;
   var init_system = __esm({
     "js/ui/pages/system.js"() {
       init_dom();
@@ -11615,7 +11979,7 @@ Download anyway?`, "Download anyway");
       init_sortable();
       init_coverlog();
       est = null;
-      rerender5 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
+      rerender7 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
       MACRO_FILE = "outlook/Outlook_v6_ThisOutlookSession.txt";
       step = (n, done, title, ...body) => h(
         "li",

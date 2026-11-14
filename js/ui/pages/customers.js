@@ -5,8 +5,12 @@ import { CUSTOMER_HEADERS, CUSTOMER_KEYS } from '../../core/defaults.js';
 import { toDelimited } from '../../core/csv.js';
 import { tableToRecords } from '../importer.js';
 import { storedWhere } from '../../store/cloud.js';
+import { createTableSort } from '../tablesort.js';
+import { contactCell } from '../cells.js';
 
 let q = '';
+const rerender = () => import('../../main.js').then(m => m.render());
+const sorter = createTableSort(rerender);   // click a header: A-Z, Z-A, random
 const DAY = 86400000;
 const csv = () => toDelimited([CUSTOMER_HEADERS, ...state.customers.map(c => CUSTOMER_KEYS.map(k => c[k] ?? ''))], ',');
 
@@ -50,7 +54,7 @@ function importDialog() {
 }
 
 export function render() {
-  const rows = state.customers.filter(c => !q || CUSTOMER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase())));
+  const rows = sorter.sort(state.customers.filter(c => !q || CUSTOMER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
   const search = h('input', { type: 'search', placeholder: 'Search customers…', value: q, 'data-rerender': '' });
   search.addEventListener('input', () => { q = search.value; });
   search.addEventListener('keydown', (e) => { if (e.key === 'Enter') import('../../main.js').then(m => m.render()); });
@@ -64,11 +68,11 @@ export function render() {
       h('button', { class: 'btn', type: 'button', disabled: !state.customers.length, onclick: () => copyText(toDelimited([CUSTOMER_HEADERS, ...state.customers.map(c => CUSTOMER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).') }, 'Copy for Excel'),
       h('span', { class: 'muted' }, `${rows.length} of ${state.customers.length}`)),
     h('div', { class: 'tablewrap' }, h('table', { class: 'carrier' },
-      h('thead', null, h('tr', null, h('th', null, ''), CUSTOMER_HEADERS.map(x => h('th', null, x)))),
+      h('thead', null, h('tr', null, h('th', null, ''), CUSTOMER_HEADERS.map((x, i) => sorter.th(CUSTOMER_KEYS[i], x)))),
       h('tbody', null, rows.length ? rows.map(c => h('tr', null,
         h('td', null, h('div', { class: 'rowact' },
           h('button', { class: 'btn small', type: 'button', onclick: () => edit(c) }, 'Edit'),
           h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete customer', `Delete ${c.company || c.contactName || c.email}?`, 'Delete')) actions.deleteCustomer(c.id); } }, '✕'))),
-        CUSTOMER_KEYS.map(k => h('td', null, c[k] ?? '')))) :
+        CUSTOMER_KEYS.map(k => contactCell(k, c[k])))) :
         h('tr', null, h('td', { colspan: CUSTOMER_KEYS.length + 1, class: 'muted' }, 'No customers yet. Add one, or import your contact list from Excel.'))))));
 }

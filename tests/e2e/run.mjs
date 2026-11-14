@@ -172,6 +172,32 @@ try {
   await page.waitForSelector('text=Imported One');
   check('carrier import (header recognised)', true);
 
+  // --- v10: sortable headers, filters, one-click contact links
+  const cnames = () => page.locator('table.carrier tbody tr td:nth-child(6)').allTextContents();
+  const nameSort = async (want) => { await page.click('table.carrier th button[data-sort="carrierName"]'); await page.waitForSelector(want ? `table.carrier th[aria-sort="${want}"]` : 'table.carrier th[aria-sort="none"] button[data-sort="carrierName"]'); };
+  const ci = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
+  await nameSort('ascending'); const cAsc = await cnames();
+  check('clicking a carrier header sorts A-Z', cAsc.length >= 2 && JSON.stringify(cAsc) === JSON.stringify([...cAsc].sort(ci)), cAsc.join(', '));
+  await nameSort('descending'); const cDesc = await cnames();
+  check('a second click sorts Z-A', JSON.stringify(cDesc) === JSON.stringify([...cAsc].reverse()), cDesc.join(', '));
+  await nameSort(); await page.waitForSelector('table.carrier th.sorted .sortmark:has-text("\u21C4")'); const cRnd = await cnames();
+  check('a third click shows a random order (same carriers, shuffle marker on the header)', JSON.stringify([...cRnd].sort(ci)) === JSON.stringify([...cAsc].sort(ci)) && (await page.locator('table.carrier th.sorted .sortmark').first().textContent()) === '\u21C4', cRnd.join(', '));
+  await nameSort('ascending'); check('a fourth click goes back to A-Z', JSON.stringify(await cnames()) === JSON.stringify(cAsc));
+  const stateCol = await page.locator('table.carrier thead th button[data-sort="originState"]').count();
+  check('every data column header is sortable', stateCol === 1 && (await page.locator('table.carrier thead th button.thbtn').count()) === 17);
+  await page.selectOption('select[data-fk="f:state"]', 'IL');
+  await page.waitForSelector('.filterbar >> text=Clear filters');
+  const ilRows = await page.locator('table.carrier tbody tr td:nth-child(3)').allTextContents();
+  check('the origin-state filter narrows the carrier list', ilRows.length >= 2 && ilRows.every(x => x === 'IL') && /^\d+ of \d+$/.test((await page.locator('.toolbar:not(.filterbar) > span.muted').last().textContent()).trim()));
+  await page.click('.filterbar >> text=Clear filters');
+  await page.waitForFunction(() => !document.querySelector('.filterbar button'));
+  check('Clear filters brings every carrier back', (await page.locator('.filterbar >> text=Clear filters').count()) === 0);
+  check('e-mail and MC/DOT cells are one-click links (mailto, FMCSA SAFER)', (await page.locator('table.carrier a.xlink[href^="mailto:"]').count()) >= 2 && (await page.locator('table.carrier a.xlink[href*="safer.fmcsa.dot.gov"]').count()) >= 1);
+  await go('customers');
+  await page.click('table.carrier th button[data-sort="company"]');
+  await page.waitForSelector('table.carrier th.sorted');
+  check('customer headers sort too', (await page.locator('table.carrier th.sorted').count()) === 1);
+
   // --- outreach drafts (never sent)
   await go('board');
   await page.locator('[data-act="outreach"]').first().click();
@@ -358,6 +384,8 @@ try {
   await page.waitForTimeout(250);
   const collapsedClip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
   check('load details can be copied while the load is collapsed', collapsedClip.length > 30, collapsedClip.slice(0, 60));
+  const peek = page.locator('.lanebox.collapsed .tgtpeek').first();
+  check('a collapsed load shows its target rate as a quiet pill', (await peek.isVisible()) && /\$[\d,]+/.test(await peek.textContent()), await peek.textContent());
   await page.click('.boardbar .menu summary'); await page.click('[data-act="expand-all"]');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9);
 
@@ -523,6 +551,23 @@ try {
   await page.fill('.authgate .pw input', 'test password 1'); await page.click('.authgate button[type=submit]');
   await page.waitForSelector('#nav a');
   check('the right password opens the app again', (await page.locator('.authgate').count()) === 0);
+
+  // --- v10: Find trucks menu on a load, and a load-level truck check
+  await go('board');
+  if (await page.locator('.lanebox.collapsed').count()) { await page.click('.boardbar .menu summary'); await page.click('[data-act="expand-all"]'); await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9); }
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); const p = m.state.postings.find(x => x.variant === 'Original') || m.state.postings[0];
+    await m.actions.saveCarrier({ carrierName: 'Truck Check Hauling', email: 'truckcheck@carrier.example', originCity: p.originCity, originState: p.originState, destCity: p.destCity, destState: p.destState, status: 'Active' }); });
+  await page.locator('.lanebox [data-act="cover-tools"]').first().click();
+  const tools = await Promise.all(['call-list', 'truck-check', 'tools-find-trucks', 'tools-maps-near', 'tools-fmcsa', 'tools-route'].map(a => page.locator(`.lanebox .menu-pop [data-act="${a}"]`).first().isVisible()));
+  check('the Find trucks menu offers call list, truck check, DAT, Maps and FMCSA', tools.every(Boolean), JSON.stringify(tools));
+  await page.locator('.lanebox .menu-pop [data-act="truck-check"]').first().click();
+  await page.click('.modal-foot >> text=Create drafts');
+  await page.waitForSelector('.modal .draft');
+  const tcTxt = await page.textContent('.modal-body');
+  check('truck check drafts a truck-availability e-mail to the best-matched carrier for this load', tcTxt.includes('truckcheck@carrier.example') && /trucks available/i.test(tcTxt) && /Nothing has been sent/.test(tcTxt), tcTxt.slice(0, 140));
+  await page.click('.modal >> text=Close');
+  await go('home');
+  check('the Home page has a cover toolkit of outside resources', (await page.locator('.toolkit a.tk-link[target="_blank"]').count()) >= 4);
 
   // --- offline: core functions without network
   await page.waitForTimeout(800);

@@ -16,7 +16,8 @@ import { loadStatus, equipLabel, shortDate, lbs, FLAG_ICON, QUICK_FILTERS } from
 import { pastePanel, matrixFlow } from '../board/flow.js';
 import { coverModal } from '../board/cover.js';
 import { overviewStrip, worklistPanel, scoreboard, guidanceBlock, agingModal } from '../board/insights.js';
-import { summaryOutreach } from '../board/outreachview.js';
+import { summaryOutreach, callListModal } from '../board/outreachview.js';
+import { mapsRouteUrl, mapsCarriersNearUrl, FMCSA_SAFER_URL } from '../../core/resources.js';
 import { money } from '../board/util.js';
 
 let filter = '';
@@ -166,16 +167,25 @@ function equipSelect(b) {
 }
 
 /** A "⋯" dropdown: <details> so it works without any script, closed again after a choice. */
-function menu(label, items) {
-  const d = h('details', { class: 'menu' },
-    h('summary', { class: 'btn small iconbtn', 'aria-label': label, title: label }, icon('more', 16)),
-    h('div', { class: 'menu-pop' }, items.filter(Boolean).map(it => h('button', { class: 'menu-item' + (it.danger ? ' danger' : ''), type: 'button', 'data-act': it.act || null, onclick: (e) => { d.removeAttribute('open'); it.run(e); } }, it.label))));
+function menu(label, items, trigger) {
+  const d = h('details', { class: 'menu' + (trigger ? ' ' + (trigger.cls || '') : '') },
+    trigger ? h('summary', { class: 'btn', 'aria-label': label, title: trigger.title || label, 'data-act': trigger.act || null }, trigger.icon ? icon(trigger.icon, 15) : null, trigger.text, icon('chevdown', 13))
+      : h('summary', { class: 'btn small iconbtn', 'aria-label': label, title: label }, icon('more', 16)),
+    h('div', { class: 'menu-pop' }, items.filter(Boolean).map(it => it.heading ? h('div', { class: 'menu-head' }, it.heading) : h('button', { class: 'menu-item' + (it.danger ? ' danger' : ''), type: 'button', 'data-act': it.act || null, onclick: (e) => { d.removeAttribute('open'); it.run(e); } }, it.label))));
   return d;
 }
 document.addEventListener('click', (e) => { document.querySelectorAll('details.menu[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); }); });
 
 /** Subtle target-rate chip, visible on collapsed and expanded loads alike. */
 const targetChip = (t) => t > 0 ? h('span', { class: 'meta targetchip', title: 'Target rate: the number carrier replies are judged against', 'data-act': 'target-chip' }, icon('target', 14), '$' + Math.round(t).toLocaleString('en-US'), h('em', null, 'target')) : null;
+
+/**
+ * The target rate on a COLLAPSED load: a quiet pill right after the lane title, so you can scan the board by rate without opening anything.
+ * (The expanded card shows the same number in its rate box.) With no target typed yet it says so, faintly.
+ */
+const targetPeek = (t) => t > 0
+  ? h('span', { class: 'tgtpeek', 'data-act': 'target-peek', title: 'Target rate for this load. Open the load to change it.' }, h('em', null, 'Target'), '$' + Math.round(t).toLocaleString('en-US'))
+  : h('span', { class: 'tgtpeek none', 'data-act': 'target-peek', title: 'No target rate yet. Open the load and type one.' }, h('em', null, 'Target'), '\u2014');
 
 /** The plain-language problem chips under a load's title. */
 function issuesStrip(r) {
@@ -243,7 +253,7 @@ function groupBox(r, collapsed, toggle) {
       h('input', { type: 'checkbox', class: 'bigchk', checked: allSel, 'aria-label': 'Select every posting in this lane', 'data-fk': `${b.key}:chk`, onchange: (e) => { ids.forEach(id => (e.target.checked ? selected.add(id) : selected.delete(id))); rerender(); } }),
       h('div', { class: 'truck' }, icon('truck', 20)),
       h('div', { class: 'lanemain' },
-        h('h3', { class: 'lane', onclick: toggle }, b.title),
+        h('div', { class: 'titlerow' }, h('h3', { class: 'lane', onclick: toggle }, b.title), collapsed ? targetPeek(r.stats.target) : null),
         h('div', { class: 'metarow' }, meta,
           targetChip(r.stats.target),
           h('span', { class: 'meta' }, `${b.members.length} posting${b.members.length === 1 ? '' : 's'}`),
@@ -296,6 +306,7 @@ function groupBox(r, collapsed, toggle) {
   // ---- actions: one outreach button per load
   const acts = h('div', { class: 'laneact' },
     h('button', { class: 'btn primary', type: 'button', 'data-act': 'outreach', title: 'Draft carrier outreach for this load, best-matched carriers first (nothing is sent)', onclick: async () => { const x = await actions.runOutreach(head.id); if (x) summaryOutreach(x); } }, icon('send', 15), 'Carrier outreach'),
+    coverTools(b, head),
     h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy load details'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'find-carriers', title: 'Open DAT Find Trucks for this load (the lane is copied so you can paste it in)', onclick: () => findCarriers(head) }, icon('search', 15), 'Find more carriers'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'rateview', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 15), 'DAT RateView'),
@@ -320,6 +331,34 @@ function groupBox(r, collapsed, toggle) {
       h('thead', null, h('tr', null, [['', ''], ['Post', 'A-A is the original. Other cells are nearby origin/destination pairings.'], ['Origin', ''], ['', ''], ['Destination', ''], ['DAT rate', 'The rate you post on DAT for this posting. Fill it on only some postings and the rest post without a rate.'], ['Replies / sent', 'Carrier replies received / outreach drafts created'], ['', '']].map(([x, t]) => h('th', { title: t || null }, x)))),
       h('tbody', null, b.members.map(m => row(m, rc))))),
     rateNote(b, rinfo, rate));
+}
+
+const openLink = (url, why) => { if (!url) return toast(why, 'warn'); openExternal(url); };
+
+/**
+ * "Find trucks": every way to put a truck on this load, in one place. Ask the database (ranked call list, truck-check e-mails),
+ * or look outside it (DAT, Google Maps for carriers near the pickup, FMCSA to vet one you have found).
+ */
+function coverTools(b, head) {
+  const truckCheck = async () => {
+    const ok = await confirmDialog('Truck check for this load', `Draft "Do you have any trucks available near ${head.originCity || 'the pickup'}, ${head.originState || ''}?" to the best-matched carriers in your database (up to 15, skipping anyone already asked about this load or contacted in the last 24 hours).\n\nNothing is sent. The drafts appear for you to review.`, 'Create drafts');
+    if (!ok) return;
+    const res = await actions.truckCheckForLoad(head.id);
+    if (!res.created) return toast(res.detail, 'warn', 7000);
+    summaryOutreach({ detail: res.detail, drafts: res.drafts, created: res.created });
+  };
+  return menu('Find trucks for this load', [
+    { heading: 'Ask your carriers' },
+    { label: 'Call list: best matches with phone numbers', act: 'call-list', run: async () => { await actions.logOp(head.id, 'call', 'opened the call list'); callListModal(b); } },
+    { label: 'Truck check: ask who has a truck near the pickup', act: 'truck-check', run: truckCheck },
+    { heading: 'Look beyond your database' },
+    { label: 'DAT Find Trucks', act: 'tools-find-trucks', run: () => findCarriers(head) },
+    { label: 'Truck companies near the pickup (Google Maps)', act: 'tools-maps-near', run: () => openLink(mapsCarriersNearUrl(head), 'This load needs an origin city and state first.') },
+    { label: 'Check a carrier on FMCSA SAFER', act: 'tools-fmcsa', run: () => openExternal(FMCSA_SAFER_URL) },
+    { heading: 'Plan the move' },
+    { label: 'Route and miles (Google Maps)', act: 'tools-route', run: () => openLink(mapsRouteUrl(head), 'This load needs an origin and a destination first.') },
+    { label: 'Weather at the pickup', act: 'tools-weather', run: () => weather(head) }],
+  { text: 'Find trucks', icon: 'truck', cls: 'covertools', act: 'cover-tools', title: 'Call list, truck check e-mails, DAT, Google Maps and FMCSA for this load' });
 }
 
 /** One line under the postings that says exactly how this load's rate will go out on DAT. */

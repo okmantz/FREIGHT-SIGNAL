@@ -6,7 +6,7 @@ import { ZipMap } from '../core/zipmap.js';
 import { targetForPriority, blankPosting, reindex, initializeLoadControls, reconcileManualLane, coverPosting, setGroupPriority, setGroupStatus, groupMembers, countAlternates } from '../core/model.js';
 import { planMatrix, applyMatrix, hasAlternates } from '../core/matrix.js';
 import { planExcelOutreach, planOutlookScan } from '../core/outreach.js';
-import { planRankedOutreach, planRankedScan, buildTruckCheck } from '../core/ranking.js';
+import { planRankedOutreach, planRankedScan, buildTruckCheck, rankCarriers } from '../core/ranking.js';
 import { buildCoverEntry, weeklyGoalHit } from '../core/coverlog.js';
 import { expiredGroups } from '../core/expiry.js';
 import { classifyLane } from '../core/lanes.js';
@@ -506,12 +506,16 @@ export const actions = {
     if (state.settings.draftsToOutlook && state.hooks.sendToOutlook && stamped.length) await actions.sendDraftsToOutlook(stamped.map(d => d.id));
     return { ...scan, drafts: stamped };
   },
-  /** "Do you have any trucks available?" - one draft per carrier. Returns the saved draft records. */
-  async truckCheck(carrierIds) {
+  /**
+   * "Do you have any trucks available?" - one draft per carrier. Returns the saved draft records.
+   * With `load` (a posting) the question is about THAT lane ("in Joliet, IL heading toward Atlanta, GA") instead of the carrier's own lane.
+   */
+  async truckCheck(carrierIds, load = null) {
     const made = [];
     for (const cid of carrierIds) {
       const c = state.carriers.find(x => x.id === cid); if (!c || !String(c.email || '').trim()) continue;
-      made.push({ id: uid(), createdAt: new Date().toISOString(), ...buildTruckCheck(c, state.settings) });
+      const asked = load ? { ...c, originCity: load.originCity, originState: load.originState, destCity: load.destCity, destState: load.destState } : c;
+      made.push({ id: uid(), createdAt: new Date().toISOString(), ...(load ? { postingId: load.id } : {}), ...buildTruckCheck(asked, state.settings) });
     }
     if (!made.length) return [];
     state.drafts.unshift(...made); await guard(() => db.putMany('drafts', made));
@@ -521,6 +525,25 @@ export const actions = {
     emit();
     if (state.settings.draftsToOutlook && state.hooks.sendToOutlook) await actions.sendDraftsToOutlook(made.map(d => d.id));
     return made;
+  },
+  /**
+   * Truck check for one load: the best-matched carriers (lane fit, cover history, response rate) are asked whether they have a truck near the
+   * pickup. Skips anyone already contacted about this load and anyone contacted in the last 24 hours. Drafts only; nothing is sent.
+   */
+  async truckCheckForLoad(id, count) {
+    const p = state.postings.find(x => x.id === id);
+    if (!p) return { drafts: [], created: 0, detail: 'That load is no longer on the board.' };
+    const n = Math.max(1, Math.trunc(Number(count) || Number(state.settings.truckCheckCount) || 15));
+    const asked = new Set(state.outreach.filter(o => o.postingId === p.id).map(o => String(o.email || '').toLowerCase()).filter(Boolean));
+    const cutoff = Date.now() - 86400000;
+    for (const c of state.carriers) { const t = Date.parse(c.lastContacted); if (Number.isFinite(t) && t > cutoff) asked.add(String(c.email || '').toLowerCase()); }
+    const ranked = rankCarriers(p, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, exclude: asked });
+    const seen = new Set(); const ids = [];
+    for (const r of ranked) { const em = String(r.carrier.email || '').toLowerCase(); if (!em || seen.has(em)) continue; seen.add(em); ids.push(r.carrier.id); if (ids.length >= n) break; }
+    if (!ids.length) return { drafts: [], created: 0, detail: 'No carrier in the database fits this lane (or all of them were asked in the last 24 hours). Add carriers, or widen the carrier radius in System.' };
+    const drafts = await actions.truckCheck(ids, p);
+    await actions.logOp(p.id, 'truckcheck', `${drafts.length} truck-check draft(s)`);
+    return { drafts, created: drafts.length, detail: `${drafts.length} truck-availability draft(s) for the carriers best matched to ${p.originCity}, ${p.originState} to ${p.destCity}, ${p.destState}. Best matches first. Nothing has been sent.` };
   },
   /** Queue drafts for the Outlook macro to save in the Drafts folder (nothing is ever sent). Returns how many were queued. */
   async sendDraftsToOutlook(ids) {

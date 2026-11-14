@@ -2,6 +2,7 @@ import { h } from '../dom.js';
 import { state } from '../../store/state.js';
 import { homeMetrics } from '../../core/stats.js';
 import { ventuskyUrl } from '../../core/links.js';
+import { TOOLKIT } from '../../core/resources.js';
 import { icon } from '../icons.js';
 import { greeting } from '../chrome.js';
 import { startTour } from '../tour.js';
@@ -44,6 +45,9 @@ export function render() {
       h('span', { class: 'tc-ico' }, icon('play', 20)),
       h('div', { class: 'tc-text' }, h('b', null, 'The 60-second tour'), h('span', null, 'Setting up Outlook, posting your first load, the carrier database and logging a cover. Replay it any time.')),
       h('button', { class: 'btn primary', type: 'button', 'data-act': 'take-tour-card', onclick: () => startTour() }, icon('play', 15), 'Start the tour')),
+    h('div', { class: 'toolkit', 'aria-label': 'Cover toolkit' },
+      h('span', { class: 'tk-title' }, icon('truck', 15), 'Cover toolkit'),
+      TOOLKIT.map(t => h('a', { class: 'tk-link', href: t.url, target: '_blank', rel: 'noopener noreferrer', title: t.note + ' (opens in a new tab)', 'data-tool': t.id }, icon(t.icon, 15), t.label))),
     h('div', { class: 'tiles' }, TILES.map(([id, ic, t, s, c]) => h('a', { class: 'tile', href: '#/' + id }, h('span', { class: 't-ico' }, icon(ic, 20)), h('b', null, t), h('span', null, s), h('i', null, c)))),
     !state.zip ? h('div', { class: 'banner err' }, 'The ZIP Map is not loaded. Matrix building needs it: open System and import uszips.csv.') : null,
     h('div', { class: 'footline' }, 'ALL DATA STAYS IN THIS BROWSER  •  NOTHING IS EVER SENT AUTOMATICALLY'));
