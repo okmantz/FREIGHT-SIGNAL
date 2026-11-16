@@ -4,6 +4,7 @@ import { state, actions } from '../../store/state.js';
 import { gridLabel } from '../../core/model.js';
 import { laneMemory, laneMemoryText, rateVsMemory } from '../../core/coverlog.js';
 import { safeNumeric } from '../../core/util.js';
+import { judgeQuote } from '../../core/quotes.js';
 import { money } from './util.js';
 
 export function coverModal(box, preset = {}) {
@@ -19,7 +20,7 @@ export function coverModal(box, preset = {}) {
   // carrier
   const quotes = state.inquiries.filter(q => ids.has(q.postingId) && q.senderEmail);
   const byEmail = new Map();
-  for (const q of quotes) { const e = String(q.senderEmail).toLowerCase(); const prev = byEmail.get(e); const rate = safeNumeric(q.lastCarrierRate); if (!prev || rate) byEmail.set(e, { email: e, rate: rate || (prev && prev.rate) || 0 }); }
+  for (const q of quotes) { const e = String(q.senderEmail).toLowerCase(); const prev = byEmail.get(e); const j = judgeQuote(q, { target: safeNumeric(head.targetRate) || safeNumeric(head.datRate), settings: state.settings, ownText: head.details }); const rate = j.ok ? j.rate : 0; if (!prev || rate) byEmail.set(e, { email: e, rate: rate || (prev && prev.rate) || 0 }); }
   const inp = (ph, v = '') => h('input', { placeholder: ph, value: v, 'data-live': '' });
   const name = inp('Carrier name'), email = inp('Carrier e-mail'), mc = inp('MC / DOT'), phone = inp('Phone');
   const rate = inp('$ paid / agreed', preset.rate ? String(preset.rate) : '');
