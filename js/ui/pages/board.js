@@ -4,7 +4,7 @@ import { rateViewUrl, ventuskyUrl, findTruckInfo } from '../../core/links.js';
 import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
 import { PRIORITIES, laneBoxes, gridLabel, targetForPriority } from '../../core/model.js';
 import { datTsv, datCsv, datRows, datProblems, datPostings, datFileName, loadRateInfo } from '../../core/dat.js';
-import { originalLoadDetails, copyDetailsMessage } from '../../core/loaddetails.js';
+import { originalLoadDetails, copyDetailsMessage, groupNote, detailsWithNote, cleanNote } from '../../core/loaddetails.js';
 import { analyseBoard, matchesQuick } from '../../core/worklist.js';
 import { laneMemory, laneMemoryText, rateVsMemory, paceStats } from '../../core/coverlog.js';
 import { safeNumeric } from '../../core/util.js';
@@ -39,18 +39,45 @@ async function copyLoadDetails(members, btn) {
   flash(btn);
 }
 
-function viewDetails(b) {
+/**
+ * v11: View AND edit the load's details, plus the reply note.
+ * Saving writes to every posting of the load (the 9 matrix postings share one set of details and one note), so edits survive a reshuffle
+ * and the first reply to a carrier uses them no matter which posting the e-mail matches.
+ */
+const REPLY_ASK = 'What is your best all-in rate? ETA to pickup?';
+function editDetails(b) {
+  const head = b.head;
   const d = originalLoadDetails(b.members);
-  const ta = h('textarea', { class: 'copybox', readOnly: true, rows: 14, 'aria-label': 'Original load details' }, d.text);
+  const startNote = groupNote(b.members);
+  const ta = h('textarea', { class: 'copybox editbox', rows: 12, 'aria-label': 'Load details', placeholder: 'Paste or type the load details that go out in the first reply.' });
   ta.value = d.text;
-  const note = d.source === 'original' ? 'This is the text pasted for the original posting, exactly as it was stored.'
-    : d.source === 'summary' ? 'No source text was pasted for this load, so this is a summary built from its lane fields.' : 'There are no details for this load yet.';
+  const nt = h('textarea', { class: 'copybox editbox notebox', rows: 3, 'aria-label': 'Reply note', placeholder: 'Optional. Shown under the load details in the first reply to a carrier, e.g. "Need FMCSA sticker on the truck."' });
+  nt.value = startNote;
+  const prev = h('pre', { class: 'copybox replyprev' });
+  const refresh = () => { prev.textContent = detailsWithNote(ta.value, nt.value, '\n') + '\n\n' + REPLY_ASK; };
+  ta.addEventListener('input', refresh); nt.addEventListener('input', refresh); refresh();
+  const note = d.source === 'original' ? 'Edit the text below and press Save. It is saved on all ' + b.members.length + ' posting' + (b.members.length === 1 ? '' : 's') + ' of this load.'
+    : d.source === 'summary' ? 'No source text was pasted for this load, so this is a summary built from its lane fields. Edit it and Save to keep your own version.'
+    : 'There are no details for this load yet. Type them below.';
   modal({
     title: `Load details: ${b.title}`, wide: true,
-    body: h('div', null, h('p', { class: 'muted' }, note), ta),
-    actions: [{ label: 'Close' }, { label: 'Copy details', kind: 'primary', keepOpen: true, onClick: async () => { if (d.text) await copyText(d.text, copyDetailsMessage(d.source)); return false; } }],
+    body: h('div', null,
+      h('p', { class: 'muted' }, note), ta,
+      h('label', { class: 'dfield wide' }, h('span', null, 'Reply note (optional)'), nt),
+      h('p', { class: 'muted small' }, 'First reply to a carrier inquiry (preview):'), prev),
+    actions: [
+      { label: 'Cancel' },
+      { label: 'Copy details', keepOpen: true, onClick: async () => { const v = ta.value.trim(); if (v) await copyText(v, 'Load details copied.'); else toast('There are no details to copy.', 'warn'); return false; } },
+      { label: 'Save', kind: 'primary', onClick: async () => {
+        const patch = {};
+        if (ta.value.trim() !== d.text.trim()) patch.details = ta.value;
+        if (cleanNote(nt.value) !== startNote) patch.notes = nt.value;
+        if (!Object.keys(patch).length) return;
+        await actions.setLoadText(head.id, patch);
+        toast('Load details saved.', 'ok');
+      } }],
   });
-  setTimeout(() => ta.select(), 30);
+  setTimeout(() => ta.focus(), 30);
 }
 
 const shortGroup = (g) => (g ? g.replace(/^FS-/, '').slice(-9) : '');
@@ -63,12 +90,19 @@ function detailModal(p) {
       mk('targetRate', 'Target rate (whole load)')),
     mk('details', 'Auto-reply details (source TQL text)', true),
     h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: (e) => { const v = inputs.details.value.trim(); if (!v) return toast('There are no details to copy.', 'warn'); copyText(v, 'Load details copied.'); flash(e.currentTarget); } }, icon('copy', 15), 'Copy details')),
-    mk('notes', 'Auto-reply notes'));
+    mk('notes', 'Reply note (added under the details in the first reply)'));
+  if (inputs.notes) inputs.notes.value = cleanNote(p.notes);
   modal({
     title: `Edit ${p.originCity}, ${p.originState} → ${p.destCity}, ${p.destState}`, body, wide: true,
     actions: [{ label: 'Cancel' }, { label: 'Save', kind: 'primary', onClick: async () => {
       const patch = {}; for (const [k, el] of Object.entries(inputs)) patch[k] = el.value;
+      // details and the reply note are one set for the whole load: save them on every posting of it, not just this row
+      const text = {};
+      if (patch.details.trim() !== String(p.details ?? '').trim()) text.details = patch.details;
+      if (cleanNote(patch.notes) !== cleanNote(p.notes)) text.notes = patch.notes;
+      delete patch.details; delete patch.notes;
       await actions.updatePosting(p.id, patch);
+      if (Object.keys(text).length) await actions.setLoadText(p.id, text);
     } }],
   });
 }
@@ -282,9 +316,14 @@ function groupBox(r, collapsed, toggle) {
   const weight = h('input', { class: 'cell', size: 7, value: head.weight ?? '', placeholder: 'lbs', 'data-fk': `${b.key}:weight` });
   weight.addEventListener('change', () => actions.updateGroup(head.id, { weight: weight.value }));
   const fld = (label, el) => h('label', { class: 'dfield' }, h('span', null, label), el);
+  const replyNote = h('input', { class: 'cell', size: 28, value: groupNote(b.members), placeholder: 'e.g. Need FMCSA sticker', maxlength: 300, 'data-fk': `${b.key}:note`,
+    title: 'Optional note for this load. It is added under the load details in the first reply to a carrier inquiry, above the ETA and rate question.' });
+  replyNote.addEventListener('change', async () => { if (cleanNote(replyNote.value) === groupNote(b.members)) return; await actions.setLoadText(head.id, { notes: replyNote.value }); toast(cleanNote(replyNote.value) ? 'Reply note saved.' : 'Reply note cleared.', 'ok'); });
+  replyNote.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); replyNote.blur(); } });
   const details = h('div', { class: 'loaddetails' },
     fld('Pickup', pickup), fld('Weight', weight), fld('Equipment', equipSelect(b)),
-    h('div', { class: 'dfield rate' }, h('span', null, 'Target rate'), rateIn, rateHint));
+    h('div', { class: 'dfield rate' }, h('span', null, 'Target rate'), rateIn, rateHint),
+    h('label', { class: 'dfield note' }, h('span', null, 'Reply note'), replyNote));
 
   // ---- options
   const priSel = h('select', { class: 'cell', title: 'Priority sets the outreach target for the whole load (Low 5, Medium 10, High 15)', 'data-fk': `${b.key}:priority` },
@@ -308,6 +347,7 @@ function groupBox(r, collapsed, toggle) {
     h('button', { class: 'btn primary', type: 'button', 'data-act': 'outreach', title: 'Draft carrier outreach for this load, best-matched carriers first (nothing is sent)', onclick: async () => { const x = await actions.runOutreach(head.id); if (x) summaryOutreach(x); } }, icon('send', 15), 'Carrier outreach'),
     coverTools(b, head),
     h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy load details'),
+    h('button', { class: 'btn', type: 'button', 'data-act': 'edit-lane-details', title: 'View and edit the load details and the reply note', onclick: () => editDetails(b) }, icon('edit', 15), 'Edit details'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'find-carriers', title: 'Open DAT Find Trucks for this load (the lane is copied so you can paste it in)', onclick: () => findCarriers(head) }, icon('search', 15), 'Find more carriers'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'rateview', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 15), 'DAT RateView'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'csv-group', title: 'Download every posting of this load as a DAT CSV', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }, icon('download', 15), 'Download CSV'),
@@ -319,7 +359,7 @@ function groupBox(r, collapsed, toggle) {
       toast('Postings reshuffled. Download the DAT CSV again and re-upload it.', 'ok', 7000); } }, icon('refresh', 15), 'Reshuffle postings') : null,
     single ? h('button', { class: 'btn', type: 'button', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3×3 matrix') : null,
     menu('More actions for this load', [
-      { label: 'View original details', act: 'view-lane-details', run: () => viewDetails(b) },
+      { label: 'View / edit load details', act: 'view-lane-details', run: () => editDetails(b) },
       { label: 'Save to Spare Load Details', run: async () => { await actions.saveSpareFromGroup(head.id); toast('Saved to Spare Load Details.', 'ok'); } },
       { label: 'Weather at origin', run: () => weather(head) },
       { label: single ? 'Delete this load' : 'Delete all postings', act: 'del-group', danger: true, run: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }]));
