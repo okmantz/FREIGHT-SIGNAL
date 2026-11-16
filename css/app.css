@@ -1070,3 +1070,17 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
 .tk-link { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface2); color: var(--text); text-decoration: none; font-size: .88em; font-weight: 600; }
 .tk-link:hover, .tk-link:focus-visible { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 760px) { .tgtpeek { font-size: .74em; } .menu.covertools .menu-pop { min-width: 260px; } }
+
+/* v12: carrier rates the app does not trust (Inquiry Log) */
+td.ratecheck .rc-mark { color: var(--warn); font-weight: 700; }
+td.ratecheck.rejected .rc-struck { text-decoration: line-through; opacity: .6; }
+td.ratecheck { cursor: help; }
+
+/* v12: pickup date on a collapsed load (quiet text beside the target pill) */
+.pkpeek { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: .78em; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: .01em; }
+.pkpeek svg { opacity: .7; }
+.pkpeek em { font-style: normal; font-weight: 600; font-size: .8em; letter-spacing: .09em; text-transform: uppercase; opacity: .6; }
+.pkpeek.none { opacity: .55; }
+.pkpeek.due { color: var(--warn); font-weight: 600; }
+.pkpeek.due em { opacity: .8; }
+@media (max-width: 760px) { .pkpeek { font-size: .72em; } }
