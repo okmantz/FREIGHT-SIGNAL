@@ -803,6 +803,11 @@ html.locked #app, html.locked header.top, html.locked nav.side { display: none !
 .dfield input.cell[size="10"] { width: 108px; } .dfield input.cell[size="7"] { width: 86px; }
 .dfield.rate input.cell { width: 104px; font-weight: 800; font-size: 1.08em; text-align: right; border-color: rgba(var(--accent-rgb), .65); }
 .dfield.rate .ratehint { max-width: 220px; }
+.dfield.note input.cell { width: 260px; max-width: 100%; }
+.dfield.wide { width: 100%; margin-top: 12px; }
+.copybox.editbox { width: 100%; box-sizing: border-box; resize: vertical; color: inherit; }
+.copybox.notebox { max-height: 20vh; }
+.copybox.replyprev { max-height: 24vh; opacity: .9; }
 .tgl { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: .86em; font-weight: 600; user-select: none; }
 .tgl input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--input); position: relative; cursor: pointer; flex: none; padding: 0; transition: background .15s, border-color .15s; }
 .tgl input[type="checkbox"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
