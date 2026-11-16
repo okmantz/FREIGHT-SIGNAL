@@ -117,6 +117,9 @@ function outlookGuide() {
   state_rows.push(h('div', { class: 'state', 'data-outlook': olOn ? 'connected' : 'waiting' }, h('span', { class: 'dot ' + (olOn ? 'on' : 'warn') }),
     olOn ? `Outlook connected — last heard ${fmtDate(ol.lastSeen)}, read ${ol.postingsRead} posting(s)${ol.macroVersion ? ', macro ' + ol.macroVersion : ''}${ol.lastEvent ? ', last action: ' + ol.lastEvent : ''}` :
       on ? (ol && ol.lastSeen ? `Outlook last heard ${fmtDate(ol.lastSeen)} (more than a day ago - restart Outlook or run FS_Ping)` : 'Waiting for Outlook — follow steps 3 to 7 below') : 'Outlook status unknown until a folder is connected'));
+  // v12: v4 / v5 read every number in the whole e-mail (including your own quoted load text); only v6 reads just the carrier's own words
+  const oldMacro = olOn && /^v?[0-5]$/i.test(String(ol && ol.macroVersion || 'v4').trim());
+  if (oldMacro) state_rows.push(h('div', { class: 'banner err', 'data-macro-old': '' }, h('b', null, `Outlook is running the older macro (${ol.macroVersion || 'v4'}). `), 'It reads every number in the whole e-mail, including your own quoted load text, so it can log a rate nobody quoted (a mileage, an ID, a phone extension). Update to v6, which reads only what the carrier typed: press "Copy the macro" in step 4, paste it over the old one in Outlook (Alt+F11 → ThisOutlookSession) and restart Outlook. Until then the board double-checks every rate it logs and will not call an unverified one "ready to book".'));
   if (on) state_rows.push(h('dl', { class: 'kv' },
     h('dt', null, 'Postings shared with Outlook'), h('dd', null, `${bridge.postingsWritten}` + (bridge.lastWrite ? ` (written ${fmtDate(bridge.lastWrite)})` : '')),
     h('dt', null, 'Carrier conversations from Outlook'), h('dd', null, String(bridge.eventsSeen || 0)),

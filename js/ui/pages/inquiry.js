@@ -6,7 +6,9 @@ import { toDelimited } from '../../core/csv.js';
 import { tableToRecords } from '../importer.js';
 import { performanceDashboard } from '../../core/stats.js';
 import { draftCard } from '../draftcard.js';
-import { formatCurrency0 } from '../../core/util.js';
+import { formatCurrency0, safeNumeric, safeString } from '../../core/util.js';
+import { judgeQuote } from '../../core/quotes.js';
+import { buildOutlookLoadDetails } from '../../core/outreach.js';
 
 let tab = 'log';
 let q = '';
@@ -51,6 +53,23 @@ function importDialog() {
     } }] });
 }
 
+
+/**
+ * The carrier's logged rate. A rate the app does not believe (far from the load's target, a number copied from your own load text, or read
+ * by an old macro from the whole e-mail) is crossed out with a warning mark and is NOT counted as a quote on the board.
+ * Edit the entry and correct or clear the rate to remove the mark.
+ */
+function rateCell(i) {
+  const post = state.postings.find(p => p.id === i.postingId);
+  const target = post ? safeNumeric(post.targetRate) || safeNumeric(post.datRate) : safeNumeric(i.targetRate);
+  const ownText = post ? [safeString(post.details) || buildOutlookLoadDetails(post), post.notes].join('\n') : '';
+  const v = judgeQuote(i, { target, settings: state.settings, ownText });
+  const txt = formatCurrency0(Number(i.lastCarrierRate));
+  if (v.ok && !v.unverified) return h('td', { class: 'num' }, txt);
+  return h('td', { class: 'num ratecheck ' + (v.ok ? 'unverified' : 'rejected'), title: (v.ok ? 'Not counted as ready to book: ' : 'Not counted as a quote: ') + v.reason },
+    h('span', { class: 'rc-mark', 'aria-hidden': 'true' }, '\u26A0 '), h('span', { class: v.ok ? '' : 'rc-struck' }, txt));
+}
+
 function log() {
   const statuses = ['All', ...new Set(state.inquiries.map(i => i.status).filter(Boolean))];
   const rows = state.inquiries.filter(i => (statusF === 'All' || i.status === statusF) && (!q || INQUIRY_KEYS.some(k => String(i[k] ?? '').toLowerCase().includes(q.toLowerCase()))));
@@ -73,7 +92,7 @@ function log() {
         INQUIRY_KEYS.map(k => {
           if (k === 'approved') return h('td', null, selectEl(['No', 'Yes'], i.approved || 'No', async (v) => { const c = await actions.setApproved(i.id, v); if (c) toast('Carrier added/updated in the Carrier Database.', 'ok'); }));
           if (k === 'dateCounted' || k === 'dateAdded') return h('td', null, fmtDate(i[k]));
-          if (k === 'lastCarrierRate' && i[k] !== '' && i[k] !== undefined) return h('td', { class: 'num' }, formatCurrency0(Number(i[k])));
+          if (k === 'lastCarrierRate' && i[k] !== '' && i[k] !== undefined) return rateCell(i);
           return h('td', null, i[k] ?? '');
         }))) : h('tr', null, h('td', { colspan: 20, class: 'muted' }, 'No inquiries logged.'))))));
 }

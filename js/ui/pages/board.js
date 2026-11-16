@@ -6,6 +6,7 @@ import { PRIORITIES, laneBoxes, gridLabel, targetForPriority } from '../../core/
 import { datTsv, datCsv, datRows, datProblems, datPostings, datFileName, loadRateInfo } from '../../core/dat.js';
 import { originalLoadDetails, copyDetailsMessage, groupNote, detailsWithNote, cleanNote } from '../../core/loaddetails.js';
 import { analyseBoard, matchesQuick } from '../../core/worklist.js';
+import { sortRowsByPickup, parseDateText } from '../../core/expiry.js';
 import { laneMemory, laneMemoryText, rateVsMemory, paceStats } from '../../core/coverlog.js';
 import { safeNumeric } from '../../core/util.js';
 import { icon } from '../icons.js';
@@ -23,6 +24,7 @@ import { money } from '../board/util.js';
 let filter = '';
 let quick = '';               // overview-tile filter ('' = none)
 let brokerTab = '__all';      // '__all' | broker name | '' (unassigned)
+const SORTS = [['', 'Board order'], ['pickup', 'Pickup date: soonest first'], ['pickupDesc', 'Pickup date: latest first']];
 const selected = new Set();   // ticked posting ids (for Download selected / Delete selected)
 const rerender = () => import('../../main.js').then(m => m.render());
 
@@ -221,6 +223,23 @@ const targetPeek = (t) => t > 0
   ? h('span', { class: 'tgtpeek', 'data-act': 'target-peek', title: 'Target rate for this load. Open the load to change it.' }, h('em', null, 'Target'), '$' + Math.round(t).toLocaleString('en-US'))
   : h('span', { class: 'tgtpeek none', 'data-act': 'target-peek', title: 'No target rate yet. Open the load and type one.' }, h('em', null, 'Target'), '\u2014');
 
+/**
+ * The pickup date on a COLLAPSED load: a quiet line of text beside the target pill (no box, muted), so the board can be scanned by
+ * pickup day without opening anything. It turns amber only when the pickup is today or already past. No date typed = a faint dash.
+ */
+function pickupPeek(head) {
+  const raw = String(head.pickupEarliest ?? '').trim();
+  const d = parseDateText(raw) || (raw ? parseDateText((/(\d{1,2}\/\d{1,2}\/\d{2,4})/.exec(raw) || [])[1]) : null);
+  if (!d) return raw
+    ? h('span', { class: 'pkpeek', 'data-act': 'pickup-peek', title: 'Pickup date as typed. Open the load to correct it (m/d/yyyy).' }, icon('calendar', 13), h('em', null, 'Pickup'), raw)
+    : h('span', { class: 'pkpeek none', 'data-act': 'pickup-peek', title: 'No pickup date yet. Open the load and type one (m/d/yyyy).' }, icon('calendar', 13), h('em', null, 'Pickup'), '\u2014');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((d.getTime() - today.getTime()) / 86400000);
+  const rel = days === 0 ? 'today' : days === 1 ? 'tomorrow' : days === -1 ? 'yesterday' : days < 0 ? `${-days} days ago` : `in ${days} days`;
+  return h('span', { class: 'pkpeek' + (days <= 0 ? ' due' : ''), 'data-act': 'pickup-peek', title: `Pickup ${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} (${rel})` },
+    icon('calendar', 13), h('em', null, 'Pickup'), d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+}
+
 /** The plain-language problem chips under a load's title. */
 function issuesStrip(r) {
   const chips = [];
@@ -287,7 +306,7 @@ function groupBox(r, collapsed, toggle) {
       h('input', { type: 'checkbox', class: 'bigchk', checked: allSel, 'aria-label': 'Select every posting in this lane', 'data-fk': `${b.key}:chk`, onchange: (e) => { ids.forEach(id => (e.target.checked ? selected.add(id) : selected.delete(id))); rerender(); } }),
       h('div', { class: 'truck' }, icon('truck', 20)),
       h('div', { class: 'lanemain' },
-        h('div', { class: 'titlerow' }, h('h3', { class: 'lane', onclick: toggle }, b.title), collapsed ? targetPeek(r.stats.target) : null),
+        h('div', { class: 'titlerow' }, h('h3', { class: 'lane', onclick: toggle }, b.title), collapsed ? targetPeek(r.stats.target) : null, collapsed ? pickupPeek(head) : null),
         h('div', { class: 'metarow' }, meta,
           targetChip(r.stats.target),
           h('span', { class: 'meta' }, `${b.members.length} posting${b.members.length === 1 ? '' : 's'}`),
@@ -444,6 +463,8 @@ export function render() {
   const f = filter.trim().toLowerCase();
   const inTab = (r) => brokerTab === '__all' || (r.box.head.broker || '') === brokerTab;
   const rows = rowsAll.filter(inTab).filter(r => matchesQuick(r, quick)).filter(r => !f || r.box.members.some(p => [p.originCity, p.originState, p.destCity, p.destState, p.groupId, p.variant, p.broker].join(' ').toLowerCase().includes(f)));
+  const sortBy = SORTS.some(([k]) => k === ui().sortBy) ? ui().sortBy : '';
+  const rowsView = sortBy ? sortRowsByPickup(rows, sortBy === 'pickupDesc' ? 'desc' : 'asc') : rows;
   const rowsTab = rowsAll.filter(inTab);
   for (const id of [...selected]) if (!state.postings.some(p => p.id === id)) selected.delete(id);
   const nSel = selected.size;
@@ -455,6 +476,8 @@ export function render() {
   search.addEventListener('input', () => { filter = search.value; rerender(); });
   const quickSel = h('select', { class: 'cell', 'aria-label': 'Show', title: 'Show only loads that match', 'data-fk': 'quick' }, QUICK_FILTERS.map(([k, l]) => h('option', { value: k, selected: k === quick }, l)));
   quickSel.addEventListener('change', () => { quick = quickSel.value; rerender(); });
+  const sortSel = h('select', { class: 'cell', 'aria-label': 'Sort loads', title: 'Order the loads on this board. Loads with no pickup date always go last.', 'data-fk': 'sortBy', 'data-act': 'sort-loads' }, SORTS.map(([k, l]) => h('option', { value: k, selected: k === sortBy }, l)));
+  sortSel.addEventListener('change', () => { saveUi({ sortBy: sortSel.value }); rerender(); });
   const selIds = () => [...selected];
   const openBox = async (box) => { if (collapsed.has(box.key)) { collapsed.delete(box.key); saveUi({ collapsed: [...collapsed] }); } await rerender(); setTimeout(() => { const el = document.querySelector(`[data-key="${CSS.escape(box.key)}"]`); if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); el.classList.add('pulse'); setTimeout(() => el.classList.remove('pulse'), 1600); } }, 120); };
   const wlOpen = ui().worklist !== false;
@@ -470,7 +493,7 @@ export function render() {
     pastePanel(),
     brokerTabs(rowsAll),
     scoreboard(brokerTab),
-    h('div', { class: 'toolbar sticky boardbar' }, search, quickSel, csvAll,
+    h('div', { class: 'toolbar sticky boardbar' }, search, quickSel, sortSel, csvAll,
       h('button', { class: 'btn', type: 'button', onclick: () => copyText(datTsv(tabPostings, false, datOpts()), 'DAT rows copied (tab-separated).') }, 'Copy for DAT'),
       h('button', { class: 'btn', type: 'button', 'data-act': 'aging', onclick: () => agingModal(rowsTab, ctx), title: 'Loads with no inquiries past their lane limit: one-click reprice and a fresh round of outreach' }, 'Aging loads' + (aging ? ` (${aging})` : '')),
       scanBtn,
@@ -483,6 +506,6 @@ export function render() {
       h('button', { class: 'btn small', type: 'button', 'data-act': 'csv-sel', onclick: () => downloadDat('selected', state.postings.filter(p => selected.has(p.id)), 'Selection') }, 'Download selected'),
       h('button', { class: 'btn small danger', type: 'button', 'data-act': 'del-sel', onclick: () => deleteMany(selIds(), `${nSel} selected posting${nSel === 1 ? '' : 's'}`) }, 'Delete selected'),
       h('button', { class: 'btn small', type: 'button', onclick: () => { selected.clear(); rerender(); } }, 'Clear')) : null,
-    rows.length ? rows.map(r => groupBox(r, collapsed.has(r.box.key), () => { if (collapsed.has(r.box.key)) collapsed.delete(r.box.key); else collapsed.add(r.box.key); setCollapsed(collapsed); })) :
+    rowsView.length ? rowsView.map(r => groupBox(r, collapsed.has(r.box.key), () => { if (collapsed.has(r.box.key)) collapsed.delete(r.box.key); else collapsed.add(r.box.key); setCollapsed(collapsed); })) :
       emptyState({ icon: 'board', title: state.postings.length ? 'No loads match' : 'No loads yet', text: state.postings.length ? 'Clear the search or pick another broker tab.' : 'Paste TQL load text above. The loads appear here right away.' }));
 }
