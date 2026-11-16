@@ -13,7 +13,8 @@
     "test:single": "node tests/e2e/single.mjs",
     "serve": "node tests/e2e/server.mjs",
     "test:cloud": "node tests/e2e/cloud.mjs",
-    "test:local": "node tests/e2e/local.mjs"
+    "test:local": "node tests/e2e/local.mjs",
+    "test:v12": "node tests/e2e/v12.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
