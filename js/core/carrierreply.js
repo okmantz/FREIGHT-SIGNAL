@@ -21,7 +21,9 @@ import { ladderReply, ladderStage, templatesOf, fillTemplate } from './ladder.js
 // Every entry is a regular-expression SOURCE (no flags). JS uses flags "i" / "gim"; the macro sets IgnoreCase + Multiline.
 // Only features that VBScript.RegExp also supports are used (no look-behind, no named groups, no \p{...}).
 const NUM = String.raw`(\d{1,3}(?:,\d{3})+|\d{3,5})(?:\.\d{1,2})?(?![0-9])`;
-const UNIT_NEG = String.raw`(?!\s*(?:mi\b|miles?\b|lbs?\b|pounds?\b|ft\b|feet\b|foot\b|pallets?\b|plt\b|hrs?\b|hours?\b|a\.?m\b|p\.?m\b|%|/|:\d|-\s*\d|per\s*mi))`;
+// UNIT_NEG: the number must NOT be followed (on the SAME line) by a unit or an extra charge: miles, lbs, deadhead, a lumper / detention fee ...
+// Same line only ([ \t]*, never \s*): with \s* the first word of the NEXT line ("Miles 715", "DH 700") cancelled a rate typed at the end of the line above.
+const UNIT_NEG = String.raw`(?![ \t]*(?:mi\b|miles?\b|lbs?\b|pounds?\b|ft\b|feet\b|foot\b|pallets?\b|plt\b|hrs?\b|hours?\b|a\.?m\b|p\.?m\b|dh\b|dead[ \t]*head|mpg\b|stops?\b|loads?\b|trucks?\b|units?\b|cents?\b|(?:for[ \t]+)?(?:the[ \t]+|a[ \t]+)?(?:lumpers?|detention|tonu|layover|deposit|fees?|surcharge|advance|quick[ \t]?pay|stop[ \t-]?off)\b|%|/|:\d|-[ \t]*\d|per[ \t]*mi))`;
 const LEAD = String.raw`(^|[^0-9a-z/:#.,-])`;
 const KW = String.raw`rate|my rate|our rate|offer|counter|counter ?offer|bid|quote|price|asking|ask|looking for|need|want|all[ -]?in|total|(?:can|could|will|would|can you|could you|i can|we can)\s+do(?:\s+it|\s+this|\s+the load)?(?:\s+for|\s+at)?|do it for|do for|go for|go at|take(?:\s+it|\s+this)?(?:\s+for|\s+at)?|(?:haul|cover|run|move)(?:\s+it|\s+this)?(?:\s+for|\s+at)|works? (?:for|at)|deal (?:at|for)`;
 
@@ -46,7 +48,7 @@ export const RULES = {
   // ---- rates (only ever run on fresh text). Capture groups: rateDollar 1, rateKeyword 2, rateSuffix 2, rateK 2.
   rateDollar: String.raw`\$\s*${NUM}${UNIT_NEG}`,
   rateKeyword: String.raw`(^|[^a-z])(?:${KW})\b\s*(?:is\b|of\b|at\b|for\b|would be\b|will be\b|:|=|-)?\s*\$?\s*${NUM}${UNIT_NEG}`,
-  rateSuffix: String.raw`${LEAD}${NUM}\s*(?:all[ -]?in\b|flat\b|fsc\b|plus fuel\b|\+\s*fuel\b|linehaul\b|lh\b|total\b|usd\b|dollars\b|bucks\b)`,
+  rateSuffix: String.raw`${LEAD}${NUM}[ \t]*(?:all[ -]?in\b|flat\b|fsc\b|plus fuel\b|\+\s*fuel\b|line ?haul\b|lh\b|total\b|usd\b|dollars\b|bucks\b)`,
   rateK: String.raw`${LEAD}(\d{1,2}(?:\.\d{1,2})?)\s?k\b(?!\s*(?:lbs?|pounds?|mi\b|miles?|ft\b|feet))`,
   rateBare: String.raw`^\s*\$?\s*${NUM}\s*[.?!]*\s*$`,           // the whole message is just a number (applied to the whole text, not per line)
   phone: String.raw`\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}`,

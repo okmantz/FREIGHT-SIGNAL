@@ -49,3 +49,31 @@ export function expiredGroups(postings, now = new Date(), graceDays = 0) {
   }
   return out;
 }
+
+/**
+ * The moment a posting is ready to pick up, for SORTING: the earliest pickup date (with the time of day when one was typed, e.g.
+ * "11/16/2026 08:00" or "11/16/2026 8:00 AM"), else the latest. Text that has no readable m/d/yyyy date gives null.
+ */
+export function pickupSortTime(p) {
+  for (const v of [p && p.pickupEarliest, p && p.pickupLatest]) {
+    const text = String(v ?? '');
+    let d = parseDateText(text);
+    if (!d) { const m = /(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})(?!\d)/.exec(text); if (m) d = new Date(m[3].length === 2 ? 2000 + +m[3] : +m[3], +m[1] - 1, +m[2]); }
+    if (!d || isNaN(d)) continue;
+    const t = /(\d{1,2}):(\d{2})\s*([ap])?\.?m?\.?/i.exec(text.slice(text.search(/\d{4}|\/\d{2}(?!\d)/)));
+    if (t) { let hr = +t[1]; const mn = +t[2]; const ap = (t[3] || '').toLowerCase(); if (ap === 'p' && hr < 12) hr += 12; if (ap === 'a' && hr === 12) hr = 0; if (hr < 24 && mn < 60) d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hr, mn); }
+    return d.getTime();
+  }
+  return null;
+}
+
+/**
+ * Order board rows (analyseBoard results) by pickup date. dir 'asc' = soonest first, 'desc' = latest first. Loads with no readable date always
+ * go last, and loads with the same pickup keep their board order (the sort is stable).
+ */
+export function sortRowsByPickup(rows, dir = 'asc') {
+  const sign = dir === 'desc' ? -1 : 1;
+  return rows.map((r, i) => ({ r, i, t: pickupSortTime(r.box.head) }))
+    .sort((a, b) => (a.t === null) - (b.t === null) || (a.t === null ? 0 : sign * (a.t - b.t)) || a.i - b.i)
+    .map(x => x.r);
+}

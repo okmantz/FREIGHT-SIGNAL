@@ -2,7 +2,7 @@
 // One "load" = one lane box = a load group (the 9 postings) or a single posting. Pure functions; the caller passes everything in `ctx`:
 //   { postings, inquiries, drafts, coverLog, carriers, zip, settings, now, weather: Map("city|st" -> alerts[]), carrierRev }
 
-import { safeNumeric, normalizeText, formatCurrency0 } from './util.js';
+import { safeNumeric, safeString, normalizeText, formatCurrency0 } from './util.js';
 import { laneBoxes } from './model.js';
 import { classifyLane } from './lanes.js';
 import { hoursToPickup, parseDateText } from './expiry.js';
@@ -11,8 +11,12 @@ import { rankCarriers } from './ranking.js';
 import { overlapsWindow, pickupWindow, alertLabel } from './weather.js';
 import { ladderStage } from './ladder.js';
 import { datProblems, loadRateInfo } from './dat.js';
+import { judgeQuote } from './quotes.js';
+import { buildOutlookLoadDetails } from './outreach.js';
 
 const H = 3600000;
+// lines already shown to the dispatcher as a "reply flagged for review" need no second warning about the same rate
+const BAD_FLAGS_QUIET = /RATE LOOKS WRONG|MORE THAN ONE RATE|NO RATE DETECTED|NOT UNDERSTOOD/i;
 const cityKey = (c, s) => normalizeText(c) + '|' + normalizeText(s);
 
 const depthCache = new Map();
@@ -48,10 +52,20 @@ export function groupStats(members, ctx) {
   const times = inq.map(q => Date.parse(q.dateCounted)).filter(Number.isFinite);
   const fieldTotal = members.reduce((n, m) => n + safeNumeric(m.inquiryCount), 0);
   const total = Math.max(inq.length, fieldTotal);
-  // a quote is only real when the carrier actually typed a rate: a number inside the plausible range, on a log line that was not flagged as unreadable/wrong
+  // One rate per load: the Target rate. A posting's own DAT rate (older loads, Edit dialog) counts as the rate when no target is set.
+  const rates = members.map(m => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter(r => r > 0);
+  const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
+  const lane = classifyLane(head, ctx.zip, ctx.settings || {});
+  // A quote is only real when the carrier actually typed a rate AND the number is believable for this load (see core/quotes.js):
+  // inside the plausible range, not flagged as unreadable, within half to three times the target, and (for log lines written by the old
+  // Outlook macros, which read the whole e-mail) not a number copied from your own load text. Anything else is set aside, never counted.
   const cfg = ctx.settings || {};
-  const lo = safeNumeric(cfg.minReasonableRate) || 250, hi = safeNumeric(cfg.maxReasonableRate) || 20000;
-  const quotes = inq.filter(q => { const r = safeNumeric(q.lastCarrierRate); return r >= lo && r <= hi && !/RATE LOOKS WRONG|MORE THAN ONE RATE|NO RATE DETECTED/i.test(q.flag || ''); }).map(q => ({ rate: safeNumeric(q.lastCarrierRate), email: q.senderEmail, stage: q.stage, flag: q.flag || '' }));
+  const ownText = [safeString(head.details) || buildOutlookLoadDetails(head), head.notes].join('\n');
+  const judged = inq.map(q => ({ q, v: judgeQuote(q, { target, settings: cfg, ownText, miles: lane.miles }) })).filter(x => x.v.has);
+  const asQuote = ({ q, v }) => ({ rate: v.rate, email: q.senderEmail, stage: q.stage, flag: q.flag || '', reason: v.reason });
+  const quotes = judged.filter(x => x.v.ok && !x.v.unverified).map(asQuote);
+  const unverified = judged.filter(x => x.v.ok && x.v.unverified).map(asQuote);
+  const rejected = judged.filter(x => !x.v.ok && !BAD_FLAGS_QUIET.test(x.q.flag || '')).map(asQuote);
   const created = members.map(m => Date.parse(m.createdAt)).filter(Number.isFinite);
   const addedHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
   const ops = members.flatMap(m => Array.isArray(m.ops) ? m.ops : []).filter((o, i, a) => a.findIndex(x => x.at === o.at && x.type === o.type) === i).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -61,10 +75,6 @@ export function groupStats(members, ctx) {
   const postedAt = postedTimes.length ? Math.min(...postedTimes) : 0;
   const lastPostedAt = postedTimes.length ? Math.max(...postedTimes) : 0;
   const ageHours = postedAt ? Math.max(0, (now.getTime() - postedAt) / H) : addedHours;
-  const lane = classifyLane(head, ctx.zip, ctx.settings || {});
-  // One rate per load: the Target rate. A posting's own DAT rate (older loads, Edit dialog) counts as the rate when no target is set.
-  const rates = members.map(m => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter(r => r > 0);
-  const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
   const posted = postedRateOf(members);
   const datRate = posted.rate || target; // what is posted on DAT (own DAT rate when any posting has one, else the target)
   const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx.drafts || []).filter(d => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || '')).length + ops.filter(o => o.type === 'outreach' || o.type === 'wave2').length;
@@ -87,7 +97,7 @@ export function groupStats(members, ctx) {
     head, members, ids, lane, strategy: lane.strategy, cls: lane.cls,
     ageHours, addedHours, postedAt, lastPostedAt, posted: !!postedAt, hoursSincePost: lastPostedAt ? Math.max(0, (now.getTime() - lastPostedAt) / H) : null, hoursToPickup: hoursToPickup(head, now),
     postings: members.length, rateInfo, problems, miles: lane.miles, equip: String(head.equip || '').toUpperCase(), weight: safeNumeric(head.weight), pickupText: head.pickupEarliest || '',
-    inquiries: { total, log: inq.length, last2h: times.filter(t => now.getTime() - t <= 2 * H).length, lastAt: lastInquiryAt, sinceOp: lastOpAt ? times.filter(t => t > lastOpAt).length : total, quotes, bestQuote: quotes.length ? Math.min(...quotes.map(q => q.rate)) : 0,
+    inquiries: { total, log: inq.length, last2h: times.filter(t => now.getTime() - t <= 2 * H).length, lastAt: lastInquiryAt, sinceOp: lastOpAt ? times.filter(t => t > lastOpAt).length : total, quotes, unverified, rejected, bestQuote: quotes.length ? Math.min(...quotes.map(q => q.rate)) : 0,
       avgQuote: quotes.length ? Math.round(quotes.reduce((a, q) => a + q.rate, 0) / quotes.length) : 0, stage: brokerStage, flagged: inq.filter(q => /MANUAL REVIEW|RATE RECEIVED/i.test(q.flag || '')).length },
     outreachSent, datRate, postedOwn: posted.own, rateSet: rates.length > 0, target, ops, lastOp, lastOpAt, alerts, weatherText: alertLabel(alerts), mem,
     phone: String(head.contact || '').toLowerCase() === 'phone',
@@ -127,6 +137,8 @@ export function attentionFlags(st) {
   const f = []; const s = st.strategy; const n = st.inquiries.total; const h = st.hoursToPickup;
   if (!st.rateSet) f.push({ kind: 'norate', level: 'act', text: 'No target rate' });
   if (st.inquiries.quotes.length && st.inquiries.stage && st.inquiries.stage.stage === 'book') f.push({ kind: 'hot', level: 'urgent', text: (() => { const b = st.inquiries.quotes.reduce((a, q) => q.rate < a.rate ? q : a); return `${b.email || 'A carrier'} quoted ${formatCurrency0(b.rate)}, inside your booking band (${formatCurrency0(st.target)} target) - confirm and book`; })() });
+  if (st.inquiries.unverified && st.inquiries.unverified.length) { const u = st.inquiries.unverified.reduce((a, q) => q.rate < a.rate ? q : a); f.push({ kind: 'review', level: 'act', text: `${u.email || 'A carrier'} is logged at ${formatCurrency0(u.rate)}, but the older Outlook macro read it from the whole e-mail - open the e-mail to confirm before booking` }); }
+  if (st.inquiries.rejected && st.inquiries.rejected.length) { const r = st.inquiries.rejected; f.push({ kind: 'review', level: 'act', text: `Ignored ${r.length === 1 ? 'a logged rate' : r.length + ' logged rates'} (${[...new Set(r.map(x => formatCurrency0(x.rate)))].join(', ')}) that ${r.length === 1 ? 'does' : 'do'} not fit the ${formatCurrency0(st.target)} target - check the e-mail${r.length === 1 ? '' : 's'}` }); }
   if (st.inquiries.flagged) f.push({ kind: 'review', level: 'act', text: `${st.inquiries.flagged} reply(ies) flagged for review` });
   if (n === 0 && st.ageHours >= s.staleHours) f.push({ kind: 'aging', level: h !== null && h <= s.closingHours ? 'urgent' : 'act', text: `Aging: ${Math.round(st.ageHours * 10) / 10} h with no inquiries` });
   if (h !== null && h <= s.closingHours && h > -24 && (n === 0 || !st.inquiries.quotes.length)) f.push({ kind: 'closing', level: 'urgent', text: h <= 0 ? 'Pickup day is ending' : `Pickup closes in ${Math.max(1, Math.round(h))} h` });
