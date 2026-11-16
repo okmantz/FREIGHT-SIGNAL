@@ -7,6 +7,7 @@ import { normalizeForMatching, safeNumeric, safeString, formatCurrency0, vbaRoun
 import { DEFAULT_SETTINGS } from './defaults.js';
 import { isBlockedOutlook } from './outreach.js';
 import { buildOutlookLoadDetails } from './outreach.js';
+import { detailsWithNote, cleanNote } from './loaddetails.js';
 import { ladderReply, ladderAction, templatesOf, fillTemplate } from './ladder.js';
 import { freshText, extractRate, analyseCarrierEmail, planCarrierReply, REPLY_FLAGS } from './carrierreply.js';
 
@@ -55,8 +56,7 @@ export function findMatchingLoad(subject, body, postings) {
   if (!matched) return null;
   let details = safeString(matched.details);
   if (!details) details = buildOutlookLoadDetails(matched);
-  const notes = safeString(matched.notes);
-  if (notes) details = details + CRLF + CRLF + notes;
+  details = detailsWithNote(details, matched.notes, CRLF);   // the load's note goes UNDER the details, above the ETA / rate question
   return { posting: matched, index: matchedIndex, details, targetRate: safeNumeric(matched.targetRate), score: bestScore };
 }
 
@@ -84,7 +84,7 @@ function quotedOriginal(mail) {
 const replySubject = (s) => (/^\s*re\s*:/i.test(s || '') ? s : 'RE: ' + (s || ''));
 
 /** Text we posted or wrote for a posting (details + notes): a carrier line that repeats it word for word is history, not an answer. */
-const ownTextOf = (posting) => { const d = safeString(posting.details) || buildOutlookLoadDetails(posting); const n = safeString(posting.notes); return n ? d + CRLF + n : d; };
+const ownTextOf = (posting) => { const d = safeString(posting.details) || buildOutlookLoadDetails(posting); const n = cleanNote(posting.notes); return n ? d + CRLF + n : d; };
 
 const stageAction = {
   book: 'rate-within-target', split: 'rate-split', target: 'rate-negotiate',

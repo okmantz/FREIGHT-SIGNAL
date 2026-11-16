@@ -34,3 +34,42 @@ export function copyDetailsMessage(source) {
   if (source === 'summary') return 'No pasted text is stored for this load, so a short summary of its fields was copied.';
   return 'There are no load details to copy for this load.';
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// v11: editable load details + a per-load "reply note".
+//
+// The note is a short line you add for ONE load ("Need FMCSA sticker", "No-touch freight"). It goes into the first reply to a carrier
+// inquiry, directly UNDER the load details and ABOVE the "ETA and rate" question. A matrix is nine postings and a carrier can answer
+// any of them, so details and note are always read from, and written to, every posting of the load together.
+// The old Excel macro wrote "::" into the notes cell when it was empty; that placeholder is treated as "no note".
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** A note as it is stored: CRLF normalised, trailing spaces trimmed, and the macro's "::" placeholder counted as empty. */
+export function cleanNote(text) {
+  const t = norm(text);
+  return /^:+$/.test(t) ? '' : t;
+}
+
+/** The reply note of a load (lane box): Original row first, then any other posting that has one. */
+export function groupNote(members) {
+  const list = (members || []).filter(Boolean);
+  const ordered = [...list.filter(p => p.variant === 'Original'), ...list.filter(p => p.variant !== 'Original')];
+  for (const p of ordered) { const n = cleanNote(p.notes); if (n) return n; }
+  return '';
+}
+
+/** What goes into the first reply above the "ETA / rate" question: the details, then (when there is one) a blank line and the note. */
+export function detailsWithNote(details, note, eol = '\r\n') {
+  const d = String(details ?? '').trim();
+  const n = cleanNote(note).replace(/\n/g, eol);
+  return n ? (d ? d + eol + eol + n : n) : d;
+}
+
+/** Normalise and write details / note onto every posting in `members`. Returns the values written. Pure: the store saves afterwards. */
+export function applyLoadText(members, patch) {
+  const out = {};
+  if ('details' in patch) out.details = String(patch.details ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+$/gm, '').trim();
+  if ('notes' in patch) out.notes = cleanNote(patch.notes);
+  for (const m of members) Object.assign(m, out);
+  return out;
+}
