@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-+s0jpPVgS83tx7IOhaGKbGuLPhB1pAHWDOgrGPy5CMs='; style-src 'sha256-i/LqIACzw/0Y8QceBg04ltPXEzFC42XO7l2rGIwCjWc='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-pTQ0/GC5opoy0e4tr52SyvAE3m4Fk2naWC+qUG5e7xQ='; style-src 'sha256-JOw9TK8BFIHlMW8a9f1LsCQo0Uia+cgy+cV4X84Fe5M='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -811,6 +811,11 @@ html.locked #app, html.locked header.top, html.locked nav.side { display: none !
 .dfield input.cell[size="10"] { width: 108px; } .dfield input.cell[size="7"] { width: 86px; }
 .dfield.rate input.cell { width: 104px; font-weight: 800; font-size: 1.08em; text-align: right; border-color: rgba(var(--accent-rgb), .65); }
 .dfield.rate .ratehint { max-width: 220px; }
+.dfield.note input.cell { width: 260px; max-width: 100%; }
+.dfield.wide { width: 100%; margin-top: 12px; }
+.copybox.editbox { width: 100%; box-sizing: border-box; resize: vertical; color: inherit; }
+.copybox.notebox { max-height: 20vh; }
+.copybox.replyprev { max-height: 24vh; opacity: .9; }
 .tgl { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: .86em; font-weight: 600; user-select: none; }
 .tgl input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--input); position: relative; cursor: pointer; flex: none; padding: 0; transition: background .15s, border-color .15s; }
 .tgl input[type="checkbox"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
@@ -3430,6 +3435,58 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     }
   });
 
+  // js/core/loaddetails.js
+  function originalLoadDetails(members) {
+    const list = (members || []).filter(Boolean);
+    if (!list.length) return { text: "", source: "none" };
+    const ordered = [...list.filter((p) => p.variant === "Original"), ...list.filter((p) => p.variant !== "Original")];
+    for (const p of ordered) {
+      const t2 = norm(p.details);
+      if (t2) return { text: t2, source: "original" };
+    }
+    const head = ordered[0];
+    const hasLane = [head.originCity, head.originState, head.destCity, head.destState].some((v) => String(v ?? "").trim());
+    if (!hasLane) return { text: "", source: "none" };
+    return { text: norm(buildFallbackLoadDetails(head)), source: "summary" };
+  }
+  function copyDetailsMessage(source) {
+    if (source === "original") return "Original load details copied.";
+    if (source === "summary") return "No pasted text is stored for this load, so a short summary of its fields was copied.";
+    return "There are no load details to copy for this load.";
+  }
+  function cleanNote(text2) {
+    const t2 = norm(text2);
+    return /^:+$/.test(t2) ? "" : t2;
+  }
+  function groupNote(members) {
+    const list = (members || []).filter(Boolean);
+    const ordered = [...list.filter((p) => p.variant === "Original"), ...list.filter((p) => p.variant !== "Original")];
+    for (const p of ordered) {
+      const n = cleanNote(p.notes);
+      if (n) return n;
+    }
+    return "";
+  }
+  function detailsWithNote(details, note2, eol = "\r\n") {
+    const d = String(details ?? "").trim();
+    const n = cleanNote(note2).replace(/\n/g, eol);
+    return n ? d ? d + eol + eol + n : n : d;
+  }
+  function applyLoadText(members, patch) {
+    const out = {};
+    if ("details" in patch) out.details = String(patch.details ?? "").replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").trim();
+    if ("notes" in patch) out.notes = cleanNote(patch.notes);
+    for (const m of members) Object.assign(m, out);
+    return out;
+  }
+  var norm;
+  var init_loaddetails = __esm({
+    "js/core/loaddetails.js"() {
+      init_outreach();
+      norm = (s) => String(s ?? "").replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").trim();
+    }
+  });
+
   // js/core/carrierreply.js
   function freshText(body, ownText = "") {
     const lines2 = String(body ?? "").replace(/\r\n?/g, "\n").replace(/ /g, " ").split("\n");
@@ -3746,8 +3803,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     if (!matched) return null;
     let details = safeString(matched.details);
     if (!details) details = buildOutlookLoadDetails(matched);
-    const notes = safeString(matched.notes);
-    if (notes) details = details + CRLF + CRLF + notes;
+    details = detailsWithNote(details, matched.notes, CRLF);
     return { posting: matched, index: matchedIndex, details, targetRate: safeNumeric(matched.targetRate), score: bestScore };
   }
   function deriveConversationId(mail2) {
@@ -3868,6 +3924,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
       init_defaults();
       init_outreach();
       init_outreach();
+      init_loaddetails();
       init_ladder();
       init_carrierreply();
       containsExactPhrase = (text2, phrase) => {
@@ -3889,7 +3946,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
       replySubject = (s) => /^\s*re\s*:/i.test(s || "") ? s : "RE: " + (s || "");
       ownTextOf = (posting) => {
         const d = safeString(posting.details) || buildOutlookLoadDetails(posting);
-        const n = safeString(posting.notes);
+        const n = cleanNote(posting.notes);
         return n ? d + CRLF + n : d;
       };
       stageAction = {
@@ -3988,6 +4045,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
       init_util();
       init_parser();
       init_dom();
+      init_loaddetails();
       state = {
         ready: false,
         settings: { ...DEFAULT_SETTINGS },
@@ -4167,6 +4225,20 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
             }
             Object.assign(m, patch);
           }
+          await savePostings();
+          emit();
+          return members.length;
+        },
+        /**
+         * v11: edit the load's details text and/or its reply note AFTER the matrix exists. Both are written to every posting of the load
+         * (a carrier can answer any of the nine), so the first reply never depends on which posting the e-mail happened to match.
+         * `patch` = { details?, notes? }. The note is stored clean ("" when empty; the macro's "::" placeholder is dropped).
+         */
+        async setLoadText(id, patch) {
+          const p = state.postings.find((x) => x.id === id);
+          if (!p) return 0;
+          const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+          applyLoadText(members, patch);
           await savePostings();
           emit();
           return members.length;
@@ -5705,33 +5777,6 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     }
   });
 
-  // js/core/loaddetails.js
-  function originalLoadDetails(members) {
-    const list = (members || []).filter(Boolean);
-    if (!list.length) return { text: "", source: "none" };
-    const ordered = [...list.filter((p) => p.variant === "Original"), ...list.filter((p) => p.variant !== "Original")];
-    for (const p of ordered) {
-      const t2 = norm(p.details);
-      if (t2) return { text: t2, source: "original" };
-    }
-    const head = ordered[0];
-    const hasLane = [head.originCity, head.originState, head.destCity, head.destState].some((v) => String(v ?? "").trim());
-    if (!hasLane) return { text: "", source: "none" };
-    return { text: norm(buildFallbackLoadDetails(head)), source: "summary" };
-  }
-  function copyDetailsMessage(source) {
-    if (source === "original") return "Original load details copied.";
-    if (source === "summary") return "No pasted text is stored for this load, so a short summary of its fields was copied.";
-    return "There are no load details to copy for this load.";
-  }
-  var norm;
-  var init_loaddetails = __esm({
-    "js/core/loaddetails.js"() {
-      init_outreach();
-      norm = (s) => String(s ?? "").replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").trim();
-    }
-  });
-
   // js/core/weather.js
   function summariseAlerts(json) {
     const feats = json && Array.isArray(json.features) ? json.features : [];
@@ -7203,21 +7248,53 @@ ${d.body}`) }, "Copy"),
     await copyText(d.text, copyDetailsMessage(d.source));
     flash(btn);
   }
-  function viewDetails(b) {
+  function editDetails(b) {
+    const head = b.head;
     const d = originalLoadDetails(b.members);
-    const ta = h("textarea", { class: "copybox", readOnly: true, rows: 14, "aria-label": "Original load details" }, d.text);
+    const startNote = groupNote(b.members);
+    const ta = h("textarea", { class: "copybox editbox", rows: 12, "aria-label": "Load details", placeholder: "Paste or type the load details that go out in the first reply." });
     ta.value = d.text;
-    const note2 = d.source === "original" ? "This is the text pasted for the original posting, exactly as it was stored." : d.source === "summary" ? "No source text was pasted for this load, so this is a summary built from its lane fields." : "There are no details for this load yet.";
+    const nt = h("textarea", { class: "copybox editbox notebox", rows: 3, "aria-label": "Reply note", placeholder: 'Optional. Shown under the load details in the first reply to a carrier, e.g. "Need FMCSA sticker on the truck."' });
+    nt.value = startNote;
+    const prev = h("pre", { class: "copybox replyprev" });
+    const refresh = () => {
+      prev.textContent = detailsWithNote(ta.value, nt.value, "\n") + "\n\n" + REPLY_ASK;
+    };
+    ta.addEventListener("input", refresh);
+    nt.addEventListener("input", refresh);
+    refresh();
+    const note2 = d.source === "original" ? "Edit the text below and press Save. It is saved on all " + b.members.length + " posting" + (b.members.length === 1 ? "" : "s") + " of this load." : d.source === "summary" ? "No source text was pasted for this load, so this is a summary built from its lane fields. Edit it and Save to keep your own version." : "There are no details for this load yet. Type them below.";
     modal({
       title: `Load details: ${b.title}`,
       wide: true,
-      body: h("div", null, h("p", { class: "muted" }, note2), ta),
-      actions: [{ label: "Close" }, { label: "Copy details", kind: "primary", keepOpen: true, onClick: async () => {
-        if (d.text) await copyText(d.text, copyDetailsMessage(d.source));
-        return false;
-      } }]
+      body: h(
+        "div",
+        null,
+        h("p", { class: "muted" }, note2),
+        ta,
+        h("label", { class: "dfield wide" }, h("span", null, "Reply note (optional)"), nt),
+        h("p", { class: "muted small" }, "First reply to a carrier inquiry (preview):"),
+        prev
+      ),
+      actions: [
+        { label: "Cancel" },
+        { label: "Copy details", keepOpen: true, onClick: async () => {
+          const v = ta.value.trim();
+          if (v) await copyText(v, "Load details copied.");
+          else toast("There are no details to copy.", "warn");
+          return false;
+        } },
+        { label: "Save", kind: "primary", onClick: async () => {
+          const patch = {};
+          if (ta.value.trim() !== d.text.trim()) patch.details = ta.value;
+          if (cleanNote(nt.value) !== startNote) patch.notes = nt.value;
+          if (!Object.keys(patch).length) return;
+          await actions.setLoadText(head.id, patch);
+          toast("Load details saved.", "ok");
+        } }
+      ]
     });
-    setTimeout(() => ta.select(), 30);
+    setTimeout(() => ta.focus(), 30);
   }
   function detailModal(p) {
     const inputs = {};
@@ -7241,8 +7318,9 @@ ${d.body}`) }, "Copy"),
         copyText(v, "Load details copied.");
         flash(e.currentTarget);
       } }, icon("copy", 15), "Copy details")),
-      mk3("notes", "Auto-reply notes")
+      mk3("notes", "Reply note (added under the details in the first reply)")
     );
+    if (inputs.notes) inputs.notes.value = cleanNote(p.notes);
     modal({
       title: `Edit ${p.originCity}, ${p.originState} \u2192 ${p.destCity}, ${p.destState}`,
       body,
@@ -7250,7 +7328,13 @@ ${d.body}`) }, "Copy"),
       actions: [{ label: "Cancel" }, { label: "Save", kind: "primary", onClick: async () => {
         const patch = {};
         for (const [k, el] of Object.entries(inputs)) patch[k] = el.value;
+        const text2 = {};
+        if (patch.details.trim() !== String(p.details ?? "").trim()) text2.details = patch.details;
+        if (cleanNote(patch.notes) !== cleanNote(p.notes)) text2.notes = patch.notes;
+        delete patch.details;
+        delete patch.notes;
         await actions.updatePosting(p.id, patch);
+        if (Object.keys(text2).length) await actions.setLoadText(p.id, text2);
       } }]
     });
   }
@@ -7519,13 +7603,34 @@ Download anyway?`, "Download anyway");
     const weight = h("input", { class: "cell", size: 7, value: head.weight ?? "", placeholder: "lbs", "data-fk": `${b.key}:weight` });
     weight.addEventListener("change", () => actions.updateGroup(head.id, { weight: weight.value }));
     const fld = (label2, el) => h("label", { class: "dfield" }, h("span", null, label2), el);
+    const replyNote = h("input", {
+      class: "cell",
+      size: 28,
+      value: groupNote(b.members),
+      placeholder: "e.g. Need FMCSA sticker",
+      maxlength: 300,
+      "data-fk": `${b.key}:note`,
+      title: "Optional note for this load. It is added under the load details in the first reply to a carrier inquiry, above the ETA and rate question."
+    });
+    replyNote.addEventListener("change", async () => {
+      if (cleanNote(replyNote.value) === groupNote(b.members)) return;
+      await actions.setLoadText(head.id, { notes: replyNote.value });
+      toast(cleanNote(replyNote.value) ? "Reply note saved." : "Reply note cleared.", "ok");
+    });
+    replyNote.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        replyNote.blur();
+      }
+    });
     const details = h(
       "div",
       { class: "loaddetails" },
       fld("Pickup", pickup),
       fld("Weight", weight),
       fld("Equipment", equipSelect(b)),
-      h("div", { class: "dfield rate" }, h("span", null, "Target rate"), rateIn, rateHint)
+      h("div", { class: "dfield rate" }, h("span", null, "Target rate"), rateIn, rateHint),
+      h("label", { class: "dfield note" }, h("span", null, "Reply note"), replyNote)
     );
     const priSel = h(
       "select",
@@ -7566,6 +7671,7 @@ Download anyway?`, "Download anyway");
       } }, icon("send", 15), "Carrier outreach"),
       coverTools(b, head),
       h("button", { class: "btn", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted TQL text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 15), "Copy load details"),
+      h("button", { class: "btn", type: "button", "data-act": "edit-lane-details", title: "View and edit the load details and the reply note", onclick: () => editDetails(b) }, icon("edit", 15), "Edit details"),
       h("button", { class: "btn", type: "button", "data-act": "find-carriers", title: "Open DAT Find Trucks for this load (the lane is copied so you can paste it in)", onclick: () => findCarriers(head) }, icon("search", 15), "Find more carriers"),
       h("button", { class: "btn", type: "button", "data-act": "rateview", title: "Open DAT RateView for this lane in a new tab", onclick: () => rateLink(head) }, icon("rateview", 15), "DAT RateView"),
       h("button", { class: "btn", type: "button", "data-act": "csv-group", title: "Download every posting of this load as a DAT CSV", onclick: () => downloadDat(single ? "one" : "group", b.members, "Load") }, icon("download", 15), "Download CSV"),
@@ -7578,7 +7684,7 @@ Download anyway?`, "Download anyway");
       } }, icon("refresh", 15), "Reshuffle postings") : null,
       single ? h("button", { class: "btn", type: "button", title: "Build the 9-posting matrix", onclick: () => matrixFlow(head) }, "Build 3\xD73 matrix") : null,
       menu("More actions for this load", [
-        { label: "View original details", act: "view-lane-details", run: () => viewDetails(b) },
+        { label: "View / edit load details", act: "view-lane-details", run: () => editDetails(b) },
         { label: "Save to Spare Load Details", run: async () => {
           await actions.saveSpareFromGroup(head.id);
           toast("Saved to Spare Load Details.", "ok");
@@ -7805,7 +7911,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       })) : emptyState({ icon: "board", title: state.postings.length ? "No loads match" : "No loads yet", text: state.postings.length ? "Clear the search or pick another broker tab." : "Paste TQL load text above. The loads appear here right away." })
     );
   }
-  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, agoText, datOpts, DAT_RATE_COL, EQ_TITLE, targetChip, targetPeek, openLink, loadDetailsBar;
+  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, REPLY_ASK, agoText, datOpts, DAT_RATE_COL, EQ_TITLE, targetChip, targetPeek, openLink, loadDetailsBar;
   var init_board = __esm({
     "js/ui/pages/board.js"() {
       init_dom();
@@ -7841,6 +7947,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         saveUi({ collapsed: [...keys] });
         rerender();
       };
+      REPLY_ASK = "What is your best all-in rate? ETA to pickup?";
       agoText = (iso) => {
         const t2 = Date.parse(iso);
         if (!t2) return "";
