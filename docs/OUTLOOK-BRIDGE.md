@@ -15,7 +15,7 @@ All files are ASCII, tab separated. Tabs/newlines inside a field are written as 
 ## Setup (once)
 1. Create `Documents\FreightSignal`.
 2. Freight Signal → **System → Outlook connection → Choose Outlook folder…** → pick that folder → Allow.
-3. Outlook → `Alt+F11` → *ThisOutlookSession* → paste `outlook/Outlook_v5_ThisOutlookSession.txt` → save → restart Outlook. (If your Documents folder is redirected or the folder lives elsewhere, set `FOLDER_OVERRIDE` at the top of the macro.)
+3. Outlook → `Alt+F11` → *ThisOutlookSession* → paste `outlook/Outlook_v6_ThisOutlookSession.txt` → save → restart Outlook. (If your Documents folder is redirected or the folder lives elsewhere, set `FOLDER_OVERRIDE` at the top of the macro.)
 4. `Alt+F8` → run **FS_Diagnostics**. It lists each file it found, the postings it read, the rate rules and the blocklist size.
 
 Macro commands: `FS_Ping`, `FS_Diagnostics`, `FS_Reload`, `ProcessUnreadNow` (handle e-mail that arrived while Outlook was closed).
