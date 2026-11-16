@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-pTQ0/GC5opoy0e4tr52SyvAE3m4Fk2naWC+qUG5e7xQ='; style-src 'sha256-JOw9TK8BFIHlMW8a9f1LsCQo0Uia+cgy+cV4X84Fe5M='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-oXoZZRmk6zTPPgk5/w9I2fGJ5vFJV3JNzvnIAht6TlU=' 'sha256-Q4u+k+fFiDbswrPVEWs46G4hEDtiMPPrSINH20Hb64E='; style-src 'sha256-wPRVssRx27sFCjyzwBIjCsgcZg2vt+nLIy+QoXhgXo0='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -1078,6 +1078,20 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
 .tk-link { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface2); color: var(--text); text-decoration: none; font-size: .88em; font-weight: 600; }
 .tk-link:hover, .tk-link:focus-visible { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 760px) { .tgtpeek { font-size: .74em; } .menu.covertools .menu-pop { min-width: 260px; } }
+
+/* v12: carrier rates the app does not trust (Inquiry Log) */
+td.ratecheck .rc-mark { color: var(--warn); font-weight: 700; }
+td.ratecheck.rejected .rc-struck { text-decoration: line-through; opacity: .6; }
+td.ratecheck { cursor: help; }
+
+/* v12: pickup date on a collapsed load (quiet text beside the target pill) */
+.pkpeek { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: .78em; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: .01em; }
+.pkpeek svg { opacity: .7; }
+.pkpeek em { font-style: normal; font-weight: 600; font-size: .8em; letter-spacing: .09em; text-transform: uppercase; opacity: .6; }
+.pkpeek.none { opacity: .55; }
+.pkpeek.due { color: var(--warn); font-weight: 600; }
+.pkpeek.due em { opacity: .8; }
+@media (max-width: 760px) { .pkpeek { font-size: .72em; } }
 </style>
 <script>/* Runs before first paint (classic script, loaded in <head>): replays the last saved appearance from localStorage so the
  * theme, accent and background never flash. The real engine is js/ui/appearance.js; this file only reads what it wrote. */
@@ -3427,6 +3441,32 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     }
     return out;
   }
+  function pickupSortTime(p) {
+    for (const v of [p && p.pickupEarliest, p && p.pickupLatest]) {
+      const text2 = String(v ?? "");
+      let d = parseDateText(text2);
+      if (!d) {
+        const m = /(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})(?!\d)/.exec(text2);
+        if (m) d = new Date(m[3].length === 2 ? 2e3 + +m[3] : +m[3], +m[1] - 1, +m[2]);
+      }
+      if (!d || isNaN(d)) continue;
+      const t2 = /(\d{1,2}):(\d{2})\s*([ap])?\.?m?\.?/i.exec(text2.slice(text2.search(/\d{4}|\/\d{2}(?!\d)/)));
+      if (t2) {
+        let hr = +t2[1];
+        const mn = +t2[2];
+        const ap = (t2[3] || "").toLowerCase();
+        if (ap === "p" && hr < 12) hr += 12;
+        if (ap === "a" && hr === 12) hr = 0;
+        if (hr < 24 && mn < 60) d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hr, mn);
+      }
+      return d.getTime();
+    }
+    return null;
+  }
+  function sortRowsByPickup(rows, dir = "asc") {
+    const sign = dir === "desc" ? -1 : 1;
+    return rows.map((r, i) => ({ r, i, t: pickupSortTime(r.box.head) })).sort((a, b) => (a.t === null) - (b.t === null) || (a.t === null ? 0 : sign * (a.t - b.t)) || a.i - b.i).map((x) => x.r);
+  }
   var DEADLINE_HOUR;
   var init_expiry = __esm({
     "js/core/expiry.js"() {
@@ -3681,7 +3721,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
       init_util();
       init_ladder();
       NUM = String.raw`(\d{1,3}(?:,\d{3})+|\d{3,5})(?:\.\d{1,2})?(?![0-9])`;
-      UNIT_NEG = String.raw`(?!\s*(?:mi\b|miles?\b|lbs?\b|pounds?\b|ft\b|feet\b|foot\b|pallets?\b|plt\b|hrs?\b|hours?\b|a\.?m\b|p\.?m\b|%|/|:\d|-\s*\d|per\s*mi))`;
+      UNIT_NEG = String.raw`(?![ \t]*(?:mi\b|miles?\b|lbs?\b|pounds?\b|ft\b|feet\b|foot\b|pallets?\b|plt\b|hrs?\b|hours?\b|a\.?m\b|p\.?m\b|dh\b|dead[ \t]*head|mpg\b|stops?\b|loads?\b|trucks?\b|units?\b|cents?\b|(?:for[ \t]+)?(?:the[ \t]+|a[ \t]+)?(?:lumpers?|detention|tonu|layover|deposit|fees?|surcharge|advance|quick[ \t]?pay|stop[ \t-]?off)\b|%|/|:\d|-[ \t]*\d|per[ \t]*mi))`;
       LEAD = String.raw`(^|[^0-9a-z/:#.,-])`;
       KW = String.raw`rate|my rate|our rate|offer|counter|counter ?offer|bid|quote|price|asking|ask|looking for|need|want|all[ -]?in|total|(?:can|could|will|would|can you|could you|i can|we can)\s+do(?:\s+it|\s+this|\s+the load)?(?:\s+for|\s+at)?|do it for|do for|go for|go at|take(?:\s+it|\s+this)?(?:\s+for|\s+at)?|(?:haul|cover|run|move)(?:\s+it|\s+this)?(?:\s+for|\s+at)|works? (?:for|at)|deal (?:at|for)`;
       RULES = {
@@ -3705,7 +3745,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
         // ---- rates (only ever run on fresh text). Capture groups: rateDollar 1, rateKeyword 2, rateSuffix 2, rateK 2.
         rateDollar: String.raw`\$\s*${NUM}${UNIT_NEG}`,
         rateKeyword: String.raw`(^|[^a-z])(?:${KW})\b\s*(?:is\b|of\b|at\b|for\b|would be\b|will be\b|:|=|-)?\s*\$?\s*${NUM}${UNIT_NEG}`,
-        rateSuffix: String.raw`${LEAD}${NUM}\s*(?:all[ -]?in\b|flat\b|fsc\b|plus fuel\b|\+\s*fuel\b|linehaul\b|lh\b|total\b|usd\b|dollars\b|bucks\b)`,
+        rateSuffix: String.raw`${LEAD}${NUM}[ \t]*(?:all[ -]?in\b|flat\b|fsc\b|plus fuel\b|\+\s*fuel\b|line ?haul\b|lh\b|total\b|usd\b|dollars\b|bucks\b)`,
         rateK: String.raw`${LEAD}(\d{1,2}(?:\.\d{1,2})?)\s?k\b(?!\s*(?:lbs?|pounds?|mi\b|miles?|ft\b|feet))`,
         rateBare: String.raw`^\s*\$?\s*${NUM}\s*[.?!]*\s*$`,
         // the whole message is just a number (applied to the whole text, not per line)
@@ -5826,6 +5866,48 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     }
   });
 
+  // js/core/quotes.js
+  function numbersIn(text2) {
+    const out = /* @__PURE__ */ new Set();
+    const t2 = String(text2 ?? "").replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, " ").replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ");
+    for (const m of t2.matchAll(/\d[\d,]*\d|\d/g)) {
+      const v = Number(m[0].replace(/,/g, ""));
+      if (Number.isFinite(v) && v >= 100) out.add(v);
+    }
+    return out;
+  }
+  function judgeQuote(q4, ctx2 = {}) {
+    const rate2 = safeNumeric(q4 && q4.lastCarrierRate);
+    if (!(rate2 > 0)) return { rate: 0, has: false, ok: false, unverified: false, reason: "" };
+    const cfg2 = ctx2.settings || {};
+    const lo = safeNumeric(cfg2.minReasonableRate) || 250, hi = safeNumeric(cfg2.maxReasonableRate) || 2e4;
+    const fmt = (n) => "$" + Math.round(n).toLocaleString("en-US");
+    const no = (reason) => ({ rate: rate2, has: true, ok: false, unverified: false, reason });
+    if (rate2 < lo || rate2 > hi) return no(`${fmt(rate2)} is outside the plausible range (${fmt(lo)} - ${fmt(hi)}).`);
+    if (BAD_FLAG.test(String(q4.flag || ""))) return no(`${fmt(rate2)} was flagged as unreadable or ambiguous when the e-mail was read.`);
+    const target = safeNumeric(ctx2.target);
+    if (target > 0 && (rate2 < target * RATE_SANITY.low || rate2 > target * RATE_SANITY.high)) {
+      return no(`${fmt(rate2)} is far from the ${fmt(target)} target, so it is probably a number picked out of the e-mail (a date, mileage, ID or your own load text), not a quote.`);
+    }
+    if (isLegacyLine(q4)) {
+      const own = numbersIn(String(ctx2.ownText || "") + "\n" + String(q4.subject || ""));
+      if (own.has(Math.round(rate2))) return no(`${fmt(rate2)} also appears in your own load text or the e-mail subject, so the old Outlook macro most likely copied it from there.`);
+      const miles = safeNumeric(ctx2.miles);
+      if (miles > 0 && Math.abs(rate2 - miles) <= 1) return no(`${fmt(rate2)} equals this lane's mileage, so it is probably the miles, not a rate.`);
+      return { rate: rate2, has: true, ok: true, unverified: true, reason: "Read by the older Outlook macro from the whole e-mail, not just the carrier's own words: open the e-mail to confirm." };
+    }
+    return { rate: rate2, has: true, ok: true, unverified: false, reason: "" };
+  }
+  var RATE_SANITY, BAD_FLAG, isLegacyLine;
+  var init_quotes = __esm({
+    "js/core/quotes.js"() {
+      init_util();
+      RATE_SANITY = { low: 0.5, high: 3 };
+      BAD_FLAG = /RATE LOOKS WRONG|MORE THAN ONE RATE|NO RATE DETECTED|NOT UNDERSTOOD/i;
+      isLegacyLine = (q4) => String(q4 && q4.source || "").toLowerCase() === "outlook" && !String(q4.intent || "").trim();
+    }
+  });
+
   // js/core/worklist.js
   function carrierDepth(head, ctx2) {
     const key = [cityKey2(head.originCity, head.originState), cityKey2(head.destCity, head.destState), ctx2.carrierRev || 0, (ctx2.carriers || []).length].join(">");
@@ -5849,12 +5931,16 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     const times = inq.map((q4) => Date.parse(q4.dateCounted)).filter(Number.isFinite);
     const fieldTotal = members.reduce((n, m) => n + safeNumeric(m.inquiryCount), 0);
     const total = Math.max(inq.length, fieldTotal);
+    const rates = members.map((m) => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter((r) => r > 0);
+    const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
+    const lane = classifyLane(head, ctx2.zip, ctx2.settings || {});
     const cfg2 = ctx2.settings || {};
-    const lo = safeNumeric(cfg2.minReasonableRate) || 250, hi = safeNumeric(cfg2.maxReasonableRate) || 2e4;
-    const quotes = inq.filter((q4) => {
-      const r = safeNumeric(q4.lastCarrierRate);
-      return r >= lo && r <= hi && !/RATE LOOKS WRONG|MORE THAN ONE RATE|NO RATE DETECTED/i.test(q4.flag || "");
-    }).map((q4) => ({ rate: safeNumeric(q4.lastCarrierRate), email: q4.senderEmail, stage: q4.stage, flag: q4.flag || "" }));
+    const ownText = [safeString(head.details) || buildOutlookLoadDetails(head), head.notes].join("\n");
+    const judged = inq.map((q4) => ({ q: q4, v: judgeQuote(q4, { target, settings: cfg2, ownText, miles: lane.miles }) })).filter((x) => x.v.has);
+    const asQuote = ({ q: q4, v }) => ({ rate: v.rate, email: q4.senderEmail, stage: q4.stage, flag: q4.flag || "", reason: v.reason });
+    const quotes = judged.filter((x) => x.v.ok && !x.v.unverified).map(asQuote);
+    const unverified = judged.filter((x) => x.v.ok && x.v.unverified).map(asQuote);
+    const rejected = judged.filter((x) => !x.v.ok && !BAD_FLAGS_QUIET.test(x.q.flag || "")).map(asQuote);
     const created = members.map((m) => Date.parse(m.createdAt)).filter(Number.isFinite);
     const addedHours = created.length ? Math.max(0, (now.getTime() - Math.min(...created)) / H) : 0;
     const ops = members.flatMap((m) => Array.isArray(m.ops) ? m.ops : []).filter((o, i, a) => a.findIndex((x) => x.at === o.at && x.type === o.type) === i).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -5862,9 +5948,6 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     const postedAt = postedTimes.length ? Math.min(...postedTimes) : 0;
     const lastPostedAt = postedTimes.length ? Math.max(...postedTimes) : 0;
     const ageHours = postedAt ? Math.max(0, (now.getTime() - postedAt) / H) : addedHours;
-    const lane = classifyLane(head, ctx2.zip, ctx2.settings || {});
-    const rates = members.map((m) => safeNumeric(m.targetRate) || safeNumeric(m.datRate)).filter((r) => r > 0);
-    const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || rates[0] || 0;
     const posted = postedRateOf(members);
     const datRate = posted.rate || target;
     const outreachSent = members.reduce((n, m) => n + safeNumeric(m.outreachCount), 0) + (ctx2.drafts || []).filter((d) => ids.has(d.postingId) && /outreach|truck|wave/i.test(d.kind || "")).length + ops.filter((o) => o.type === "outreach" || o.type === "wave2").length;
@@ -5910,6 +5993,8 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
         lastAt: lastInquiryAt,
         sinceOp: lastOpAt ? times.filter((t2) => t2 > lastOpAt).length : total,
         quotes,
+        unverified,
+        rejected,
         bestQuote: quotes.length ? Math.min(...quotes.map((q4) => q4.rate)) : 0,
         avgQuote: quotes.length ? Math.round(quotes.reduce((a, q4) => a + q4.rate, 0) / quotes.length) : 0,
         stage: brokerStage,
@@ -5989,6 +6074,14 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
       const b = st2.inquiries.quotes.reduce((a, q4) => q4.rate < a.rate ? q4 : a);
       return `${b.email || "A carrier"} quoted ${formatCurrency0(b.rate)}, inside your booking band (${formatCurrency0(st2.target)} target) - confirm and book`;
     })() });
+    if (st2.inquiries.unverified && st2.inquiries.unverified.length) {
+      const u = st2.inquiries.unverified.reduce((a, q4) => q4.rate < a.rate ? q4 : a);
+      f.push({ kind: "review", level: "act", text: `${u.email || "A carrier"} is logged at ${formatCurrency0(u.rate)}, but the older Outlook macro read it from the whole e-mail - open the e-mail to confirm before booking` });
+    }
+    if (st2.inquiries.rejected && st2.inquiries.rejected.length) {
+      const r = st2.inquiries.rejected;
+      f.push({ kind: "review", level: "act", text: `Ignored ${r.length === 1 ? "a logged rate" : r.length + " logged rates"} (${[...new Set(r.map((x) => formatCurrency0(x.rate)))].join(", ")}) that ${r.length === 1 ? "does" : "do"} not fit the ${formatCurrency0(st2.target)} target - check the e-mail${r.length === 1 ? "" : "s"}` });
+    }
     if (st2.inquiries.flagged) f.push({ kind: "review", level: "act", text: `${st2.inquiries.flagged} reply(ies) flagged for review` });
     if (n === 0 && st2.ageHours >= s.staleHours) f.push({ kind: "aging", level: h2 !== null && h2 <= s.closingHours ? "urgent" : "act", text: `Aging: ${Math.round(st2.ageHours * 10) / 10} h with no inquiries` });
     if (h2 !== null && h2 <= s.closingHours && h2 > -24 && (n === 0 || !st2.inquiries.quotes.length)) f.push({ kind: "closing", level: "urgent", text: h2 <= 0 ? "Pickup day is ending" : `Pickup closes in ${Math.max(1, Math.round(h2))} h` });
@@ -6042,7 +6135,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
         return true;
     }
   }
-  var H, cityKey2, depthCache, rankLoads;
+  var H, BAD_FLAGS_QUIET, cityKey2, depthCache, rankLoads;
   var init_worklist = __esm({
     "js/core/worklist.js"() {
       init_util();
@@ -6054,7 +6147,10 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
       init_weather();
       init_ladder();
       init_dat();
+      init_quotes();
+      init_outreach();
       H = 36e5;
+      BAD_FLAGS_QUIET = /RATE LOOKS WRONG|MORE THAN ONE RATE|NO RATE DETECTED|NOT UNDERSTOOD/i;
       cityKey2 = (c, s) => normalizeText(c) + "|" + normalizeText(s);
       depthCache = /* @__PURE__ */ new Map();
       rankLoads = (rows) => [...rows].sort((a, b) => b.score - a.score || (a.stats.hoursToPickup ?? 1e9) - (b.stats.hoursToPickup ?? 1e9));
@@ -6518,7 +6614,8 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
     for (const q4 of quotes) {
       const e = String(q4.senderEmail).toLowerCase();
       const prev = byEmail.get(e);
-      const rate3 = safeNumeric(q4.lastCarrierRate);
+      const j = judgeQuote(q4, { target: safeNumeric(head.targetRate) || safeNumeric(head.datRate), settings: state.settings, ownText: head.details });
+      const rate3 = j.ok ? j.rate : 0;
       if (!prev || rate3) byEmail.set(e, { email: e, rate: rate3 || prev && prev.rate || 0 });
     }
     const inp = (ph, v = "") => h("input", { placeholder: ph, value: v, "data-live": "" });
@@ -6617,6 +6714,7 @@ a.xlink:hover, a.xlink:focus-visible { color: var(--accent); border-bottom-style
       init_model();
       init_coverlog();
       init_util();
+      init_quotes();
       init_util2();
     }
   });
@@ -7458,6 +7556,22 @@ Download anyway?`, "Download anyway");
     );
     return d;
   }
+  function pickupPeek(head) {
+    const raw = String(head.pickupEarliest ?? "").trim();
+    const d = parseDateText(raw) || (raw ? parseDateText((/(\d{1,2}\/\d{1,2}\/\d{2,4})/.exec(raw) || [])[1]) : null);
+    if (!d) return raw ? h("span", { class: "pkpeek", "data-act": "pickup-peek", title: "Pickup date as typed. Open the load to correct it (m/d/yyyy)." }, icon("calendar", 13), h("em", null, "Pickup"), raw) : h("span", { class: "pkpeek none", "data-act": "pickup-peek", title: "No pickup date yet. Open the load and type one (m/d/yyyy)." }, icon("calendar", 13), h("em", null, "Pickup"), "\u2014");
+    const today = /* @__PURE__ */ new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((d.getTime() - today.getTime()) / 864e5);
+    const rel = days === 0 ? "today" : days === 1 ? "tomorrow" : days === -1 ? "yesterday" : days < 0 ? `${-days} days ago` : `in ${days} days`;
+    return h(
+      "span",
+      { class: "pkpeek" + (days <= 0 ? " due" : ""), "data-act": "pickup-peek", title: `Pickup ${d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} (${rel})` },
+      icon("calendar", 13),
+      h("em", null, "Pickup"),
+      d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    );
+  }
   function issuesStrip(r) {
     const chips = [];
     if (r.stats.alerts.length) chips.push(h("span", { class: "issue " + (r.stats.alerts.some((a) => a.level === "severe") ? "urgent" : "act"), title: r.stats.alerts.map((a) => a.headline).join("\n") }, icon("storm", 14), r.stats.weatherText));
@@ -7554,7 +7668,7 @@ Download anyway?`, "Download anyway");
         h(
           "div",
           { class: "lanemain" },
-          h("div", { class: "titlerow" }, h("h3", { class: "lane", onclick: toggle2 }, b.title), collapsed ? targetPeek(r.stats.target) : null),
+          h("div", { class: "titlerow" }, h("h3", { class: "lane", onclick: toggle2 }, b.title), collapsed ? targetPeek(r.stats.target) : null, collapsed ? pickupPeek(head) : null),
           h(
             "div",
             { class: "metarow" },
@@ -7816,6 +7930,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     const f = filter.trim().toLowerCase();
     const inTab = (r) => brokerTab === "__all" || (r.box.head.broker || "") === brokerTab;
     const rows = rowsAll.filter(inTab).filter((r) => matchesQuick(r, quick)).filter((r) => !f || r.box.members.some((p) => [p.originCity, p.originState, p.destCity, p.destState, p.groupId, p.variant, p.broker].join(" ").toLowerCase().includes(f)));
+    const sortBy = SORTS.some(([k]) => k === ui().sortBy) ? ui().sortBy : "";
+    const rowsView = sortBy ? sortRowsByPickup(rows, sortBy === "pickupDesc" ? "desc" : "asc") : rows;
     const rowsTab = rowsAll.filter(inTab);
     for (const id of [...selected]) if (!state.postings.some((p) => p.id === id)) selected.delete(id);
     const nSel = selected.size;
@@ -7831,6 +7947,11 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     const quickSel = h("select", { class: "cell", "aria-label": "Show", title: "Show only loads that match", "data-fk": "quick" }, QUICK_FILTERS.map(([k, l]) => h("option", { value: k, selected: k === quick }, l)));
     quickSel.addEventListener("change", () => {
       quick = quickSel.value;
+      rerender();
+    });
+    const sortSel = h("select", { class: "cell", "aria-label": "Sort loads", title: "Order the loads on this board. Loads with no pickup date always go last.", "data-fk": "sortBy", "data-act": "sort-loads" }, SORTS.map(([k, l]) => h("option", { value: k, selected: k === sortBy }, l)));
+    sortSel.addEventListener("change", () => {
+      saveUi({ sortBy: sortSel.value });
       rerender();
     });
     const selIds = () => [...selected];
@@ -7882,6 +8003,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         { class: "toolbar sticky boardbar" },
         search,
         quickSel,
+        sortSel,
         csvAll,
         h("button", { class: "btn", type: "button", onclick: () => copyText(datTsv(tabPostings, false, datOpts()), "DAT rows copied (tab-separated).") }, "Copy for DAT"),
         h("button", { class: "btn", type: "button", "data-act": "aging", onclick: () => agingModal(rowsTab, ctx2), title: "Loads with no inquiries past their lane limit: one-click reprice and a fresh round of outreach" }, "Aging loads" + (aging ? ` (${aging})` : "")),
@@ -7904,14 +8026,14 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
           rerender();
         } }, "Clear")
       ) : null,
-      rows.length ? rows.map((r) => groupBox(r, collapsed.has(r.box.key), () => {
+      rowsView.length ? rowsView.map((r) => groupBox(r, collapsed.has(r.box.key), () => {
         if (collapsed.has(r.box.key)) collapsed.delete(r.box.key);
         else collapsed.add(r.box.key);
         setCollapsed(collapsed);
       })) : emptyState({ icon: "board", title: state.postings.length ? "No loads match" : "No loads yet", text: state.postings.length ? "Clear the search or pick another broker tab." : "Paste TQL load text above. The loads appear here right away." })
     );
   }
-  var filter, quick, brokerTab, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, REPLY_ASK, agoText, datOpts, DAT_RATE_COL, EQ_TITLE, targetChip, targetPeek, openLink, loadDetailsBar;
+  var filter, quick, brokerTab, SORTS, selected, rerender, ui, collapsedSet, saveUi, setCollapsed, REPLY_ASK, agoText, datOpts, DAT_RATE_COL, EQ_TITLE, targetChip, targetPeek, openLink, loadDetailsBar;
   var init_board = __esm({
     "js/ui/pages/board.js"() {
       init_dom();
@@ -7922,6 +8044,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       init_dat();
       init_loaddetails();
       init_worklist();
+      init_expiry();
       init_coverlog();
       init_util();
       init_icons();
@@ -7938,6 +8061,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       filter = "";
       quick = "";
       brokerTab = "__all";
+      SORTS = [["", "Board order"], ["pickup", "Pickup date: soonest first"], ["pickupDesc", "Pickup date: latest first"]];
       selected = /* @__PURE__ */ new Set();
       rerender = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
       ui = () => state.settings.ui || {};
@@ -9285,6 +9409,20 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       } }]
     });
   }
+  function rateCell(i) {
+    const post2 = state.postings.find((p) => p.id === i.postingId);
+    const target = post2 ? safeNumeric(post2.targetRate) || safeNumeric(post2.datRate) : safeNumeric(i.targetRate);
+    const ownText = post2 ? [safeString(post2.details) || buildOutlookLoadDetails(post2), post2.notes].join("\n") : "";
+    const v = judgeQuote(i, { target, settings: state.settings, ownText });
+    const txt = formatCurrency0(Number(i.lastCarrierRate));
+    if (v.ok && !v.unverified) return h("td", { class: "num" }, txt);
+    return h(
+      "td",
+      { class: "num ratecheck " + (v.ok ? "unverified" : "rejected"), title: (v.ok ? "Not counted as ready to book: " : "Not counted as a quote: ") + v.reason },
+      h("span", { class: "rc-mark", "aria-hidden": "true" }, "\u26A0 "),
+      h("span", { class: v.ok ? "" : "rc-struck" }, txt)
+    );
+  }
   function log() {
     const statuses = ["All", ...new Set(state.inquiries.map((i) => i.status).filter(Boolean))];
     const rows = state.inquiries.filter((i) => (statusF === "All" || i.status === statusF) && (!q3 || INQUIRY_KEYS.some((k) => String(i[k] ?? "").toLowerCase().includes(q3.toLowerCase()))));
@@ -9333,7 +9471,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
               if (c) toast("Carrier added/updated in the Carrier Database.", "ok");
             }));
             if (k === "dateCounted" || k === "dateAdded") return h("td", null, fmtDate(i[k]));
-            if (k === "lastCarrierRate" && i[k] !== "" && i[k] !== void 0) return h("td", { class: "num" }, formatCurrency0(Number(i[k])));
+            if (k === "lastCarrierRate" && i[k] !== "" && i[k] !== void 0) return rateCell(i);
             return h("td", null, i[k] ?? "");
           })
         )) : h("tr", null, h("td", { colspan: 20, class: "muted" }, "No inquiries logged.")))
@@ -9404,6 +9542,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       init_stats();
       init_draftcard();
       init_util();
+      init_quotes();
+      init_outreach();
       tab = "log";
       q3 = "";
       statusF = "All";
@@ -11681,6 +11821,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       h("span", { class: "dot " + (olOn ? "on" : "warn") }),
       olOn ? `Outlook connected \u2014 last heard ${fmtDate(ol.lastSeen)}, read ${ol.postingsRead} posting(s)${ol.macroVersion ? ", macro " + ol.macroVersion : ""}${ol.lastEvent ? ", last action: " + ol.lastEvent : ""}` : on ? ol && ol.lastSeen ? `Outlook last heard ${fmtDate(ol.lastSeen)} (more than a day ago - restart Outlook or run FS_Ping)` : "Waiting for Outlook \u2014 follow steps 3 to 7 below" : "Outlook status unknown until a folder is connected"
     ));
+    const oldMacro = olOn && /^v?[0-5]$/i.test(String(ol && ol.macroVersion || "v4").trim());
+    if (oldMacro) state_rows.push(h("div", { class: "banner err", "data-macro-old": "" }, h("b", null, `Outlook is running the older macro (${ol.macroVersion || "v4"}). `), 'It reads every number in the whole e-mail, including your own quoted load text, so it can log a rate nobody quoted (a mileage, an ID, a phone extension). Update to v6, which reads only what the carrier typed: press "Copy the macro" in step 4, paste it over the old one in Outlook (Alt+F11 \u2192 ThisOutlookSession) and restart Outlook. Until then the board double-checks every rate it logs and will not call an unverified one "ready to book".'));
     if (on) state_rows.push(h(
       "dl",
       { class: "kv" },
