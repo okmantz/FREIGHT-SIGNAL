@@ -8,6 +8,7 @@
   "scripts": {
     "test": "node --test \"tests/unit/*.test.js\"",
     "test:e2e": "node tests/e2e/run.mjs",
+    "test:notes": "node tests/e2e/notes.mjs",
     "build": "node scripts/build-single.mjs",
     "test:single": "node tests/e2e/single.mjs",
     "serve": "node tests/e2e/server.mjs",
