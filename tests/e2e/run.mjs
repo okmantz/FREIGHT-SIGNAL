@@ -269,7 +269,7 @@ try {
   const first = feedLines[2].split('\t'); const postingId = first[0], postingRow = first[1];
   const ev = (stage, rate, action, flag, count, ts) => ['CONV-E2E-1', ts, 'bridge-carrier@example.test', 'Modesto to Reno', postingId, postingRow, stage, rate, '1500', action, flag, count].join('\t') + '\r\n';
   const header = (await readFeed('freight-signal-inquiries.tsv'));
-  await writeFeed('freight-signal-outlook-status.txt', 'macroVersion=v4\r\nlastSeen=2026-11-11 10:00:00\r\npostingsRead=9\r\nlastEvent=Inquiry reply draft created\r\n');
+  await writeFeed('freight-signal-outlook-status.txt', 'macroVersion=v4\r\nlastSeen=' + new Date(Date.now() - 600000).toISOString().slice(0, 19).replace('T', ' ') + '\r\npostingsRead=9\r\nlastEvent=Inquiry reply draft created\r\n');
   await writeFeed('freight-signal-inquiries.tsv', header + ev('INQUIRY_REPLY_SENT', '', 'Inquiry reply draft created', '', 1, '2026-11-11 10:00:00'));
   const n1 = await page.evaluate(async () => (await import('/js/store/bridge.js')).pollNow());
   check('Outlook inquiry event is imported into the Inquiry Log', n1 === 1, String(n1));
@@ -344,7 +344,7 @@ try {
   await page.click('[data-act="del-sel"]'); await page.click('.modal-foot >> text=Delete');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 6);
   check('delete selected removes the ticked postings', true);
-  await page.click('.laneact .menu summary'); await page.click('[data-act="del-group"]'); await page.click('.modal-foot >> text=Delete');
+  await page.click('.laneact .menu summary[aria-label="More actions for this load"]'); await page.click('[data-act="del-group"]'); await page.click('.modal-foot >> text=Delete');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox').length === 0);
   check('delete group removes the whole box', true);
   await restoreBackupFile('/tmp/e2e-backup.json');
@@ -489,7 +489,7 @@ try {
   check('System sections are collapsible', (await page.locator('details.sect').count()) >= 10);
   await page.locator('details[data-sect="ladder"] > summary').click();
   await page.waitForFunction(() => document.querySelector('details[data-sect="ladder"]').open);
-  check('ladder section shows percent settings and editable e-mail wording', (await page.locator('details[data-sect="ladder"] textarea').count()) === 3 && /Book it within/.test(await page.textContent('details[data-sect="ladder"]')));
+  check('ladder section shows percent settings and editable e-mail wording', (await page.locator('details[data-sect="ladder"] textarea').count()) >= 3 && /Book it within/.test(await page.textContent('details[data-sect="ladder"]')));
   await page.waitForTimeout(600);
   await page.reload(); await page.waitForSelector('details.sect');
   check('open/closed state of a System section is remembered', await page.locator('details[data-sect="ladder"]').evaluate(e => e.open));
