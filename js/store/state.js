@@ -14,6 +14,7 @@ import { processIncomingEmail } from '../core/inbound.js';
 import { todayKey, uid, safeNumeric, normalizeText, applyOrder } from '../core/util.js';
 import { parseTqlLoad } from '../core/parser.js';
 import { toast } from '../ui/dom.js';
+import { applyLoadText } from '../core/loaddetails.js';
 
 /** DAT rates are whole dollars: "$1,650.00" -> "1650"; blank/invalid -> "". */
 export function cleanRate(v) {
@@ -190,6 +191,17 @@ export const actions = {
       if ('pickupEarliest' in patch) { const oldE = String(m.pickupEarliest ?? '').trim(); const oldL = String(m.pickupLatest ?? '').trim(); if (!oldL || oldL === oldE) m.pickupLatest = patch.pickupEarliest; }
       Object.assign(m, patch);
     }
+    await savePostings(); emit(); return members.length;
+  },
+  /**
+   * v11: edit the load's details text and/or its reply note AFTER the matrix exists. Both are written to every posting of the load
+   * (a carrier can answer any of the nine), so the first reply never depends on which posting the e-mail happened to match.
+   * `patch` = { details?, notes? }. The note is stored clean ("" when empty; the macro's "::" placeholder is dropped).
+   */
+  async setLoadText(id, patch) {
+    const p = state.postings.find(x => x.id === id); if (!p) return 0;
+    const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
+    applyLoadText(members, patch);
     await savePostings(); emit(); return members.length;
   },
   /** One "include in the next lane scan" switch per box. It lives on the Original posting so the scan drafts for the load once, not nine times. */
