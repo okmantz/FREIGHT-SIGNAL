@@ -4,7 +4,7 @@ import { EQUIPMENT } from '../../core/defaults.js';
 /** Small equipment <select> that reports its value (no persistence of its own). */
 export function pageSelectEq(value, onChange) {
   const cur = String(value || 'V').toUpperCase();
-  const s = h('select', { class: 'cell eq', title: EQUIPMENT.map(e => `${e.code} = ${e.label}`).join(', '), 'data-live': '' }, EQUIPMENT.map(e => h('option', { value: e.code, selected: e.code === cur }, e.code)));
+  const s = h('select', { class: 'cell eq', title: EQUIPMENT.map(e => `${e.code} = ${e.label}`).join(', '), 'data-live': '' }, (EQUIPMENT.some(e => e.code === cur) ? EQUIPMENT : [...EQUIPMENT, { code: cur, label: 'custom' }]).map(e => h('option', { value: e.code, selected: e.code === cur }, `${e.code} \u00b7 ${e.label}`)));
   s.addEventListener('change', () => onChange(s.value));
   return s;
 }
