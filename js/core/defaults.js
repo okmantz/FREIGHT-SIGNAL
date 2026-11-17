@@ -82,6 +82,9 @@ export const DEFAULT_SETTINGS = {
   // The ONE rate typed per load (the "Target rate"): it judges carrier e-mail replies, and (when this is on) it is also the rate that
   // goes into the DAT CSV's "DAT Loadboard Rate" column for every posting that has no rate of its own.
   postTargetOnDat: true,
+  // Opt-in reach levers applied to the DAT CSV only (the board keeps the real equipment): see core/dat.js.
+  postBroadEquip: false,           // Van -> "Van or Reefer", Flatbed -> "Flatbed or Step Deck"
+  postExtended: false,             // turn on DAT's Extended Network for every row (needs a DAT plan that includes it)
   // Outreach mode used by the per-row Carrier Outreach button: 'excel' (tiered, Excel v3) or 'outlook' (lane scan, Outlook v3)
   outreachButtonMode: 'excel',
 };
@@ -118,16 +121,110 @@ export const DAT_COLUMNS = [
   { letter: 'X', key: 'referenceId', header: 'Reference ID' },
 ];
 
-/** Equipment codes accepted on the board / written to the DAT "Equipment*" column. rateView = DAT RateView equipment word. */
-export const EQUIPMENT = [
-  { code: 'V', label: 'Van', rateView: 'Van' },
-  { code: 'R', label: 'Reefer', rateView: 'Reefer' },
-  { code: 'F', label: 'Flatbed', rateView: 'Flatbed' },
-  { code: 'SD', label: 'Step Deck', rateView: 'Flatbed' },
-  { code: 'VM', label: 'Van Team', rateView: 'Van' },
-  { code: 'RM', label: 'Reefer Team', rateView: 'Reefer' },
-  { code: 'SB', label: 'Straight Box Truck', rateView: 'Van' },   // DAT has no box-truck RateView word: Van is the closest
+/**
+ * Equipment codes accepted on the board / written to the DAT "Equipment*" column. This is DAT One's complete Equipment Type list
+ * (code, name, in the order DAT shows it). `fam` = the equipment families the type belongs to; it drives the RateView word, the
+ * carrier-database equipment match and the "Find more carriers" label (see core/equipment.js). `rateView` = DAT RateView equipment word
+ * (RateView only has Van / Reefer / Flatbed, so everything else uses the closest one).
+ * Rule: one entry per code AND per name. The list is de-duplicated below, and tests/unit/equipment.test.js fails if a duplicate sneaks in.
+ */
+const EQUIPMENT_TABLE = [
+  // code, label, families, rateView
+  ['V', 'Van', 'van', 'Van'],
+  ['R', 'Reefer', 'reefer', 'Reefer'],
+  ['F', 'Flatbed', 'flatbed', 'Flatbed'],
+  ['AC', 'Auto Carrier', 'other', 'Flatbed'],
+  ['BT', 'B-Train', 'other', 'Flatbed'],
+  ['CN', 'Conestoga', 'flatbed', 'Flatbed'],
+  ['C', 'Container', 'other', 'Van'],
+  ['CI', 'Container Insulated', 'other', 'Van'],
+  ['CR', 'Container Refrigerated', 'reefer', 'Reefer'],
+  ['CV', 'Conveyor', 'other', 'Van'],
+  ['DD', 'Double Drop', 'flatbed', 'Flatbed'],
+  ['LA', 'Drop Deck Landoll', 'stepdeck', 'Flatbed'],
+  ['DT', 'Dump Trailer', 'other', 'Flatbed'],
+  ['FA', 'Flatbed Air-Ride', 'flatbed', 'Flatbed'],
+  ['FN', 'Flatbed Conestoga', 'flatbed', 'Flatbed'],
+  ['F2', 'Flatbed Double', 'flatbed', 'Flatbed'],
+  ['FZ', 'Flatbed HazMat', 'flatbed', 'Flatbed'],
+  ['FH', 'Flatbed Hotshot', 'flatbed', 'Flatbed'],
+  ['MX', 'Flatbed Maxi', 'flatbed', 'Flatbed'],
+  ['FD', 'Flatbed or Step Deck', 'flatbed stepdeck', 'Flatbed'],
+  ['FC', 'Flatbed w/Chains', 'flatbed', 'Flatbed'],
+  ['FS', 'Flatbed w/Sides', 'flatbed', 'Flatbed'],
+  ['FT', 'Flatbed w/Tarps', 'flatbed', 'Flatbed'],
+  ['FM', 'Flatbed w/Team', 'flatbed', 'Flatbed'],
+  ['FO', 'Flatbed (Over Dimension)', 'flatbed', 'Flatbed'],
+  ['FR', 'Flatbed/Van/Reefer', 'flatbed van reefer', 'Van'],
+  ['HB', 'Hopper Bottom', 'other', 'Flatbed'],
+  ['IR', 'Insulated Van or Reefer', 'van reefer', 'Reefer'],
+  ['LB', 'Lowboy', 'flatbed', 'Flatbed'],
+  ['LR', 'Lowboy or RGN', 'flatbed', 'Flatbed'],
+  ['LO', 'Lowboy (Over Dimension)', 'flatbed', 'Flatbed'],
+  ['MV', 'Moving Van', 'van', 'Van'],
+  ['NU', 'Pneumatic', 'other', 'Van'],
+  ['PO', 'Power Only', 'power', 'Van'],
+  ['RA', 'Reefer Air-Ride', 'reefer', 'Reefer'],
+  ['R2', 'Reefer Double', 'reefer', 'Reefer'],
+  ['RZ', 'Reefer HazMat', 'reefer', 'Reefer'],
+  ['RN', 'Reefer Intermodal', 'reefer', 'Reefer'],
+  ['RL', 'Reefer Logistics', 'reefer', 'Reefer'],
+  ['RV', 'Reefer or Vented Van', 'reefer van', 'Reefer'],
+  ['RM', 'Reefer w/Team', 'reefer', 'Reefer'],
+  ['RP', 'Reefer w/Pallet Exchange', 'reefer', 'Reefer'],
+  ['RG', 'Removable Gooseneck', 'flatbed', 'Flatbed'],
+  ['SD', 'Step Deck', 'stepdeck', 'Flatbed'],
+  ['SR', 'Step Deck or RGN', 'stepdeck', 'Flatbed'],
+  ['SN', 'Stepdeck Conestoga', 'stepdeck', 'Flatbed'],
+  ['SB', 'Straight Box Truck', 'box', 'Van'],            // DAT has no box-truck RateView word: Van is the closest
+  ['ST', 'Stretch Trailer', 'flatbed', 'Flatbed'],
+  ['TA', 'Tanker Aluminum', 'other', 'Van'],
+  ['TN', 'Tanker Intermodal', 'other', 'Van'],
+  ['TS', 'Tanker Steel', 'other', 'Van'],
+  ['TT', 'Truck and Trailer', 'other', 'Van'],
+  ['VA', 'Van Air-Ride', 'van', 'Van'],
+  ['VS', 'Van Conestoga', 'van', 'Van'],
+  ['V2', 'Van Double', 'van', 'Van'],
+  ['VZ', 'Van HazMat', 'van', 'Van'],
+  ['VH', 'Van Hotshot', 'van', 'Van'],
+  ['VI', 'Van Insulated', 'van', 'Van'],
+  ['VN', 'Van Intermodal', 'van', 'Van'],
+  ['VG', 'Van Lift-Gate', 'van', 'Van'],
+  ['VL', 'Van Logistics', 'van', 'Van'],
+  ['OT', 'Van Open-Top', 'van', 'Van'],
+  ['VT', 'Van or Flatbed w/Tarps', 'van flatbed', 'Van'],
+  ['VF', 'Van or Flatbed', 'van flatbed', 'Van'],
+  ['VR', 'Van or Reefer', 'van reefer', 'Van'],
+  ['VB', 'Van Roller Bed', 'van', 'Van'],
+  ['V3', 'Van Triple', 'van', 'Van'],
+  ['VV', 'Van Vented', 'van', 'Van'],
+  ['VW', 'Van w/Blanket Wrap', 'van', 'Van'],
+  ['VC', 'Van w/Curtains', 'van', 'Van'],
+  ['VP', 'Van w/Pallet Exchange', 'van', 'Van'],
+  ['VM', 'Van w/Team', 'van', 'Van'],
+  ['SV', 'Sprinter Van', 'sprinter', 'Van'],
+  ['SZ', 'Sprinter Van Hazmat', 'sprinter', 'Van'],
+  ['SC', 'Sprinter Van Temp-Controlled', 'sprinter reefer', 'Reefer'],
+  ['SM', 'Sprinter Van Team', 'sprinter', 'Van'],
+  ['BR', 'Straight Box Truck - Reefer', 'box reefer', 'Reefer'],
+  ['BZ', 'Straight Box Truck Hazmat', 'box', 'Van'],
+  ['PT', 'Power Only Towaway', 'power', 'Van'],
+  ['PL', 'Power Only Load Out', 'power', 'Van'],
 ];
+
+/** Drop any repeated code or repeated name (case/punctuation-insensitive); the first entry wins. */
+export function dedupeEquipment(rows) {
+  const codes = new Set(), names = new Set(), out = [];
+  for (const r of rows) {
+    const code = String(r.code).trim().toUpperCase();
+    const name = String(r.label).toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (!code || codes.has(code) || names.has(name)) continue;
+    codes.add(code); names.add(name); out.push({ ...r, code });
+  }
+  return out;
+}
+
+export const EQUIPMENT = dedupeEquipment(EQUIPMENT_TABLE.map(([code, label, fam, rateView]) => ({ code, label, fam: fam.split(' '), rateView })));
 
 export const CUSTOMER_HEADERS = [
   'Company', 'Contact Name', 'Title', 'Email', 'Phone', 'City', 'State', 'Industry / Commodity', 'Typical Lanes', 'Equipment', 'Status', 'Last Contacted', 'Notes',

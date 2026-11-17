@@ -4,6 +4,7 @@
 // reported as warnings rather than silently changed.
 
 import { normalizeZip, normalizeDateString } from './util.js';
+import { equipFromText } from './equipment.js';
 
 const splitLines = (text) => String(text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
@@ -47,20 +48,19 @@ export function extractFirstDate(text) {
   return m ? m[0] : '';
 }
 
-/** ExtractWeight: keeps every digit in the text (quirk: "40,000.00" becomes "4000000"). */
+/**
+ * ExtractWeight. The macro kept EVERY digit on the line, so "38,000.00 lbs" became 3,800,000 and "42000 lbs (40 pallets)" became 4,200,040:
+ * a posting no truck can legally carry, which DAT filters out and carriers skip. Now: the first number on the line, thousands commas
+ * removed, any cents (".00") dropped. "38,000 lbs" and "38000" give the same result as before.
+ */
 export function extractWeight(text) {
-  return String(text ?? '').replace(/[^0-9]/g, '');
+  const m = /\d{1,3}(?:,\d{3})+|\d+/.exec(String(text ?? ''));
+  return m ? m[0].replace(/,/g, '') : '';
 }
 
-/** GetEquipmentCode */
+/** GetEquipmentCode: TQL "Trailer Type:" text -> DAT equipment code (full DAT list, see core/equipment.js). Unknown text = V, as in the macro. */
 export function getEquipmentCode(text) {
-  const t = String(text ?? '').toLowerCase();
-  const team = /\bteam\b|\bteams\b/.test(t);
-  if (t.includes('reefer') && !t.includes('van')) return team ? 'RM' : 'R';   // RM = reefer team
-  if (t.includes('flat')) return 'F';
-  if (t.includes('step')) return 'SD';
-  if (/straight\s*(?:box|truck)|box\s*truck|\bsb\b/.test(t)) return 'SB';   // straight box truck
-  return team ? 'VM' : 'V';                                                  // VM = van team
+  return equipFromText(text);
 }
 
 /** ExtractLastZipAfterLabel: 5-digit(-4) zip found on the LAST line starting with label. */
@@ -93,7 +93,10 @@ export function parseTqlLoad(raw, opts = {}) {
   if (!date) missing.push('Pickup Date/Time:');
   if (!weight) missing.push('Weight:');
   if (!trailer) warnings.push('No "Trailer Type:" line found; equipment defaults to V (van), as in the macro.');
-  if (/[.]\d/.test(weightLine)) warnings.push(`Weight line "${weightLine}" contains a decimal point. The macro keeps every digit, so the weight parses as ${weight}. Verify it.`);
+  const dec = /(\d[\d,]*)\.(\d+)/.exec(weightLine);   // "38,000.00" is plain cents (fine); "38.5" could mean 38.5 thousand
+  if (dec && Number(dec[1].replace(/,/g, '')) < 1000) warnings.push(`Weight line "${weightLine}" contains a decimal point, so the weight was read as ${weight} lbs. If it means thousands of pounds, correct it.`);
+  if (weight && Number(weight) > 80000) warnings.push(`Weight ${Number(weight).toLocaleString('en-US')} lbs is over the 80,000 lb legal limit: DAT carriers will not see it in their searches. Check the weight.`);
+  else if (weight && Number(weight) < 100) warnings.push(`Weight ${weight} lbs looks too small. Check it.`);
   if (/\bpick\s*2\b/i.test(rawText) || /^\s*[2-9]\s*pick/im.test(rawText)) {
     warnings.push('Multi-stop load: the macro uses the FIRST "Pickup:" line and the LAST "Delivery:" line.');
   }

@@ -24,7 +24,9 @@ export function normalizeForMatching(s) {
   let t = String(s ?? '').toLowerCase();
   const chars = ['\r', '\n', '\t', ' ', ',', '.', '-', '/', '\\', ':', ';', '(', ')', '[', ']', '{', '}', '_', '?', '!', '|', '–', '—'];
   for (const c of chars) t = t.split(c).join(' ');
-  return t.replace(/ {2,}/g, ' ').trim();
+  // St./Saint, Ft./Fort and Mt./Mount are the same city to a human and to DAT, so a carrier e-mail that says "St. Louis" must still find a
+  // posting stored as "Saint Louis" (the ZIP Map spells them out). Both sides of every comparison go through here, so this is symmetric.
+  return t.replace(/ {2,}/g, ' ').trim().replace(/\bsaint\b/g, 'st').replace(/\bfort\b/g, 'ft').replace(/\bmount\b/g, 'mt');
 }
 
 /** CanonHeader (Outlook): lowercase, strip space _ - / * */

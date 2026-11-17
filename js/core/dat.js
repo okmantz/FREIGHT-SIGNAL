@@ -6,11 +6,14 @@
 // The "DAT Loadboard Rate" column is a posting's own DAT rate when it has one (the "DAT rate" box on each posting row). Otherwise, when
 // `targetAsRate` is on (the board's "Post target rate on DAT" switch, on by default), it is the load's Target rate: the one
 // rate typed per load. With the switch off the column stays blank and the target rate is only used to judge carrier replies.
+// Two opt-in switches change what is EXPORTED (never what is stored on the board): `broadEquip` posts a Van as "Van or Reefer" and a
+// Flatbed as "Flatbed or Step Deck" so more trucks see the load; `extended` turns on DAT's Extended Network for every row.
 // Posting only SOME of a load's postings with a rate: the moment any posting of a load has its own DAT rate, ONLY the postings that
 // have one carry a rate; the rest of that load post without a rate (the target-rate fallback is switched off for that load).
 
 import { DAT_COLUMNS } from './defaults.js';
 import { toDelimited } from './csv.js';
+import { broadEquipCode } from './equipment.js';
 
 const REQUIRED = DAT_COLUMNS.filter(c => c.header.endsWith('*'));
 
@@ -37,7 +40,7 @@ const text = (v) => String(v ?? '').replace(/[\r\n\t]+/g, ' ').normalize('NFD').
 
 /** One posting -> the 24 DAT cell values (strings) in template order. */
 export function datRow(p, opts = {}) {
-  const equip = String(p.equip ?? '').trim().toUpperCase();
+  const equip = opts.broadEquip ? broadEquipCode(p.equip) : String(p.equip ?? '').trim().toUpperCase();
   const usePrivate = yn(p.usePrivate, 'no');
   const useDat = yn(p.useDat, 'yes');
   const v = {
@@ -54,7 +57,7 @@ export function datRow(p, opts = {}) {
     useDat,
     datRate: useDat === 'yes' ? (rate(p.datRate) || (opts.targetAsRate && !opts.ownRates ? rate(p.targetRate) : '')) : '',
     allowDatBooking: yn(p.allowDatBooking, 'no'),
-    useExtended: yn(p.useExtended, 'no'),
+    useExtended: opts.extended ? 'yes' : yn(p.useExtended, 'no'),
     contact: String(p.contact ?? 'email').trim().toLowerCase() || 'email',
     originCity: text(p.originCity),
     originState: text(p.originState).toUpperCase(),

@@ -1,6 +1,7 @@
 // External links: DAT RateView (port of OpenDATRateView) and Ventusky weather.
 
-import { RATEVIEW_BASE, VENTUSKY_URL, FINDTRUCK_URL, EQUIPMENT } from './defaults.js';
+import { RATEVIEW_BASE, VENTUSKY_URL, FINDTRUCK_URL } from './defaults.js';
+import { equipInfo, rateViewWord } from './equipment.js';
 
 /**
  * OpenDATRateView: https://iq.dat.com/rateview/<origin city>-<st>~<dest city>-<st>~<Van|Reefer|Flatbed>
@@ -15,12 +16,7 @@ export function rateViewUrl(p) {
   if (!oc || !os || !dc || !ds) return { ok: false, error: 'This row is missing an origin or destination.' };
   oc = oc.replace(/-/g, '_').replace(/ /g, '%20');
   dc = dc.replace(/-/g, '_').replace(/ /g, '%20');
-  let equipment;
-  switch (String(p.equip ?? '').trim().toUpperCase()) {
-    case 'R': case 'RM': equipment = 'Reefer'; break;
-    case 'F': case 'SD': equipment = 'Flatbed'; break;   // VM falls through to Van
-    default: equipment = 'Van';            // V, VM and SB (straight box truck) all use the Van rate
-  }
+  const equipment = rateViewWord(p.equip);   // Van | Reefer | Flatbed: RateView has no other words, so every DAT type maps to the closest one
   return { ok: true, url: `${RATEVIEW_BASE}${oc}-${os}~${dc}-${ds}~${equipment}` };
 }
 
@@ -43,6 +39,6 @@ export function findTruckInfo(p) {
   const dc = String(p.destCity ?? '').trim(), ds = String(p.destState ?? '').trim().toUpperCase();
   if (!oc || !os || !dc || !ds) return { ok: false, error: 'This load is missing an origin or destination.' };
   const code = String(p.equip ?? '').trim().toUpperCase();
-  const e = EQUIPMENT.find(x => x.code === code);
+  const e = equipInfo(code);
   return { ok: true, url: FINDTRUCK_URL, origin: `${oc}, ${os}`, dest: `${dc}, ${ds}`, equipment: e ? e.label : (code || 'Van'), pickup: String(p.pickupEarliest ?? '').trim() };
 }

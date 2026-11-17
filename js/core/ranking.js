@@ -11,6 +11,7 @@ import { laneKey } from './coverlog.js';
 import { templatesOf, fillTemplate } from './ladder.js';
 import { classifyLane } from './lanes.js';
 import { DEFAULT_SETTINGS } from './defaults.js';
+import { equipWords } from './equipment.js';
 
 const DAY = 86400000;
 
@@ -21,9 +22,6 @@ function dist(zip, aCity, aState, bCity, bState) {
   return calculateDistanceMiles(a.lat, a.lng, b.lat, b.lng);
 }
 
-const equipWords = (code) => {
-  switch (String(code || '').toUpperCase()) { case 'R': case 'RM': return ['reefer', 'r', 'rm']; case 'F': return ['flat', 'f']; case 'SD': return ['step', 'sd', 'flat']; case 'SB': return ['straight', 'box', 'sb']; default: return ['van', 'v', 'vm', 'dry']; }
-};
 
 /** How well a carrier's lane fits a load. Returns { tier, tierLabel, geo, why } or null when it does not fit at all. */
 export function laneFit(post, c, zip, radius = 75) {
