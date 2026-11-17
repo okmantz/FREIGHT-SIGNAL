@@ -4,6 +4,9 @@ Option Explicit
 ' Freight Signal Outlook Engine v6  -  "bridge" edition
 ' Paste this entire module into Outlook VBA > ThisOutlookSession (Alt+F11), save, restart Outlook.
 '
+' v6.1: a carrier e-mail that says "St. Louis" / "Ft. Worth" / "Mt. Vernon" now matches a posting stored as "Saint Louis" / "Fort Worth" /
+'       "Mount Vernon" (and the reverse). Before, that inquiry was silently dropped: no draft, no count.
+'
 ' New in v6 (everything else is unchanged from v5):
 '   * Carrier e-mails are READ properly. Only what the carrier typed is analysed (the quoted history, signature and your own
 '     wording are removed first), so a plain "rate?" can never be mistaken for a quote. The same rules the Freight Signal app uses
@@ -1107,6 +1110,9 @@ Private Function NormalizeForMatching(ByVal s As String) As String
     chars = Array(vbCr, vbLf, vbTab, Chr$(160), ",", ".", "-", "/", "\", ":", ";", "(", ")", "[", "]", "{", "}", "_", "?", "!", "|", ChrW$(8211), ChrW$(8212))
     For Each v In chars: s = Replace(s, CStr(v), " "): Next v
     Do While InStr(s, "  ") > 0: s = Replace(s, "  ", " "): Loop
+    ' v6.1: St./Saint, Ft./Fort, Mt./Mount are the same city (the app does the same in js/core/util.js)
+    s = " " & s & " "
+    s = Replace(s, " saint ", " st "): s = Replace(s, " fort ", " ft "): s = Replace(s, " mount ", " mt ")
     NormalizeForMatching = Trim$(s)
 End Function
 
