@@ -161,7 +161,7 @@ function suggestStrip(b, r, rate) {
 }
 
 /** `all` = every posting on the board, so a single posting downloaded alone still knows whether its siblings carry their own DAT rates. */
-const datOpts = () => ({ targetAsRate: state.settings.postTargetOnDat !== false, all: state.postings });
+const datOpts = () => ({ targetAsRate: state.settings.postTargetOnDat !== false, all: state.postings, broadEquip: state.settings.postBroadEquip === true, extended: state.settings.postExtended === true });
 
 /** Download a DAT-template CSV for a list of postings (whole board, one lane group, a selection, or a single posting). */
 async function downloadDat(kind, list, what) {

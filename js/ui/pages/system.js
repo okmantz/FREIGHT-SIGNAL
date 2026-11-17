@@ -245,6 +245,14 @@ function carriersSection(s) {
       area('inboundBlocklist', 'Inbound e-mail blocklist', 'Substring match against the sender address.', lines, (v) => (v || []).join('\n'))));
 }
 
+function reachSection(s) {
+  const { check } = mk(s);
+  return h('div', null,
+    h('p', { class: 'muted' }, 'Two switches that put the same load in front of more trucks. They only change the DAT CSV you download; the board keeps the real equipment. Both are off until you turn them on.'),
+    check('postBroadEquip', 'Post a Van as "Van or Reefer" and a Flatbed as "Flatbed or Step Deck"', 'reefers and step decks can haul most dry / flat freight, so far more trucks match your search. A Step Deck load is never widened.'),
+    check('postExtended', 'Turn on DAT Extended Network for every posting', 'shares the post beyond DAT\'s own board. Needs a DAT plan that includes it; if your upload is rejected, turn this off.'));
+}
+
 function expirySection(s) {
   const { num, check } = mk(s);
   return h('div', null, h('p', { class: 'muted' }, 'Postings whose pickup day has passed are moved to the Cover Log as "Expired" so the board only shows live loads. They can be restored from the Cover Log.'),
@@ -304,6 +312,7 @@ export function render() {
     section('strategy', 'Posting strategy by lane length', `Local < ${s.laneLocalMax} mi · Regional to ${s.laneRegionalMax} mi · Long beyond`, strategySection(s)),
     section('matrix', '3 × 3 matrix', s.matrixMode === 'ask' ? 'Always asks before building' : 'Builds automatically', matrixSection(s)),
     section('carriers', 'Carriers, outreach and blocklists', `Radius ${s.carrierRadiusMiles} mi · DAT contact: ${s.defaultContact}`, carriersSection(s)),
+    section('reach', 'DAT reach (more inquiries)', (s.postBroadEquip ? 'Wider equipment on' : 'Exact equipment') + (s.postExtended ? ' · Extended Network on' : ''), reachSection(s)),
     section('expiry', 'Auto-expiry', s.autoExpire ? 'On: loads retire after pickup' : 'Off', expirySection(s)),
     section('brokers', 'Brokers and cover pace', `${(s.brokers || []).length} broker(s) · floor ${s.weeklyFloor}/week`, brokerSection(s)),
     section('weather', 'Weather flags', s.weatherFlags ? 'On (contacts api.weather.gov)' : 'Off - nothing leaves the browser', weatherSection(s)),
