@@ -37,7 +37,7 @@ A local-first browser application that replaces the Excel (ThisWorkbook VBA) + O
 
 ```
 npm install
-npm test                 # 116 unit tests (node:test)
+npm test                 # 157 unit tests (node:test)
 npx playwright install chromium   # or: PW_CHROME=/path/to/chrome
 npm run test:e2e         # 35 browser checks against a local server
 npm run test:local       # 16 browser checks of on-computer accounts (several people, upgrade, reset, delete)
