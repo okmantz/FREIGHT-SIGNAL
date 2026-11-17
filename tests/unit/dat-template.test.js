@@ -74,7 +74,8 @@ test('file names: all / group / single', () => {
 });
 
 test('equipment codes: Step Deck, Flatbed, Van Team, Reefer Team, Straight Box Truck', () => {
-  assert.deepEqual(EQUIPMENT.map(e => e.code), ['V', 'R', 'F', 'SD', 'VM', 'RM', 'SB']);
+  // v13: the list is now DAT's full 80-type list (see equipment.test.js); the original seven codes must all still be in it
+  for (const c of ['V', 'R', 'F', 'SD', 'VM', 'RM', 'SB']) assert.ok(EQUIPMENT.some(e => e.code === c), c);
   assert.equal(getEquipmentCode('Dry Van Team'), 'VM');
   assert.equal(getEquipmentCode('Reefer Team'), 'RM');
   assert.equal(getEquipmentCode('Reefer'), 'R');

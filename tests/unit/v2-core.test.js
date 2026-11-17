@@ -166,3 +166,13 @@ test('bridge: outbox ends with #END and round-trips; config carries the ladder',
   const cfg = configFile({ ...S, ladderBookPct: 2, ladderSplitPct: 6 });
   assert.match(cfg, /bookPct\t2/); assert.match(cfg, /splitPct\t6/);
 });
+
+import { normalizeForMatching as _nfm } from '../../js/core/util.js';
+import { findMatchingLoad as _fml } from '../../js/core/inbound.js';
+test('v13: "St. Louis" in a carrier e-mail finds a posting stored as "Saint Louis" (and Ft./Fort, Mt./Mount)', () => {
+  assert.equal(_nfm('St. Louis, MO'), _nfm('Saint Louis, MO'));
+  assert.equal(_nfm('Ft. Worth'), _nfm('Fort Worth')); assert.equal(_nfm('Mt. Vernon'), _nfm('Mount Vernon'));
+  const posts = [{ id: 'a', originCity: 'Saint Louis', originState: 'MO', destCity: 'Fort Worth', destState: 'TX', details: 'x' }];
+  const m = _fml('Load St. Louis, MO to Ft. Worth, TX', 'Is this available?', posts);
+  assert.ok(m && m.posting.id === 'a' && (m.score % 1000) >= 220, 'matched with an exact city+state score');
+});
