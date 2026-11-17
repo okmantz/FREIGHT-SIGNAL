@@ -489,7 +489,7 @@ a.rate { font-weight: 700; text-decoration: none; }
 .lanebox tr.lrow:hover td { background: rgba(var(--accent-rgb), .11); }
 input.cell.datrate, td.ratecell input.cell { border-color: var(--line); background: var(--input); text-align: right; width: 70px; min-width: 0; }
 td.ratecell:nth-child(14) input.cell { border-color: rgba(var(--accent-rgb), .55); }
-select.cell.eq { width: 58px; min-width: 0; }
+select.cell.eq { width: 190px; min-width: 0; }   /* v13: "VM · Van w/Team" - the full DAT list has 80 types, so a bare code is not enough to choose by */
 input.cell.zip { font-family: var(--mono); }
 .lanebox td, .lanebox th { padding: 4px 5px; }
 .lanebox td input.cell { min-width: 0; }
