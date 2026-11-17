@@ -89,9 +89,10 @@ try {
   check('the box holds all 9 postings labelled A-A .. C-C', (await page.locator('.lanebox tbody tr').count()) === 9 && (await page.textContent('.lanebox tbody')).includes('A-A') && (await page.textContent('.lanebox tbody')).includes('C-C'));
   // equipment is one control per load (applies to all 9)
   const eqSel = page.locator('.lanebox .loaddetails select');
-  check('equipment select offers V R F SD VM RM SB', JSON.stringify((await eqSel.locator('option').allTextContents()).map(x => x.split(' ')[0])) === JSON.stringify(['V', 'R', 'F', 'SD', 'VM', 'RM', 'SB']));
+  const eqCodes = (await eqSel.locator('option').allTextContents()).map(x => x.split(' ')[0]);
+  check('equipment select offers the full DAT list (80 types, no duplicates, V R F first)', eqCodes.length === 80 && new Set(eqCodes).size === 80 && eqCodes.slice(0, 3).join() === 'V,R,F' && ['SD', 'VM', 'RM', 'SB', 'VR', 'FN', 'SV', 'PO'].every(c => eqCodes.includes(c)), eqCodes.length);
   const eqLabels = (await eqSel.locator('option').allTextContents()).join('|');
-  check('equipment options are named (SD, F, VM, RM)', /SD . Step Deck/.test(eqLabels) && /F . Flatbed/.test(eqLabels) && /VM . Van Team/.test(eqLabels) && /RM . Reefer Team/.test(eqLabels), eqLabels);
+  check('equipment options are named (SD, F, VM, RM)', /SD . Step Deck/.test(eqLabels) && /F . Flatbed/.test(eqLabels) && /VM . Van w\/Team/.test(eqLabels) && /RM . Reefer w\/Team/.test(eqLabels), eqLabels);
   await eqSel.selectOption('SD');
   await page.waitForTimeout(250);
   const eqAll = await page.evaluate(async () => (await import('/js/store/state.js')).state.postings.map(p => p.equip));
