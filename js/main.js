@@ -12,6 +12,13 @@ import * as drafts from './ui/pages/drafts.js';
 import * as manual from './ui/pages/manual.js';
 import * as system from './ui/pages/system.js';
 import * as account from './ui/pages/account.js';
+import * as team from './ui/pages/team.js';
+import * as trucks from './ui/pages/trucks.js';
+import * as rescue from './ui/pages/rescue.js';
+import * as lanes from './ui/pages/lanes.js';
+import * as channels from './ui/pages/channels.js';
+import * as net from './store/net.js';
+import { openPublish } from './ui/pages/trucks.js';
 import { initBridge, onBridge } from './store/bridge.js';
 import { startWeather } from './store/weather.js';
 import { paceStats, nextWeekStart, weekRangeText } from './core/coverlog.js';
@@ -35,6 +42,11 @@ export const TABS = [
   { id: 'customers', label: 'Customer Database', icon: 'customers', group: 'Network', page: customers },
   { id: 'inquiry', label: 'Inquiry Log', icon: 'inquiry', group: 'Network', page: inquiry },
   { id: 'drafts', label: 'Drafts', icon: 'drafts', group: 'Network', page: drafts },
+  { id: 'team', label: 'Team', icon: 'customers', group: 'Team', page: team },
+  { id: 'trucks', label: 'Truck Board', icon: 'truck', group: 'Team', page: trucks, badge: 'trucks' },
+  { id: 'rescue', label: 'Load Rescue', icon: 'sparkle', group: 'Team', page: rescue, badge: 'rescue' },
+  { id: 'lanes', label: 'Lane Intel', icon: 'trendup', group: 'Team', page: lanes },
+  { id: 'channels', label: 'Channels', icon: 'mail', group: 'Team', page: channels, badge: 'chat' },
   { id: 'zipmap', label: 'ZIP Map', icon: 'zipmap', group: 'Tools', page: zipmap },
   { id: 'manual', label: 'User Manual', icon: 'manual', group: 'Tools', page: manual },
   { id: 'system', label: 'System', icon: 'system', group: 'Settings', page: system },
@@ -53,7 +65,8 @@ function renderNav() {
   let grp = '';
   for (const t of TABS) {
     if (t.group !== grp) { grp = t.group; nav.appendChild(h('div', { class: 'grp' }, grp)); }
-    const badge = t.id === 'drafts' && state.drafts.length ? h('span', { class: 'badge' }, state.drafts.length) : null;
+    const nb = t.badge && net.joined() ? net.badges()[t.badge] : 0;
+    const badge = t.id === 'drafts' && state.drafts.length ? h('span', { class: 'badge' }, state.drafts.length) : nb ? h('span', { class: 'badge', 'data-badge': t.badge }, nb) : null;
     nav.appendChild(h('a', { href: '#/' + t.id, dataset: { tab: t.id }, title: t.label, class: current && current.id === t.id ? 'active' : '', 'aria-current': current && current.id === t.id ? 'page' : null },
       icon(t.icon, 19), h('span', { class: 'lbl' }, t.label), badge));
   }
@@ -81,6 +94,7 @@ export function renderChrome() {
   const so = document.getElementById('signoutbtn');
   if (so) { so.hidden = !(cloud.enabled() ? cloud.user() : local.user()); if (!so.firstChild) so.appendChild(icon('logout', 17)); }
   renderSync(cloud.getStatus());
+  const st = document.getElementById('sharetruck'); if (st) st.hidden = !net.joined();
 }
 
 /** Header pill showing whether the workspace is saved to the account. Hidden when cloud accounts are not set up. */
@@ -215,6 +229,8 @@ async function boot() {
   const startPage = (state.settings.profile || {}).startPage;
   if (!location.hash && startPage && startPage !== 'home' && TABS.some(t => t.id === startPage)) location.hash = '#/' + startPage;
   window.addEventListener('hashchange', render);
+  net.onNet(() => render());
+  document.getElementById('sharetruck')?.addEventListener('click', () => openPublish());
   subscribe(() => { syncFromStore(state.settings.appearance); render(); });
   await render();
   // The weekly cover count resets at 12:00 AM Monday (the moment Sunday ends). Re-draw exactly then, even if the app was left open all weekend.
@@ -233,6 +249,7 @@ async function boot() {
     cloud.onStatus(renderSync);
     cloud.start();
   }
+  net.init().catch((e) => console.warn('Team network unavailable:', e));
   setTimeout(maybeStartTour, 350);                        // first login only: the 60-second guided tour
   onBridge(() => { if (current && (current.id === 'system' || current.id === 'drafts')) render(); });
   initBridge();

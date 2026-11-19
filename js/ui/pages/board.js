@@ -20,6 +20,14 @@ import { overviewStrip, worklistPanel, scoreboard, guidanceBlock, agingModal } f
 import { summaryOutreach, callListModal } from '../board/outreachview.js';
 import { mapsRouteUrl, mapsCarriersNearUrl, FMCSA_SAFER_URL } from '../../core/resources.js';
 import { money } from '../board/util.js';
+import * as net from '../../store/net.js';
+import { askTeamDialog } from './rescue.js';
+import { _view as truckView } from './trucks.js';
+import { openBoardPosting } from '../boardposting.js';
+import { rescueFacts, needsHelp } from '../../core/rescue.js';
+import { laneOf, liftAdvice, liftText } from '../../core/laneintel.js';
+import { laneMiles } from '../../core/lanes.js';
+import { repriceTotal } from '../../core/netcommon.js';
 
 let filter = '';
 let quick = '';               // overview-tile filter ('' = none)
@@ -384,7 +392,7 @@ function groupBox(r, collapsed, toggle) {
       { label: single ? 'Delete this load' : 'Delete all postings', act: 'del-group', danger: true, run: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }]));
 
   return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), ...attrs },
-    header, suggestStrip(b, r, rate), loadDetailsBar(details, opts), acts,
+    header, suggestStrip(b, r, rate), teamStrip(b, head), loadDetailsBar(details, opts), acts,
     guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
     h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable' },
       h('thead', null, h('tr', null, [['', ''], ['Post', 'A-A is the original. Other cells are nearby origin/destination pairings.'], ['Origin', ''], ['', ''], ['Destination', ''], ['DAT rate', 'The rate you post on DAT for this posting. Fill it on only some postings and the rest post without a rate.'], ['Replies / sent', 'Carrier replies received / outreach drafts created'], ['', '']].map(([x, t]) => h('th', { title: t || null }, x)))),
@@ -398,6 +406,21 @@ const openLink = (url, why) => { if (!url) return toast(why, 'warn'); openExtern
  * "Find trucks": every way to put a truck on this load, in one place. Ask the database (ranked call list, truck-check e-mails),
  * or look outside it (DAT, Google Maps for carriers near the pickup, FMCSA to vet one you have found).
  */
+/** A quiet strip under the lane header: ask-the-team after the load has sat, plus what the team's covers say about the raise. */
+function teamStrip(b, head) {
+  if (!net.joined() || head.status === 'Covered') return null;
+  const facts = rescueFacts(b.members, { outreach: state.outreach, inquiries: state.inquiries, now: Date.now() });
+  const asked = !!net.rescueFor(head);
+  const advice = liftAdvice(net.net.lane, { ...laneOf(head), equip: head.equip, miles: laneMiles(head, state.zip) || 0 }, {});
+  const raised = repriceTotal(b.members.flatMap(m => m.ops || []));
+  const help = !asked && needsHelp(facts, { afterMin: net.net.cfg.rescueAfterMin || 90 });
+  if (!help && !asked && !advice.ok) return null;
+  return h('div', { class: 'teamstrip', 'data-test': 'team-strip' },
+    help ? h('button', { class: 'btn primary small', type: 'button', 'data-act': 'ask-team-nudge', onclick: () => askTeamDialog(b.members, { miles: laneMiles(head, state.zip) || 0 }) }, icon('sparkle', 14), `Quiet for ${Math.round(facts.ageMin / 60 * 10) / 10} h: ask the team`) : null,
+    asked ? h('span', { class: 'pill orig' }, 'Team asked for help') : null,
+    advice.ok ? h('span', { class: 'muted small' }, liftText(advice, raised)) : null);
+}
+
 function coverTools(b, head) {
   const truckCheck = async () => {
     const ok = await confirmDialog('Truck check for this load', `Draft "Do you have any trucks available near ${head.originCity || 'the pickup'}, ${head.originState || ''}?" to the best-matched carriers in your database (up to 15, skipping anyone already asked about this load or contacted in the last 24 hours).\n\nNothing is sent. The drafts appear for you to review.`, 'Create drafts');
@@ -414,6 +437,10 @@ function coverTools(b, head) {
     { label: 'DAT Find Trucks', act: 'tools-find-trucks', run: () => findCarriers(head) },
     { label: 'Truck companies near the pickup (Google Maps)', act: 'tools-maps-near', run: () => openLink(mapsCarriersNearUrl(head), 'This load needs an origin city and state first.') },
     { label: 'Check a carrier on FMCSA SAFER', act: 'tools-fmcsa', run: () => openExternal(FMCSA_SAFER_URL) },
+    { heading: 'Your team and other boards' },
+    { label: 'Ask the team for help with this load', act: 'ask-team', run: () => askTeamDialog(b.members, { miles: laneMiles(head, state.zip) || 0 }) },
+    { label: 'Team trucks near the pickup', act: 'team-trucks', run: () => { Object.assign(truckView.q, { origin: head.originZip || [head.originCity, head.originState].filter(Boolean).join(', '), radius: 100, equip: '', dest: '', date: '', status: 'open' }); location.hash = '#/trucks'; } },
+    { label: 'Post to TruckSmarter / Trucker Path', act: 'other-boards', run: () => openBoardPosting(b.members, { all: state.postings }) },
     { heading: 'Plan the move' },
     { label: 'Route and miles (Google Maps)', act: 'tools-route', run: () => openLink(mapsRouteUrl(head), 'This load needs an origin and a destination first.') },
     { label: 'Weather at the pickup', act: 'tools-weather', run: () => weather(head) }],

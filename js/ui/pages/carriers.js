@@ -10,6 +10,8 @@ import { tableToRecords } from '../importer.js';
 import { storedWhere } from '../../store/cloud.js';
 import { createTableSort } from '../tablesort.js';
 import { contactCell } from '../cells.js';
+import { openPublish } from './trucks.js';
+import * as net from '../../store/net.js';
 
 let q = '';
 // Quick filters: narrow the table to a group of carriers, then "Truck check" asks exactly that group.
@@ -127,6 +129,7 @@ export function render() {
       h('tbody', null, rows.length ? rows.map(c => h('tr', null,
         h('td', null, h('div', { class: 'rowact' },
           h('button', { class: 'btn small primary', type: 'button', 'data-act': 'truck', title: 'Draft "Do you have any trucks available?" to this carrier', disabled: !String(c.email || '').trim(), onclick: () => truckCheck([c]) }, 'Truck?'),
+          net.joined() ? h('button', { class: 'btn small', type: 'button', 'data-act': 'share-truck-row', title: 'Share this carrier\'s truck with the team', onclick: () => openPublish({ carrierName: c.carrierName, mc: c.mc, email: c.email, phone: c.phone, oCity: c.originCity, oState: c.originState, dCity: c.destCity, dState: c.destState, destOpen: !(c.destCity || c.destState) && true, equip: /reef/i.test(c.equipment || '') ? 'R' : /flat/i.test(c.equipment || '') ? 'F' : 'V' }) }, 'Share') : null,
           h('button', { class: 'btn small', type: 'button', onclick: () => edit(c) }, 'Edit'),
           h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete carrier', `Delete ${c.carrierName || c.email}?`, 'Delete')) actions.deleteCarrier(c.id); } }, '✕'))),
         CARRIER_KEYS.map(k => contactCell(k, c[k])))) :

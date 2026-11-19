@@ -7,6 +7,73 @@
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
       }
+    },
+    "network": {
+      "teams": {
+        "$team": {
+          ".read": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists()",
+          "meta": {
+            ".write": "auth != null && !data.exists() && newData.child('by').val() === auth.uid",
+            ".validate": "newData.hasChildren(['name','createdAt','by'])"
+          },
+          "secret": {
+            ".write": "auth != null && !data.exists()",
+            ".validate": "newData.isString() && newData.val().length === 12"
+          },
+          "members": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid && (!newData.exists() || newData.child('code').val() === newData.parent().parent().child('secret').val())",
+              ".validate": "!newData.exists() || (newData.hasChildren(['name','at','code']) && newData.child('name').isString() && newData.child('name').val().length <= 60)"
+            }
+          },
+          "trucks": {
+            "$id": {
+              ".write": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists() && (newData.exists() ? (newData.child('uid').val() === auth.uid && (!data.exists() || data.child('uid').val() === auth.uid)) : data.child('uid').val() === auth.uid)",
+              ".validate": "!newData.exists() || (newData.hasChildren(['uid','exp','carrierName']) && newData.child('exp').isNumber() && newData.child('carrierName').val().length <= 80)"
+            }
+          },
+          "tstat": {
+            "$key": {
+              ".write": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists() && (newData.exists() ? (newData.child('by').val() === auth.uid && $key.endsWith('__' + auth.uid.substring(0, 20)) && (newData.child('s').val() !== 'open' || root.child('network/teams/'+$team+'/trucks/'+newData.child('id').val()+'/uid').val() === auth.uid)) : data.child('by').val() === auth.uid)",
+              ".validate": "!newData.exists() || (newData.hasChildren(['id','s','by','at']) && (newData.child('s').val() === 'open' || newData.child('s').val() === 'booked' || newData.child('s').val() === 'withdrawn'))"
+            }
+          },
+          "rescues": {
+            "$id": {
+              ".write": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists() && (newData.exists() ? (newData.child('uid').val() === auth.uid && (!data.exists() || data.child('uid').val() === auth.uid)) : data.child('uid').val() === auth.uid)",
+              ".validate": "!newData.exists() || (newData.hasChildren(['uid','exp','status']) && newData.child('exp').isNumber())"
+            }
+          },
+          "tips": {
+            "$id": {
+              ".write": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists() && (newData.exists() ? (newData.child('uid').val() === auth.uid && (!data.exists() || data.child('uid').val() === auth.uid)) && (data.exists() || root.child('network/teams/'+$team+'/rescues/'+newData.child('rid').val()).exists()) : data.child('uid').val() === auth.uid)",
+              ".validate": "!newData.exists() || (newData.hasChildren(['uid','rid','at']) && (!newData.child('text').exists() || newData.child('text').val().length <= 400))"
+            }
+          },
+          "marks": {
+            "$tipId": {
+              ".write": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists() && (newData.exists() ? (newData.child('by').val() === auth.uid && root.child('network/teams/'+$team+'/rescues/'+newData.child('rid').val()+'/uid').val() === auth.uid) : data.child('by').val() === auth.uid)",
+              ".validate": "!newData.exists() || newData.hasChildren(['rid','by','at'])"
+            }
+          },
+          "posts": {
+            "$id": {
+              ".write": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists() && (newData.exists() ? (newData.child('uid').val() === auth.uid && (!data.exists() || data.child('uid').val() === auth.uid)) : data.child('uid').val() === auth.uid)",
+              ".validate": "!newData.exists() || (newData.hasChildren(['uid','ch','at','text']) && newData.child('text').val().length <= 1200)"
+            }
+          },
+          "lane": {
+            "$shard": {
+              "ev": {
+                "$eid": {
+                  ".write": "auth != null && root.child('network/teams/'+$team+'/members/'+auth.uid).exists() && $shard.endsWith('__' + auth.uid)",
+                  ".validate": "!newData.exists() || (newData.hasChildren(['k','t','u','o','d']) && newData.child('u').val() === auth.uid)"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

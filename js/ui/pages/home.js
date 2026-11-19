@@ -12,6 +12,7 @@ const TILES = [
   ['spare', 'spare', 'SPARE LOAD DETAILS', 'Parked loads you can restore later', 'OPEN SPARES'],
   ['carriers', 'carriers', 'CARRIER DATABASE', 'Approved carriers by lane', 'OPEN DATABASE'],
   ['inquiry', 'inquiry', 'INQUIRY LOG', 'Carrier inquiries and performance dashboard', 'OPEN LOG'],
+  ['team', 'customers', 'TEAM', 'Shared trucks, load rescue and lane intelligence with your teammates', 'OPEN TEAM'],
   ['zipmap', 'zipmap', 'ZIP MAP', 'Market and distance lookup', 'OPEN ZIP MAP'],
 ];
 
@@ -50,5 +51,5 @@ export function render() {
       TOOLKIT.map(t => h('a', { class: 'tk-link', href: t.url, target: '_blank', rel: 'noopener noreferrer', title: t.note + ' (opens in a new tab)', 'data-tool': t.id }, icon(t.icon, 15), t.label))),
     h('div', { class: 'tiles' }, TILES.map(([id, ic, t, s, c]) => h('a', { class: 'tile', href: '#/' + id }, h('span', { class: 't-ico' }, icon(ic, 20)), h('b', null, t), h('span', null, s), h('i', null, c)))),
     !state.zip ? h('div', { class: 'banner err' }, 'The ZIP Map is not loaded. Matrix building needs it: open System and import uszips.csv.') : null,
-    h('div', { class: 'footline' }, 'ALL DATA STAYS IN THIS BROWSER  •  NOTHING IS EVER SENT AUTOMATICALLY'));
+    h('div', { class: 'footline' }, 'YOUR DATA STAYS ON THIS COMPUTER  •  ONLY WHAT YOU SHARE WITH YOUR TEAM LEAVES IT  •  NOTHING IS EVER SENT AUTOMATICALLY'));
 }

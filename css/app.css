@@ -1084,3 +1084,34 @@ td.ratecheck { cursor: help; }
 .pkpeek.due { color: var(--warn); font-weight: 600; }
 .pkpeek.due em { opacity: .8; }
 @media (max-width: 760px) { .pkpeek { font-size: .72em; } }
+
+/* ---- v14 Team network: team hub, truck board, load rescue, lane intel, channels ---- */
+.check { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; font-size: .92em; }
+.truck { padding: 14px 16px; }
+.truck.booked, .truck.withdrawn, .truck.expired { opacity: .66; }
+.truck-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+.truck-route { font-weight: 650; margin: 2px 0 4px; }
+.truck-note { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 6px; }
+.tilelink { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; transition: transform .12s, border-color .12s; }
+.tilelink:hover { transform: translateY(-2px); border-color: var(--accent); }
+.members { display: flex; flex-direction: column; gap: 8px; }
+.member { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.invite { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 8px 0 12px; }
+.invite code { font-size: 1.15em; letter-spacing: .08em; padding: 6px 12px; border: 1px dashed var(--accent); border-radius: 8px; user-select: all; }
+.teamstrip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; }
+.tips { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.tip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.tip.helpful { border-color: var(--good); background: color-mix(in srgb, var(--good) 8%, transparent); }
+.tipbar { align-items: flex-start; }
+.tipbar .tipform { display: contents; }
+.lmetrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 8px 0; }
+.lmetric { display: flex; flex-direction: column; gap: 2px; }
+.lmetric b { font-size: 1.25em; }
+.trendrow { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.spark { width: 120px; height: 28px; }
+.spark-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chtabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.chtab { border: 1px solid var(--line); background: var(--surface); color: inherit; border-radius: 999px; padding: 6px 14px; cursor: pointer; font: inherit; }
+.chtab.active { background: var(--accent); color: var(--on-accent, #fff); border-color: var(--accent); }
+.postbody { white-space: pre-wrap; overflow-wrap: anywhere; }
+#sharetruck { font-weight: 700; }

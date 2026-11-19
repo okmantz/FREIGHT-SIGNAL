@@ -11,7 +11,7 @@ It uses a free Google **Firebase** project (Spark plan, no credit card): *Authen
 1. Go to <https://console.firebase.google.com> > **Add project**. Name it (for example `freight-signal`). Turn Google Analytics **off**.
 2. **Build > Authentication > Get started > Sign-in method > Email/Password > Enable > Save.** (Leave "Email link" off.)
 3. **Build > Realtime Database > Create Database.** Pick the location nearest you. Choose **Locked mode**.
-4. In Realtime Database open the **Rules** tab, replace everything with the contents of [`database.rules.json`](../database.rules.json) from this repo, and press **Publish**. This rule is what keeps accounts private: a signed-in person can read and write only `users/<their own id>`.
+4. In Realtime Database open the **Rules** tab, replace everything with the contents of [`database.rules.json`](../database.rules.json) from this repo, and press **Publish**. This rule is what keeps accounts private: a signed-in person can read and write only `users/<their own id>`. Since v14 the same file also holds the **Team Network** rules (`network/teams/...`): only people who joined a team can read it, everyone can write only their own records, and lane data can only be written into your own shard. If you set the project up before v14, **re-publish this file** or the Team pages will say access was refused.
 5. Click the gear > **Project settings > General > Your apps > Web (`</>`)**. Register an app (skip Firebase Hosting). From the snippet copy two values:
    * `apiKey`
    * `databaseURL` (also shown at the top of the Realtime Database page, e.g. `https://freight-signal-default-rtdb.firebaseio.com`; regions outside the US look like `https://freight-signal-default-rtdb.europe-west1.firebasedatabase.app`)

@@ -144,21 +144,24 @@ export async function changePassword(current, next) {
 }
 
 /* ------------------------------------------------------------------------------------------------ database (REST) */
-async function rtdb(method, path, body, retried = false) {
+async function rtdb(method, path, body, retried = false, query = '') {
   const token = await getToken();
   let r;
-  try { r = await fetch(`${dbBase()}/${path}.json?auth=${encodeURIComponent(token)}`, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined, body: body !== undefined ? JSON.stringify(body) : undefined }); }
+  try { r = await fetch(`${dbBase()}/${path}.json?auth=${encodeURIComponent(token)}${query ? '&' + query : ''}`, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined, body: body !== undefined ? JSON.stringify(body) : undefined }); }
   catch { throw offlineError(); }
   if ((r.status === 401 || r.status === 403) && !retried) {
     // An expired token reports the same status as a missing rule. Force one refresh before blaming the rules.
     if (session) session.expiresAt = 0;
-    return rtdb(method, path, body, true);
+    return rtdb(method, path, body, true, query);
   }
   if (r.status === 401 || r.status === 403) throw new CloudError('The database refused access. In the Firebase console, publish the rules from database.rules.json (see docs/CLOUD-SETUP.md).', 'rules');
   if (r.status === 404) throw new CloudError('The database URL in js/config.js was not found. Copy it exactly from Firebase > Realtime Database.', 'config');
   if (!r.ok) throw new CloudError('The database answered with an error (' + r.status + ').', 'server');
   return r.json().catch(() => null);
 }
+
+/** v14: the same authenticated database call for the Team Network (store/netcloud.js). `query` is a ready-made query string such as 'orderBy=%22%24key%22&startAt=%22202606%22'. */
+export const dbCall = (method, path, body, query = '') => rtdb(method, path, body, false, query);
 
 /** Rows -> { n, p0, p1, ... } (a JSON text split into pieces the database accepts). Splitting never cuts an emoji in half. */
 export function packRows(rows) {
