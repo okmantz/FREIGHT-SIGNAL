@@ -59,9 +59,15 @@ const restoreBackupFile = async (file) => {
   await page.waitForSelector('text=Backup restored');
   await go('board');
 };
+// The load card keeps priority, contact, broker, reply note and lane scan under "More options".
+const openOpts = async () => { const d = page.locator('.lanebox details.moreopts').first(); await d.waitFor(); if (!(await d.evaluate(e => e.open))) await d.locator('summary').click(); };
+const openMenu = async (label) => { const s = page.locator(`.lanebox summary[aria-label="${label}"]`).first(); const d = s.locator('xpath=..'); if (!(await d.evaluate(e => e.open))) await s.click(); };
+// "Post the target rate in the DAT CSV" is a switch inside the board's More menu (shows a tick when on).
+const setPostTarget = async (on) => { await page.click('.boardbar .menu summary'); const it = page.locator('[data-act="post-target-toggle"]'); const isOn = (await it.innerText()).startsWith('\u2713'); if (isOn !== on) await it.click(); else await page.click('.boardbar .menu summary'); await page.waitForTimeout(250); };
 const tpl = fs.readFileSync(path.join(root, 'tests/fixtures/DAT-bulk-upload-template.csv'), 'utf8');
 const TPL_HEADER = tpl.split('\n').find(l => l.startsWith('Pickup Earliest*'));
-const tql = fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8');
+const tql = fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8').replace(/11\/16\/2026/g, '11/16/' + (new Date().getFullYear() + 2));   // keep the pickup in the future so the load is not retired as expired
+
 
 try {
   await go('home');
@@ -70,8 +76,8 @@ try {
   check('branding present', (await page.textContent('header.top')).includes('By O.K. Mantz'));
   check('tagline in header and on HOME', (await page.textContent('header.top')).includes('Intelligent Carrier Sourcing Optimization System') && (await page.textContent('.hero')).includes('Intelligent Carrier Sourcing Optimization System'));
   check('DAT tab is gone (nav + home tile)', (await page.locator('#nav a[data-tab="dat"]').count()) === 0 && (await page.locator('.tile', { hasText: /^DAT/ }).count()) === 0);
-  const vx = page.locator('.hero a', { hasText: 'Ventusky' });
-  check('HOME has a Ventusky weather button that opens in a new tab', (await vx.count()) === 1 && (await vx.getAttribute('href')) === 'https://www.ventusky.com/' && (await vx.getAttribute('target')) === '_blank' && /noopener/.test(await vx.getAttribute('rel')));
+  const vx = page.locator('.toolkit a[data-tool="weather"]');
+  check('HOME has a Ventusky weather link (Cover toolkit) that opens in a new tab', (await vx.count()) === 1 && (await vx.getAttribute('href')) === 'https://www.ventusky.com/' && (await vx.getAttribute('target')) === '_blank' && /noopener/.test(await vx.getAttribute('rel')));
 
   // --- paste: parsed live (no Parse button), editable inline, Enter / button adds, 3x3 builds itself
   await go('board');
@@ -119,10 +125,10 @@ try {
   check('lane CSV file name carries the lane', /^freight-signal-dat-.+-to-.+-\d{4}-\d{2}-\d{2}\.csv$/.test(grp.name), grp.name);
   const col = (line, i) => line.split(',')[i];
   check('rated posting carries its own DAT rate and the other 8 go out blank (2 of 9 style posting)', glines.slice(1).filter(l => col(l, 11) === '2100').length === 1 && glines.slice(1).filter(l => col(l, 11) === '').length === 8 && glines.slice(1).filter(l => col(l, 11) === '1800').length === 0);
-  await page.locator('.boardbar .tgl input').uncheck(); await page.waitForTimeout(200);
+  await setPostTarget(false);
   const noRate = (await downloadVia(() => page.click('[data-act="csv-group"]'))).buf.toString('utf8').split('\n').filter(Boolean).slice(1);
   check('with "Post target rate on DAT" off, the typed DAT rate still posts', noRate.filter(l => col(l, 11) === '1800').length === 0 && noRate.filter(l => col(l, 11) === '2100').length === 1);
-  await page.locator('.boardbar .tgl input').check(); await page.waitForTimeout(200);
+  await setPostTarget(true);
   check('destination ZIP column is filled', glines.slice(1).every(l => /^\d{5}$/.test(col(l, 20))), glines[1]);
 
   const all = await downloadVia(() => page.click('[data-act="csv-all"]'));
@@ -195,9 +201,13 @@ try {
   check('Clear filters brings every carrier back', (await page.locator('.filterbar >> text=Clear filters').count()) === 0);
   check('e-mail and MC/DOT cells are one-click links (mailto, FMCSA SAFER)', (await page.locator('table.carrier a.xlink[href^="mailto:"]').count()) >= 2 && (await page.locator('table.carrier a.xlink[href*="safer.fmcsa.dot.gov"]').count()) >= 1);
   await go('customers');
+  check('an empty Customer Database shows a friendly empty state with the two ways to fill it', (await page.locator('.empty:has-text("No customers yet")').count()) === 1 && (await page.locator('.empty button:has-text("Add customer")').count()) === 1 && (await page.locator('.empty button:has-text("Import")').count()) === 1);
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.saveCustomer({ company: 'Zeta Freight' }); await m.actions.saveCustomer({ company: 'Alpha Foods' }); });
+  await page.waitForSelector('table.carrier th button[data-sort="company"]');
   await page.click('table.carrier th button[data-sort="company"]');
   await page.waitForSelector('table.carrier th.sorted');
   check('customer headers sort too', (await page.locator('table.carrier th.sorted').count()) === 1);
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); for (const c of [...m.state.customers]) await m.actions.deleteCustomer(c.id); });   // back to an empty Customer Database for the import test below
 
   // --- outreach drafts (never sent)
   await go('board');
@@ -238,9 +248,11 @@ try {
   await go('carriers');
   check('carriers survive reload (IndexedDB)', (await page.textContent('table.carrier')).includes('E2E Carrier'));
   await go('board');
-  check('board survives reload', (await page.locator('tbody tr').count()) === 9);
+  await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9, null, { timeout: 8000 }).catch(() => {});   // the page renders a moment after the route changes
+  check('board survives reload', (await page.locator('.lanebox tbody tr').count()) === 9);
 
   // --- priority -> target outreach, with the select focused like a real user (regression: stale display)
+  await openOpts();
   const priSel = page.locator('.lanebox .laneopts select').first();
   const tgtOf = () => page.evaluate(async () => { const m = await import('/js/store/state.js'); return m.state.postings[0].outreachTarget; });
   await priSel.focus(); await priSel.selectOption('Medium');
@@ -260,6 +272,7 @@ try {
   // --- Outlook bridge (OPFS stands in for the user's Documents\FreightSignal folder)
   await go('system');
   await page.evaluate(async () => { const b = await import('/js/store/bridge.js'); await b.useHandle(await navigator.storage.getDirectory()); });
+  await openSys('outlook');   // the Outlook guide is folded until opened (Home's Get started list and the tour both point to it)
   await page.waitForSelector('[data-bridge="connected"]');
   const readFeed = (name) => page.evaluate(async (n) => { const d = await navigator.storage.getDirectory(); try { return await (await (await d.getFileHandle(n)).getFile()).text(); } catch { return null; } }, name);
   const writeFeed = (name, text) => page.evaluate(async ([n, t]) => { const d = await navigator.storage.getDirectory(); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(t); await w.close(); }, [name, text]);
@@ -365,7 +378,7 @@ try {
   await page.click('.boardbar .menu summary'); await page.click('[data-act="expand-all"]');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9);
   check('expand all brings the rows back', true);
-  check('overview strip and the ranked worklist are on the Freight Signal page', (await page.locator('.ovstrip .ovtile').count()) === 4 && (await page.locator('.worklist .wl li').count()) >= 1);
+  check('overview strip is on the Load Board; the ranked worklist appears once there are two or more loads', (await page.locator('.ovstrip .ovtile').count()) === 4 && ((await page.locator('.lanebox').count()) > 1 ? (await page.locator('.worklist .wl li').count()) >= 1 : (await page.locator('.worklist').count()) === 0));
   check('each load shows a next-step guidance panel', (await page.locator('.lanebox .guide').count()) >= 1);
   await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.addBroker('Sam Rivers'); });
   await page.waitForSelector('.tabs .tab:has-text("Sam Rivers")');
@@ -376,7 +389,7 @@ try {
   await page.waitForSelector('.lanebox', { timeout: 8000 });
 
   // --- v6: RateView button, collapsed copy, broker drag-and-drop, celebration, tour
-  check('DAT RateView is a real button on the lane bar (not inside the menu)', (await page.locator('.lanebox [data-act="rateview"]').count()) >= 1 && (await page.locator('.lanebox .menu [data-act="rateview"]').count()) === 0);
+  check('DAT RateView is ONE real button per load (not inside a menu) and the rows no longer carry their own button', (await page.locator('.lanebox [data-act="rateview"]').count()) === (await page.locator('.lanebox').count()) && (await page.locator('.lanebox .menu [data-act="rateview"]').count()) === 0 && (await page.locator('.lanebox tbody button[data-act="rateview-row"]:visible').count()) === 0);
   check('the per-posting checkboxes are the bigger size', await page.locator('.lanebox tbody input.bigchk').first().evaluate(e => e.getBoundingClientRect().width >= 20));
   await page.click('.boardbar .menu summary'); await page.click('[data-act="collapse-all"]');
   await page.waitForFunction(() => document.querySelectorAll('.lanebox.collapsed').length >= 1);
@@ -428,15 +441,16 @@ try {
   check('the switches (lane scan, toggles) are not turned into checkboxes', await page.waitForFunction(() => { const e = document.querySelector('.lanebox input[role="switch"]'); return !!e && e.isConnected && parseFloat(getComputedStyle(e).width) > 28; }, null, { timeout: 4000 }).then(() => true).catch(() => false));
 
   const avgIn = page.locator('.lanebox .suggest input.sgin').first();
-  check('each matrix has a DAT avg strip at the top', (await page.locator('.lanebox .suggest').count()) === (await page.locator('.lanebox').count()) && (await page.locator('.lanebox .suggest [data-act="rateview-strip"]').count()) >= 1);
+  check('each matrix has a DAT avg strip at the top', (await page.locator('.lanebox .suggest').count()) === (await page.locator('.lanebox').count()) && (await page.locator('.lanebox .suggest [data-act="rateview"]').count()) >= 1);
   await avgIn.fill('2150'); await avgIn.press('Enter');
   await page.waitForFunction(async () => { const st = (await import('/js/store/state.js')).state; return st.postings.length && st.postings.filter(p => p.datAvg === '2150').length === st.postings.length; });
+  await page.waitForFunction(() => /\$\d+\.\d\d\/mi/.test((document.querySelector('.lanebox .suggest .sg-note') || {}).innerText || ''), null, { timeout: 6000 }).catch(() => {});   // the strip redraws a moment after the data changes
   check('the DAT avg is kept on every posting of the load and shows $/mile', /\$\d+\.\d\d\/mi/.test(await page.locator('.lanebox .suggest .sg-note').first().innerText()));
   if (await page.locator('.lanebox [data-act="use-dat-avg"]').count()) { await page.locator('.lanebox [data-act="use-dat-avg"]').first().click(); await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings.every(p => String(p.targetRate) === '2150')); }
   check('Use as target copies the DAT avg into the target rate', await page.evaluate(async () => (await import('/js/store/state.js')).state.postings.every(p => String(p.targetRate) === '2150')));
 
   await page.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(u); return {}; }; });
-  await page.locator('.lanebox [data-act="find-carriers"]').first().click();
+  await openMenu('Find trucks for this load'); await page.locator('.lanebox [data-act="tools-find-trucks"]').first().click();
   await page.waitForFunction(() => window.__opened.length === 1);
   const opened = await page.evaluate(() => window.__opened[0]);
   check('Find more carriers opens DAT Find Trucks', /^https:\/\/one\.dat\.com\//.test(opened), opened);
@@ -461,7 +475,7 @@ try {
   check('the All tab shows everything and offers the whole-board CSV', (await page.locator('.lanebox').count()) >= 1 && (await page.locator('[data-act="csv-all"]').count()) === 1);
 
   await go('customers');
-  await page.click('text=Import…');
+  await page.locator('button:has-text("Import")').first().click();   // the empty-state button ("Import from Excel / CSV") or the toolbar one ("Import…")
   await page.fill('.modal textarea', 'Company\tContact Name\tTitle\tEmail\tPhone\nAcme Foods\tPat Lee\tLogistics\tpat@acme.example\t555-0100\nBolt Steel\tDana Fox\tBuyer\tdana@bolt.example\t555-0101');
   await page.click('.modal-foot >> text=Import');
   await page.waitForSelector('td:has-text("Acme Foods")');

@@ -1,5 +1,5 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, field, copyText } from '../dom.js';
-import { pageHead, statTiles } from '../chrome.js';
+import { pageHead, statTiles, emptyState } from '../chrome.js';
 import { state, actions } from '../../store/state.js';
 import { CUSTOMER_HEADERS, CUSTOMER_KEYS } from '../../core/defaults.js';
 import { toDelimited } from '../../core/csv.js';
@@ -60,14 +60,15 @@ export function render() {
   search.addEventListener('keydown', (e) => { if (e.key === 'Enter') import('../../main.js').then(m => m.render()); });
   return h('div', null,
     pageHead({ icon: 'customers', title: 'Customer Database', sub: 'Shippers and customer contacts. Import them from Excel the same way as carriers. ' + storedWhere() }),
-    overview(),
-    h('div', { class: 'toolbar' }, search,
+    !state.customers.length ? emptyState({ icon: 'customers', title: 'No customers yet', text: 'Import your shipper contact list from Excel or CSV, or add a customer by hand.',
+      actions: [h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add customer'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import from Excel / CSV')] }) : overview(),
+    !state.customers.length ? null : h('div', { class: 'toolbar' }, search,
       h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add customer'),
       h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import…'),
       h('button', { class: 'btn', type: 'button', disabled: !state.customers.length, onclick: () => download('customer-database.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV'),
       h('button', { class: 'btn', type: 'button', disabled: !state.customers.length, onclick: () => copyText(toDelimited([CUSTOMER_HEADERS, ...state.customers.map(c => CUSTOMER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).') }, 'Copy for Excel'),
       h('span', { class: 'muted' }, `${rows.length} of ${state.customers.length}`)),
-    h('div', { class: 'tablewrap' }, h('table', { class: 'carrier' },
+    !state.customers.length ? null : h('div', { class: 'tablewrap' }, h('table', { class: 'carrier' },
       h('thead', null, h('tr', null, h('th', null, ''), CUSTOMER_HEADERS.map((x, i) => sorter.th(CUSTOMER_KEYS[i], x)))),
       h('tbody', null, rows.length ? rows.map(c => h('tr', null,
         h('td', null, h('div', { class: 'rowact' },

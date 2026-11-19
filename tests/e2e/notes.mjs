@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const tql = fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8');
+const tql = fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8').replace(/11\/16\/2026/g, '11/16/' + (new Date().getFullYear() + 2));   // keep the pickup in the future so the load is not retired as expired
+
 const results = [];
 const check = (name, ok, detail = '') => { results.push(!!ok); console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : '  -> ' + detail)); };
 const { srv, url } = await startServer();
@@ -37,6 +38,8 @@ try {
   check('matrix of 9 postings exists', true);
 
   // ---- notes: inline field on the card
+  const ensureOpts = async () => { const d = page.locator('.lanebox details.moreopts').first(); if (!(await d.evaluate(e => e.open))) await d.locator('summary').click(); };   // the reply note lives under More options
+  await ensureOpts();
   const noteIn = page.locator('.lanebox .dfield.note input');
   check('the load card has a Reply note field', (await noteIn.count()) === 1);
   check('a brand-new load has an EMPTY note (the macro "::" placeholder is not shown)', (await noteIn.inputValue()) === '', await noteIn.inputValue());
@@ -55,7 +58,8 @@ try {
   check('first reply: load details, then the note, then the ETA / rate question', iD > -1 && iN > iD && iA > iN, reply);
 
   // ---- edit details after the matrix is built
-  await page.locator('.lanebox button[data-act="edit-lane-details"]').click();
+  await page.locator('.laneact .menu summary[aria-label="More actions for this load"]').click();
+  await page.locator('.lanebox [data-act="edit-lane-details"]').click();
   const ta = page.locator('.modal textarea[aria-label="Load details"]');
   check('Edit details opens an editable details box (not read-only)', (await ta.count()) === 1 && !(await ta.evaluate(e => e.readOnly)));
   check('the box is filled with the stored details', /Pickup: Chicago/.test(await ta.inputValue()));
@@ -76,7 +80,7 @@ try {
   check('after a reshuffle all 9 postings still carry the edited details and note', after.length === 9 && after.every(([d, n]) => d && /No-touch/.test(n)), JSON.stringify(after));
 
   // ---- clearing the note removes it from the reply
-  await noteIn.fill(''); await noteIn.press('Enter');
+  await ensureOpts(); await noteIn.fill(''); await noteIn.press('Enter');
   await page.waitForFunction(async () => (await import('/js/store/state.js')).state.postings.every(p => p.notes === ''));
   const cleared = await page.evaluate(async () => {
     const m = await import('/js/store/state.js'); const { processIncomingEmail } = await import('/js/core/inbound.js');

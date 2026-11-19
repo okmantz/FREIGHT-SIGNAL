@@ -37,7 +37,9 @@ function setupPanel() {
         : h('p', { class: 'muted' }, 'Works from anywhere. Teammates join with a short code.'),
     h('div', { class: 'toolbar' }, iconBtn('plus', 'Create team', { class: 'primary', disabled: !cloudOk, 'data-act': 'team-create-cloud', onclick: () => run(async () => { await net.createTeam({ mode: 'cloud', name: nameIn.value }); toast('Team created. Send the code to your teammates.', 'ok'); }) })),
     h('div', { class: 'toolbar' }, codeIn, iconBtn('customers', 'Join with code', { disabled: !cloudOk, 'data-act': 'team-join-cloud', onclick: () => run(async () => { await net.joinTeam({ mode: 'cloud', code: codeIn.value }); toast('You are in.', 'ok'); }) })));
-  return h('div', null, field('Team name (for a new team)', nameIn), err, h('div', { class: 'grid2' }, folderCard, cloudCard));
+  // Without cloud accounts there is only one way to share, so show only that one (the other option is explained in a single line).
+  const cards = cloud.enabled() ? h('div', { class: 'grid2' }, folderCard, cloudCard) : h('div', null, folderCard, h('p', { class: 'muted small' }, 'Want to share through accounts with a short invite code instead? That needs the cloud accounts option (docs/CLOUD-SETUP.md).'));
+  return h('div', null, field('Team name (for a new team)', nameIn), err, cards);
 }
 
 function membersPanel() {

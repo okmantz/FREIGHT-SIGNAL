@@ -28,10 +28,10 @@ export function render() {
 
     sec('start', 1, 'Quick start',
       steps(
-        h('span', null, h('b', null, 'Paste the load. '), 'On FREIGHT SIGNAL paste the TQL text and press ', h('b', null, 'Parse pasted loads'), '. Check the origin, destination, date, weight and equipment, then ', h('b', null, 'Add to board'), '.'),
-        h('span', null, h('b', null, 'Build the matrix. '), 'Press ', h('b', null, 'Build 3×3 matrix'), '. Approve the nearby markets and you get one lane box holding all 9 postings.'),
-        h('span', null, h('b', null, 'Set priority and rates. '), 'Pick Low / Medium / High for the box and type one Target rate for the whole load. It is the rate posted on DAT and the price used to judge carrier replies.'),
-        h('span', null, h('b', null, 'Download the DAT file. '), 'Press ', h('b', null, 'Download CSV'), ' on the lane, or ', h('b', null, 'Download all'), ' at the top, and upload it in DAT’s bulk posting tool.'),
+        h('span', null, h('b', null, 'Paste the load. '), 'On the Load Board paste the TQL text. It is read as you paste. Check the origin, destination, date, weight and equipment, then press ', h('b', null, 'Add loads'), ' (or Enter).'),
+        h('span', null, h('b', null, 'Nine postings appear. '), 'The 3×3 matrix builds itself, and you only get asked when the nearby cities look odd. You get one load card holding all 9 postings.'),
+        h('span', null, h('b', null, 'Set one target rate. '), 'Type it at the top of the load. It is the rate posted on DAT and the price used to judge carrier replies. Priority (Low / Medium / High) is under ', h('b', null, 'More options'), '.'),
+        h('span', null, h('b', null, 'Download the DAT file. '), 'Press ', h('b', null, 'Download DAT CSV'), ' on the load, or ', h('b', null, 'Download all'), ' at the top, and upload it in DAT’s bulk posting tool.'),
         h('span', null, h('b', null, 'Work the replies. '), 'Carrier e-mails land in Outlook, which drafts your answers from the same postings (section 5). Nothing is sent until you press Send.'))),
 
     sec('board', 2, 'The board: one box per lane',
@@ -43,7 +43,7 @@ export function render() {
         card('Tick, then act', 'Use the checkboxes to select postings across lanes, then Download selected or Delete selected from the bar that appears.'),
         card('Brokers, in your order', 'Drag a broker tab (or hold Alt and press the arrow keys) to put the brokers in the order you want. The same order shows in System.'),
         card('Cover week', 'The weekly cover count runs Monday to Sunday and resets at 12:00 AM Monday. Reach your weekly floor (50 by default) and the app celebrates.')),
-      h('p', null, h('b', null, 'Deleting. '), 'The red ✕ deletes one posting. ', h('b', null, 'Delete group'), ' deletes the whole box. Both ask first. Setting a load to Covered removes the whole group and counts a cover.')),
+      h('p', null, h('b', null, 'Deleting. '), 'The red ✕ deletes one posting. ', h('b', null, 'Delete group'), ' (in the load’s More menu) deletes the whole box. Both ask first. Setting a load to Covered removes the whole group and counts a cover.')),
 
     sec('dat', 3, 'DAT, rates and CSV downloads',
       h('div', { class: 'man-note' }, h('b', null, 'One rate per load. '), 'The ', h('b', null, 'Target rate'), ' in the load details is the rate for every posting in the matrix. It is posted on DAT (switch “Post target rate on DAT” off to leave the CSV rate blank) and it is the price carrier e-mail replies are judged against.'),
@@ -51,11 +51,11 @@ export function render() {
         ['Post the same rate on all 9', 'Type it in Target rate in the load details and press Enter.'],
         ['Rate only some postings (say 2 of the 9)', 'Type the rate in the DAT rate box on just those rows. The other postings of that load post without a rate. “Use the target on all” under the table undoes it.'],
         ['Download everything', 'Download all in the top bar.'],
-        ['Download one lane', 'Download CSV in the lane box.'],
+        ['Download one lane', 'Download DAT CSV on the load card.'],
         ['Download some postings', 'Tick them, then Download selected.'],
         ['Download one posting', 'The ⋯ menu at the end of that row, then Download this posting.'],
-        ['See the market rate', 'DAT RateView on the load (or the chart button on a row, for that posting’s own cities) opens RateView in a new tab. Type the lane average it shows into the DAT avg strip at the top of the load: it stays with the load, shows the rate per mile, and Use as target copies it into the target rate.'],
-        ['Find more carriers', 'Find more carriers opens DAT Find Trucks and copies the load’s origin. Paste it in, then enter the destination, equipment and pickup date (shown in the confirmation). DAT does not allow a link to fill that search in for you.']]),
+        ['See the market rate', 'Check market rate (RateView) under the load’s target rate opens RateView in a new tab. Type the lane average it shows into the DAT avg box next to it: it stays with the load, shows the rate per mile, and Use as target copies it into the target rate. For one posting’s own cities, use RateView in that row’s ⋯ menu.'],
+        ['Find more carriers', 'Find trucks, then DAT Find Trucks, opens DAT Find Trucks and copies the load’s origin. Paste it in, then enter the destination, equipment and pickup date (shown in the confirmation). DAT does not allow a link to fill that search in for you.']]),
       note('The file is DAT’s bulk template exactly: the same 24 columns in the same order, header row and one line per posting, with no instruction rows. If a required field is missing you are told which postings DAT would reject before the file downloads.'),
       h('h4', null, 'Equipment codes'),
       table(['Code', 'Equipment'], EQUIPMENT.map(e => [h('span', { class: 'kbd' }, e.code), e.label])),
@@ -92,7 +92,7 @@ export function render() {
       note('Postings sync within moments of any change, so an e-mail about a posting you added a minute ago is already matched. Covered or deleted postings stop matching. Keep Freight Signal open in Chrome or Edge while you work; Outlook’s activity appears in the Inquiry Log within a few seconds.')),
 
     sec('tools', 7, 'Weather and RateView',
-      h('p', null, 'Weather at origin (in a ⋯ menu) opens Ventusky. The ', h('b', null, 'Ventusky weather'), ' button on HOME opens the general map. ', h('b', null, 'DAT RateView'), ' is a button on every load (and a chart button on every row) and opens RateView for that lane and equipment in a new tab. The app never fetches or invents rates.')),
+      h('p', null, 'Weather at origin (in a ⋯ menu) opens Ventusky. The ', h('b', null, 'Ventusky weather'), ' link in the Home toolkit opens the general map. ', h('b', null, 'DAT RateView'), ' is one button on every load (Check market rate) and opens RateView for that lane and equipment in a new tab. A posting’s own RateView link is in its row menu. The app never fetches or invents rates.')),
 
     sec('safety', 8, 'Backup and safety',
       h('div', { class: 'man-cards' },

@@ -20,7 +20,7 @@ try {
   await pg.click('.tour-skip'); await pg.waitForSelector('.tour-layer', { state: 'detached' });
   check('embedded ZIP Map decompressed (33,782 rows)', (await pg.textContent('#zipstat')).includes('33,782'), await pg.textContent('#zipstat'));
   await pg.goto('file://' + file + '#/board');
-  await pg.fill('textarea.pastebox', fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8'));
+  await pg.fill('textarea.pastebox', fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8').replace(/11\/16\/2026/g, '11/16/' + (new Date().getFullYear() + 2)));
   await pg.waitForSelector('.pastetable'); await pg.locator('.pastetable input[aria-label="originCity"]').press('Enter');
   await pg.waitForFunction(() => document.querySelectorAll('.lanebox tbody tr').length === 9, null, { timeout: 20000 });
   check('parse + matrix work in the single-file build', true);

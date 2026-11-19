@@ -77,6 +77,8 @@ function log() {
   search.addEventListener('input', () => { q = search.value; });
   search.addEventListener('keydown', (e) => { if (e.key === 'Enter') rerender(); });
   const csv = () => toDelimited([INQUIRY_HEADERS, ...state.inquiries.map(i => INQUIRY_KEYS.map(k => i[k] ?? ''))], ',');
+  if (!state.inquiries.length) return h('div', null, emptyState({ icon: 'inquiry', title: 'No carrier replies logged yet', text: 'When a carrier answers one of your posts, paste their e-mail into "Process carrier e-mail" (or let Outlook do it once connected). It is logged here and a reply is drafted for you.',
+    actions: [h('button', { class: 'btn primary', type: 'button', 'data-act': 'go-process', onclick: () => { tab = 'email'; rerender(); } }, 'Process a carrier e-mail'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import a log'), h('button', { class: 'btn', type: 'button', onclick: () => editInquiry(Object.fromEntries(INQUIRY_KEYS.map(k => [k, k === 'dateCounted' ? new Date().toISOString() : k === 'approved' ? 'No' : '']))) }, 'Add one by hand')] }));
   return h('div', null,
     h('div', { class: 'toolbar' }, search, selectEl(statuses, statusF, (v) => { statusF = v; rerender(); }, { 'data-rerender': '' }),
       h('button', { class: 'btn primary', type: 'button', onclick: () => editInquiry(Object.fromEntries(INQUIRY_KEYS.map(k => [k, k === 'dateCounted' ? new Date().toISOString() : k === 'approved' ? 'No' : '']))) }, 'Add entry'),
@@ -116,6 +118,6 @@ export function render() {
   const tabs = [['log', 'Log'], ['dash', 'Performance dashboard'], ['email', 'Process carrier e-mail']];
   return h('div', null,
     pageHead({ icon: 'inquiry', title: 'Inquiry Log', sub: 'Carrier inquiries, replies and your performance dashboard.' }),
-    h('div', { class: 'toolbar' }, tabs.map(([id, l]) => h('button', { class: 'btn' + (tab === id ? ' primary' : ''), type: 'button', onclick: () => { tab = id; rerender(); } }, l))),
+    h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Inquiry Log sections' }, tabs.map(([id, l]) => h('button', { class: 'tab' + (tab === id ? ' on' : ''), type: 'button', role: 'tab', 'aria-selected': String(tab === id), onclick: () => { tab = id; rerender(); } }, l))),
     tab === 'log' ? log() : tab === 'dash' ? dashboard() : processor());
 }

@@ -268,7 +268,7 @@ function brokerSection(s) {
   const days = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
   const wd = new Set((s.workDays || [1, 2, 3, 4, 5]).map(Number));
   return h('div', null,
-    h('p', { class: 'muted' }, 'Add the brokers you post for. Each gets their own tab on the Freight Signal page, their own scoreboard and their own DAT CSV; "All" shows everything.'),
+    h('p', { class: 'muted' }, 'Add the brokers you post for. Each gets their own tab on the Load Board page, their own scoreboard and their own DAT CSV; "All" shows everything.'),
     brokers.length ? brokerList(brokers) : h('p', { class: 'muted' }, 'No brokers yet.'),
     h('div', { class: 'toolbar' }, name, h('button', { class: 'btn primary', type: 'button', onclick: add }, 'Add broker')),
     h('h4', null, 'Cover pace tracker (top right)'),
@@ -306,7 +306,7 @@ export function render() {
   return h('div', null,
     pageHead({ icon: 'system', title: 'System', sub: 'Settings, backup and data. ' + cloudWhere() + ' Click a section to open it.', actions: [h('a', { class: 'btn', href: '#/account' }, icon('palette', 15), 'Themes & appearance')] }),
     state.persistError ? h('div', { class: 'banner err' }, 'Storage problem: ' + state.persistError) : null,
-    section('outlook', 'Connect to Outlook', olOn ? 'Connected' : bridge.connected ? 'Folder connected, waiting for Outlook' : 'Not connected - step-by-step guide inside', outlookGuide(), { open: !olOn, tone: olOn ? 'good' : 'warn' }),
+    section('outlook', 'Connect to Outlook', olOn ? 'Connected' : bridge.connected ? 'Folder connected, waiting for Outlook' : 'Not connected - step-by-step guide inside', outlookGuide(), { open: false, tone: olOn ? 'good' : 'warn' }),
     section('ladder', 'Counter ladder and reply wording', `Book within ${s.ladderBookPct}%, split within ${s.ladderSplitPct}% of target`, ladderSection(s)),
     section('truck', 'Truck-availability e-mail', 'Wording for the one-click "Truck?" button', truckSection(s)),
     section('strategy', 'Posting strategy by lane length', `Local < ${s.laneLocalMax} mi · Regional to ${s.laneRegionalMax} mi · Long beyond`, strategySection(s)),

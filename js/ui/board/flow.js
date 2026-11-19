@@ -57,8 +57,8 @@ function drawPreview(host, summaryEl, addBtn) {
 let addAll = async () => {};
 
 /** The paste panel: textarea on top, editable parsed rows underneath, one button / Enter to add them all. */
-export function pastePanel() {
-  const ta = h('textarea', { class: 'pastebox', placeholder: 'Paste TQL loads here. They are read as you paste - no Parse button.', value: paste.text, 'data-rerender': '', 'data-fk': 'paste', rows: 4 });
+export function pastePanel({ compact = false } = {}) {
+  const ta = h('textarea', { class: 'pastebox', placeholder: compact ? 'Paste another TQL load here to add it to the board' : 'Paste TQL loads here. They are read as you paste - no Parse button.', value: paste.text, 'data-rerender': '', 'data-fk': 'paste', rows: compact ? 2 : 5 });
   const summary = h('p', { class: 'muted pastesum', 'aria-live': 'polite' });
   const previewHost = h('div', { class: 'pastepreview' });
   const addBtn = h('button', { class: 'btn primary', type: 'button', disabled: true }, 'Add loads');
@@ -97,8 +97,8 @@ export function pastePanel() {
   return h('div', { class: 'panel pastepanel' },
     ta, summary, previewHost,
     h('div', { class: 'toolbar' }, addBtn, brokerSel,
-      h('button', { class: 'btn', type: 'button', onclick: async () => { const p = await actions.addParsedLoad({ originCity: '', originState: '', destCity: '', destState: '', pickupEarliest: '', pickupLatest: '', weight: '', equip: 'V', details: '' }, { broker: paste.broker }); toast('Blank row added.', 'ok'); return p; } }, 'Add blank row'),
-      h('span', { class: 'muted small' }, state.settings.matrixMode === 'ask' ? '3 × 3 matrix: you will be asked before it is built (System > Matrix).' : '3 × 3 matrix is built automatically; you are only asked when the cities look odd.')));
+      h('button', { class: 'btn ghost', type: 'button', onclick: async () => { const p = await actions.addParsedLoad({ originCity: '', originState: '', destCity: '', destState: '', pickupEarliest: '', pickupLatest: '', weight: '', equip: 'V', details: '' }, { broker: paste.broker }); toast('Blank row added.', 'ok'); return p; } }, 'Add blank row'),
+      h('span', { class: 'muted small', title: 'Change this in System > Matrix' }, state.settings.matrixMode === 'ask' ? 'You will be asked before the 9 postings are built.' : 'Each load becomes 9 nearby postings automatically.')));
 }
 
 // ------------------------------------------------------------------ matrix

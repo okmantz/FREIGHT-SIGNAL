@@ -35,7 +35,7 @@ import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode,
 // group = heading in the sidebar. `icon` = ui/icons.js name.
 export const TABS = [
   { id: 'home', label: 'Home', icon: 'home', group: 'Workspace', page: home },
-  { id: 'board', label: 'Freight Signal', icon: 'board', group: 'Workspace', page: board },
+  { id: 'board', label: 'Load Board', icon: 'board', group: 'Workspace', page: board },
   { id: 'covers', label: 'Cover Log', icon: 'covers', group: 'Workspace', page: covers },
   { id: 'spare', label: 'Spare Load Details', icon: 'spare', group: 'Workspace', page: spare },
   { id: 'carriers', label: 'Carrier Database', icon: 'carriers', group: 'Network', page: carriers },
@@ -62,13 +62,25 @@ const tabFromHash = () => { const id = location.hash.replace(/^#\/?/, '').split(
 
 function renderNav() {
   clear(nav);
-  let grp = '';
-  for (const t of TABS) {
-    if (t.group !== grp) { grp = t.group; nav.appendChild(h('div', { class: 'grp' }, grp)); }
-    const nb = t.badge && net.joined() ? net.badges()[t.badge] : 0;
-    const badge = t.id === 'drafts' && state.drafts.length ? h('span', { class: 'badge' }, state.drafts.length) : nb ? h('span', { class: 'badge', 'data-badge': t.badge }, nb) : null;
-    nav.appendChild(h('a', { href: '#/' + t.id, dataset: { tab: t.id }, title: t.label, class: current && current.id === t.id ? 'active' : '', 'aria-current': current && current.id === t.id ? 'page' : null },
-      icon(t.icon, 19), h('span', { class: 'lbl' }, t.label), badge));
+  const ui = state.settings.ui || {};
+  const groups = [];
+  for (const t of TABS) { let g = groups.find(x => x.name === t.group); if (!g) groups.push(g = { name: t.group, tabs: [] }); g.tabs.push(t); }
+  for (const g of groups) {
+    const hasActive = !!current && g.tabs.some(t => t.id === current.id);
+    // The Team section starts folded until a team is joined; every section can be folded or opened with a click.
+    const pref = ui.navOpen && g.name in ui.navOpen ? !!ui.navOpen[g.name] : (g.name === 'Team' ? net.joined() : true);
+    const open = pref || hasActive;
+    const body = h('div', { class: 'grpbody', hidden: !open });
+    for (const t of g.tabs) {
+      const nb = t.badge && net.joined() ? net.badges()[t.badge] : 0;
+      const badge = t.id === 'drafts' && state.drafts.length ? h('span', { class: 'badge' }, state.drafts.length) : nb ? h('span', { class: 'badge', 'data-badge': t.badge }, nb) : null;
+      body.appendChild(h('a', { href: '#/' + t.id, dataset: { tab: t.id }, title: t.label, class: current && current.id === t.id ? 'active' : '', 'aria-current': current && current.id === t.id ? 'page' : null },
+        icon(t.icon, 19), h('span', { class: 'lbl' }, t.label), badge));
+    }
+    nav.appendChild(h('button', { class: 'grp', type: 'button', 'aria-expanded': String(open), title: open ? 'Fold this section' : 'Open this section',
+      onclick: () => { if (hasActive && open) return; actions.savePrefs({ ui: { ...ui, navOpen: { ...(ui.navOpen || {}), [g.name]: !open } } }); } },
+      h('span', null, g.name), icon(open ? 'chevdown' : 'chevright', 12)));
+    nav.appendChild(body);
   }
   nav.appendChild(h('div', { class: 'side-foot' }, icon('shield', 15), h('span', null, cloud.enabled() ? 'Your workspace is saved to your own private account. No e-mail is ever sent automatically.' : 'All data stays in this browser. Nothing is sent automatically.')));
   renderChrome();

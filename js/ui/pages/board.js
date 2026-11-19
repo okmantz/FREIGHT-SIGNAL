@@ -33,6 +33,7 @@ let filter = '';
 let quick = '';               // overview-tile filter ('' = none)
 let brokerTab = '__all';      // '__all' | broker name | '' (unassigned)
 const SORTS = [['', 'Board order'], ['pickup', 'Pickup date: soonest first'], ['pickupDesc', 'Pickup date: latest first']];
+const optsOpen = new Set();   // load keys whose "More options" panel is open (re-renders must not close it)
 const selected = new Set();   // ticked posting ids (for Download selected / Delete selected)
 const rerender = () => import('../../main.js').then(m => m.render());
 
@@ -141,8 +142,9 @@ async function findCarriers(p) {
 const agoText = (iso) => { const t = Date.parse(iso); if (!t) return ''; const d = Math.floor((Date.now() - t) / 86400000); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`; };
 
 /**
- * The quiet "DAT avg" strip at the top of each matrix. DAT has no public rate feed, so the average is typed once from RateView (the button
- * beside it opens that lane) and kept with the load. With it set, the strip shows $/mile and offers it as the target rate.
+ * The "Market rate" strip under the load basics. DAT has no public rate feed, so the average is typed once from RateView and kept with the
+ * load. This is the ONE RateView button for the whole load (a posting's own RateView link lives in that row's \u22ef menu).
+ * With an average set, the strip shows $/mile and offers it as the target rate.
  */
 function suggestStrip(b, r, rate) {
   const head = b.head; const ids = b.members.map(m => m.id);
@@ -162,10 +164,10 @@ function suggestStrip(b, r, rate) {
   const useBtn = avg && Math.round(avg) !== Math.round(target)
     ? h('button', { class: 'btn small', type: 'button', 'data-act': 'use-dat-avg', title: 'Set the load\'s target rate to the DAT average', onclick: async () => { await actions.setTargetRate(ids, String(Math.round(avg))); toast(`Target rate set to ${money(avg)} for ${b.title}.`, 'ok'); } }, 'Use as target') : null;
   return h('div', { class: 'suggest' + (avg ? ' set' : '') },
-    h('span', { class: 'sg-k' }, icon('trendup', 14), 'DAT avg'), input,
-    h('span', { class: 'sg-note' }, bits.join('  \u00b7  ') || 'Open RateView and type the lane average here'),
-    h('span', { class: 'sg-act' }, useBtn,
-      h('button', { class: 'btn small ghost', type: 'button', 'data-act': 'rateview-strip', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 14), 'RateView')));
+    h('button', { class: 'btn small', type: 'button', 'data-act': 'rateview', title: 'Open DAT RateView for this lane in a new tab, then type the average it shows into the box beside this button', onclick: () => rateLink(head) }, icon('rateview', 14), 'Check market rate (RateView)'),
+    h('span', { class: 'sg-k' }, 'DAT avg'), input,
+    h('span', { class: 'sg-note' }, bits.join('  \u00b7  ') || 'Type the average RateView shows to see $/mile and compare it with your target'),
+    h('span', { class: 'sg-act' }, useBtn));
 }
 
 /** `all` = every posting on the board, so a single posting downloaded alone still knows whether its siblings carry their own DAT rates. */
@@ -284,9 +286,9 @@ function row(p, rc) {
     h('td', { class: 'ratecell' }, datRateInput(p, rc)),
     h('td', { class: 'num', title: 'Carrier replies received / outreach drafts sent' }, `${p.inquiryCount || 0} / ${p.outreachCount || 0}`),
     h('td', { class: 'rowmenu' }, h('div', { class: 'rowtools' },
-      h('button', { class: 'btn small iconbtn', type: 'button', 'data-act': 'rateview-row', title: `Open DAT RateView for ${p.originCity || '?'}, ${p.originState || '?'} to ${p.destCity || '?'}, ${p.destState || '?'}`, 'aria-label': 'Open DAT RateView for this posting', onclick: () => rateLink(p) }, icon('rateview', 16)),
       menu('More actions for this posting', [
         { label: 'Edit every field', run: () => detailModal(p) },
+        { label: `RateView for ${p.originCity || '?'} to ${p.destCity || '?'}`, act: 'rateview-row', run: () => rateLink(p) },
         { label: 'Weather at origin', run: () => weather(p) },
         { label: 'Download this posting (CSV)', act: 'csv-one', run: () => downloadDat('one', [p], 'Posting') },
         { label: 'Delete this posting', act: 'del-one', danger: true, run: () => deleteMany([p.id], 'this posting') }]))));
@@ -348,9 +350,8 @@ function groupBox(r, collapsed, toggle) {
   replyNote.addEventListener('change', async () => { if (cleanNote(replyNote.value) === groupNote(b.members)) return; await actions.setLoadText(head.id, { notes: replyNote.value }); toast(cleanNote(replyNote.value) ? 'Reply note saved.' : 'Reply note cleared.', 'ok'); });
   replyNote.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); replyNote.blur(); } });
   const details = h('div', { class: 'loaddetails' },
-    fld('Pickup', pickup), fld('Weight', weight), fld('Equipment', equipSelect(b)),
     h('div', { class: 'dfield rate' }, h('span', null, 'Target rate'), rateIn, rateHint),
-    h('label', { class: 'dfield note' }, h('span', null, 'Reply note'), replyNote));
+    fld('Pickup', pickup), fld('Weight', weight), fld('Equipment', equipSelect(b)));
 
   // ---- options
   const priSel = h('select', { class: 'cell', title: 'Priority sets the outreach target for the whole load (Low 5, Medium 10, High 15)', 'data-fk': `${b.key}:priority` },
@@ -367,33 +368,39 @@ function groupBox(r, collapsed, toggle) {
   scan.addEventListener('change', () => actions.setLaneScan(head.id, scan.checked));
   const opts = h('div', { class: 'laneopts' },
     fld('Priority', priSel), fld('Contact on DAT', contact), brokerSel ? fld('Broker', brokerSel) : null,
+    h('label', { class: 'dfield note' }, h('span', null, 'Reply note'), replyNote),
     h('label', { class: 'tgl', title: 'Include this load in the next lane scan (one set of drafts for the whole load)' }, scan, h('span', null, 'Include in lane scan')));
+  const pri = head.priority || 'Low';
+  const optSummary = [`${pri} priority`, String(head.contact || '').toLowerCase() === 'phone' ? 'Phone' : 'Email', head.broker || '', cleanNote(groupNote(b.members)) ? 'reply note' : '', head.outreach === 'Yes' ? 'in lane scan' : ''].filter(Boolean).join(' \u00b7 ');
+  const moreOpts = h('details', { class: 'moreopts', 'data-act': 'more-options' },
+    h('summary', null, icon('chevright', 14), h('b', null, 'More options'), h('span', { class: 'muted' }, optSummary)), opts);
+  moreOpts.open = optsOpen.has(b.key);
+  moreOpts.addEventListener('toggle', () => { if (moreOpts.open) optsOpen.add(b.key); else optsOpen.delete(b.key); });
 
-  // ---- actions: one outreach button per load
+  // ---- actions: the few things you do all day sit in front; everything else is one click away in a menu
   const acts = h('div', { class: 'laneact' },
-    h('button', { class: 'btn primary', type: 'button', 'data-act': 'outreach', title: 'Draft carrier outreach for this load, best-matched carriers first (nothing is sent)', onclick: async () => { const x = await actions.runOutreach(head.id); if (x) summaryOutreach(x); } }, icon('send', 15), 'Carrier outreach'),
-    coverTools(b, head),
-    h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy load details'),
-    h('button', { class: 'btn', type: 'button', 'data-act': 'edit-lane-details', title: 'View and edit the load details and the reply note', onclick: () => editDetails(b) }, icon('edit', 15), 'Edit details'),
-    h('button', { class: 'btn', type: 'button', 'data-act': 'find-carriers', title: 'Open DAT Find Trucks for this load (the lane is copied so you can paste it in)', onclick: () => findCarriers(head) }, icon('search', 15), 'Find more carriers'),
-    h('button', { class: 'btn', type: 'button', 'data-act': 'rateview', title: 'Open DAT RateView for this lane in a new tab', onclick: () => rateLink(head) }, icon('rateview', 15), 'DAT RateView'),
-    h('button', { class: 'btn', type: 'button', 'data-act': 'csv-group', title: 'Download every posting of this load as a DAT CSV', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }, icon('download', 15), 'Download CSV'),
+    h('button', { class: 'btn primary', type: 'button', 'data-act': 'csv-group', title: 'Download every posting of this load as a DAT CSV, then upload it in DAT\'s bulk posting tool', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }, icon('download', 15), 'Download DAT CSV'),
+    h('button', { class: 'btn', type: 'button', 'data-act': 'outreach', title: 'Draft carrier outreach for this load, best-matched carriers first (nothing is sent)', onclick: async () => { const x = await actions.runOutreach(head.id); if (x) summaryOutreach(x); } }, icon('send', 15), 'Carrier outreach'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'mark-covered', title: 'Log which posting and carrier covered it, then remove the load', onclick: () => coverModal(b) }, icon('check', 15), 'Mark covered'),
-    !single ? h('button', { class: 'btn', type: 'button', 'data-act': 'reshuffle', title: 'Replace the 8 nearby postings with new cities that have a better chance of getting covered (your target rate and DAT rates carry over)', onclick: async () => {
-      if (!(await confirmDialog('Reshuffle postings', 'The 8 nearby postings are replaced with new cities that have a higher chance of getting covered (ranked by cover history, inquiries and carrier density; cities already tried are skipped). The Original posting, target rate and any DAT rates stay.', 'Reshuffle'))) return;
-      const res = await actions.reshuffleMatrix(head.id);
-      if (!res.ok) return toast(res.error, 'err', 7000);
-      toast('Postings reshuffled. Download the DAT CSV again and re-upload it.', 'ok', 7000); } }, icon('refresh', 15), 'Reshuffle postings') : null,
-    single ? h('button', { class: 'btn', type: 'button', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3×3 matrix') : null,
+    h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy details'),
+    single ? h('button', { class: 'btn', type: 'button', 'data-act': 'build-matrix', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3\u00d73 matrix') : null,
+    coverTools(b, head),
     menu('More actions for this load', [
-      { label: 'View / edit load details', act: 'view-lane-details', run: () => editDetails(b) },
-      { label: 'Save to Spare Load Details', run: async () => { await actions.saveSpareFromGroup(head.id); toast('Saved to Spare Load Details.', 'ok'); } },
-      { label: 'Weather at origin', run: () => weather(head) },
+      { label: 'View / edit load details and reply note', act: 'edit-lane-details', run: () => editDetails(b) },
+      !single ? { label: 'Reshuffle postings (new nearby cities)', act: 'reshuffle', run: async () => {
+        if (!(await confirmDialog('Reshuffle postings', 'The 8 nearby postings are replaced with new cities that have a higher chance of getting covered (ranked by cover history, inquiries and carrier density; cities already tried are skipped). The Original posting, target rate and any DAT rates stay.', 'Reshuffle'))) return;
+        const res = await actions.reshuffleMatrix(head.id);
+        if (!res.ok) return toast(res.error, 'err', 7000);
+        toast('Postings reshuffled. Download the DAT CSV again and re-upload it.', 'ok', 7000); } } : null,
+      { label: 'Save to Spare Load Details', act: 'save-spare', run: async () => { await actions.saveSpareFromGroup(head.id); toast('Saved to Spare Load Details.', 'ok'); } },
       { label: single ? 'Delete this load' : 'Delete all postings', act: 'del-group', danger: true, run: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }]));
 
   return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), ...attrs },
-    header, suggestStrip(b, r, rate), teamStrip(b, head), loadDetailsBar(details, opts), acts,
+    header,
+    h('div', { class: 'lanebasics' }, details, suggestStrip(b, r, rate)),
+    teamStrip(b, head),
     guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
+    acts, moreOpts,
     h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable' },
       h('thead', null, h('tr', null, [['', ''], ['Post', 'A-A is the original. Other cells are nearby origin/destination pairings.'], ['Origin', ''], ['', ''], ['Destination', ''], ['DAT rate', 'The rate you post on DAT for this posting. Fill it on only some postings and the rest post without a rate.'], ['Replies / sent', 'Carrier replies received / outreach drafts created'], ['', '']].map(([x, t]) => h('th', { title: t || null }, x)))),
       h('tbody', null, b.members.map(m => row(m, rc))))),
@@ -480,6 +487,15 @@ function brokerTabs(boxesAll) {
   return wrap;
 }
 
+/** First-run guide shown above the paste box while the board is empty: the whole job in three steps. */
+function startGuide() {
+  const step = (n, t, d) => h('li', { class: 'gs-step' }, h('span', { class: 'gs-n' }, n), h('div', null, h('b', null, t), h('p', null, d)));
+  return h('ol', { class: 'getstarted', 'data-test': 'start-guide' },
+    step(1, 'Paste your TQL load', 'Copy the load from TQL and paste it in the box below. It is read as you paste; fix anything highlighted.'),
+    step(2, 'Set one target rate', 'The load becomes 9 nearby postings on its own. Type one rate for all of them and press Add.'),
+    step(3, 'Download the DAT CSV', 'Upload it in DAT\u2019s bulk posting tool, then use Carrier outreach to draft e-mails to your best carriers.'));
+}
+
 export function render() {
   const now = new Date();
   const ctx = boardCtx(now);
@@ -507,32 +523,38 @@ export function render() {
   sortSel.addEventListener('change', () => { saveUi({ sortBy: sortSel.value }); rerender(); });
   const selIds = () => [...selected];
   const openBox = async (box) => { if (collapsed.has(box.key)) { collapsed.delete(box.key); saveUi({ collapsed: [...collapsed] }); } await rerender(); setTimeout(() => { const el = document.querySelector(`[data-key="${CSS.escape(box.key)}"]`); if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); el.classList.add('pulse'); setTimeout(() => el.classList.remove('pulse'), 1600); } }, 120); };
-  const wlOpen = ui().worklist !== false;
-  const onDat = h('input', { type: 'checkbox', role: 'switch', checked: state.settings.postTargetOnDat !== false, 'data-fk': 'postTargetOnDat' });
-  onDat.addEventListener('change', () => { actions.savePrefs({ postTargetOnDat: onDat.checked }); toast(onDat.checked ? 'The target rate will be the rate in your DAT CSV.' : 'The DAT CSV will leave the rate blank (unless a posting has its own DAT rate).', 'info'); });
+  const wlOpen = ui().worklist !== false && rowsAll.length > 1;     // one load needs no ranking: the card is the worklist
+  const onDatNow = state.settings.postTargetOnDat !== false;
+  const toggleOnDat = () => { actions.savePrefs({ postTargetOnDat: !onDatNow }); toast(!onDatNow ? 'The target rate will be the rate in your DAT CSV.' : 'The DAT CSV will leave the rate blank (unless a posting has its own DAT rate).', 'info'); };
   const aging = rowsTab.filter(r => r.flags.some(x => x.kind === 'aging')).length;
-  const scanBtn = h('button', { class: 'btn', type: 'button', 'data-act': 'lane-scan-all', title: 'Draft outreach for every load that has "Include in lane scan" switched on', onclick: async () => { const r = await actions.runOutlookScan(); toast(`Lane scan: ${r.drafts.length} draft(s) for eligible loads.`, r.drafts.length ? 'ok' : 'info'); if (r.drafts.length) summaryOutreach({ detail: 'Ranked lane scan over all Active loads with "Include in lane scan" on.', drafts: r.drafts, created: r.drafts.length }); } }, 'Run lane scan');
-  const csvAll = h('button', { class: 'btn primary', type: 'button', 'data-act': 'csv-all', title: `${tabName === 'All' ? 'Every posting on the board' : tabName + "'s postings"}, in DAT’s bulk-upload template format`, onclick: () => downloadDat(brokerTab === '__all' ? 'all' : 'group', tabPostings, tabName === 'All' ? 'Whole board' : tabName + ' board') }, icon('download', 15), brokerTab === '__all' ? 'Download all' : `Download ${tabName}`);
+  const runScan = async () => { const r = await actions.runOutlookScan(); toast(`Lane scan: ${r.drafts.length} draft(s) for eligible loads.`, r.drafts.length ? 'ok' : 'info'); if (r.drafts.length) summaryOutreach({ detail: 'Ranked lane scan over all Active loads with "Include in lane scan" on.', drafts: r.drafts, created: r.drafts.length }); };
+  const csvAll = h('button', { class: 'btn primary', type: 'button', 'data-act': 'csv-all', title: `${tabName === 'All' ? 'Every posting on the board' : tabName + "'s postings"}, in DAT\u2019s bulk-upload template format`, onclick: () => downloadDat(brokerTab === '__all' ? 'all' : 'group', tabPostings, tabName === 'All' ? 'Whole board' : tabName + ' board') }, icon('download', 15), brokerTab === '__all' ? 'Download all' : `Download ${tabName}`);
+  const agingBtn = aging ? h('button', { class: 'btn warnbtn', type: 'button', 'data-act': 'aging', onclick: () => agingModal(rowsTab, ctx), title: 'Loads with no inquiries past their lane limit: one-click reprice and a fresh round of outreach' }, icon('alert', 15), `${aging} aging`) : null;
+  const boardMenu = menu('More board actions', [
+    { heading: 'Work the board' },
+    { label: 'Aging loads: reprice and second wave' + (aging ? ` (${aging})` : ''), act: 'aging-menu', run: () => agingModal(rowsTab, ctx) },
+    { label: 'Run lane scan (draft outreach for loads switched on)', act: 'lane-scan-all', run: runScan },
+    { heading: 'Copy and settings' },
+    { label: 'Copy rows for DAT (tab-separated)', act: 'copy-dat', run: () => copyText(datTsv(tabPostings, false, datOpts()), 'DAT rows copied (tab-separated).') },
+    { label: (onDatNow ? '\u2713 ' : '') + 'Post the target rate in the DAT CSV', act: 'post-target-toggle', run: toggleOnDat },
+    { heading: 'View' },
+    { label: 'Collapse all loads', act: 'collapse-all', run: () => setCollapsed(new Set(rowsAll.map(r => r.box.key))) },
+    { label: 'Expand all loads', act: 'expand-all', run: () => setCollapsed(new Set()) }],
+  { text: 'More', cls: 'boardmore', title: 'Copy for DAT, aging loads, lane scan, collapse and expand, and the DAT rate switch', act: 'board-more' });
   return h('div', null,
-    pageHead({ icon: 'board', title: 'Load board', sub: 'Paste TQL loads, set one target rate per load, then download the DAT CSV. Drafts are never sent automatically.' }),
-    overviewStrip(rowsAll, ctx, quick, (k) => { quick = k; rerender(); }),
-    worklistPanel(rowsAll, wlOpen, openBox, wlOpen, (v) => { saveUi({ worklist: v }); rerender(); }),
-    pastePanel(),
-    brokerTabs(rowsAll),
+    pageHead({ icon: 'board', title: 'Load board', sub: rowsAll.length ? 'Add loads, set one target rate per load, then download the DAT CSV. Nothing is ever sent automatically.' : 'Three steps from a TQL load to a DAT posting. Nothing is ever sent automatically.' }),
+    rowsAll.length ? null : startGuide(),
+    pastePanel({ compact: rowsAll.length > 0 }),
+    rowsAll.length ? overviewStrip(rowsAll, ctx, quick, (k) => { quick = k; rerender(); }) : null,
+    rowsAll.length > 1 ? worklistPanel(rowsAll, wlOpen, openBox, wlOpen, (v) => { saveUi({ worklist: v }); rerender(); }) : null,
+    rowsAll.length ? brokerTabs(rowsAll) : null,
     scoreboard(brokerTab),
-    h('div', { class: 'toolbar sticky boardbar' }, search, quickSel, sortSel, csvAll,
-      h('button', { class: 'btn', type: 'button', onclick: () => copyText(datTsv(tabPostings, false, datOpts()), 'DAT rows copied (tab-separated).') }, 'Copy for DAT'),
-      h('button', { class: 'btn', type: 'button', 'data-act': 'aging', onclick: () => agingModal(rowsTab, ctx), title: 'Loads with no inquiries past their lane limit: one-click reprice and a fresh round of outreach' }, 'Aging loads' + (aging ? ` (${aging})` : '')),
-      scanBtn,
-      menu('Board options', [
-        { label: 'Collapse all loads', act: 'collapse-all', run: () => setCollapsed(new Set(rowsAll.map(r => r.box.key))) },
-        { label: 'Expand all loads', act: 'expand-all', run: () => setCollapsed(new Set()) }]),
-      h('label', { class: 'tgl', title: 'On: the target rate is the rate in the DAT CSV. Off: the CSV rate is blank.' }, onDat, h('span', null, 'Post target rate on DAT')),
-      h('span', { class: 'muted count' }, `${rows.length} load${rows.length === 1 ? '' : 's'} · ${shown} postings`)),
+    rowsAll.length ? h('div', { class: 'toolbar sticky boardbar' }, search, quickSel, sortSel, agingBtn, csvAll, boardMenu,
+      h('span', { class: 'muted count' }, `${rows.length} load${rows.length === 1 ? '' : 's'} \u00b7 ${shown} postings`)) : null,
     nSel ? h('div', { class: 'toolbar selbar' }, h('b', null, `${nSel} selected`),
       h('button', { class: 'btn small', type: 'button', 'data-act': 'csv-sel', onclick: () => downloadDat('selected', state.postings.filter(p => selected.has(p.id)), 'Selection') }, 'Download selected'),
       h('button', { class: 'btn small danger', type: 'button', 'data-act': 'del-sel', onclick: () => deleteMany(selIds(), `${nSel} selected posting${nSel === 1 ? '' : 's'}`) }, 'Delete selected'),
       h('button', { class: 'btn small', type: 'button', onclick: () => { selected.clear(); rerender(); } }, 'Clear')) : null,
     rowsView.length ? rowsView.map(r => groupBox(r, collapsed.has(r.box.key), () => { if (collapsed.has(r.box.key)) collapsed.delete(r.box.key); else collapsed.add(r.box.key); setCollapsed(collapsed); })) :
-      emptyState({ icon: 'board', title: state.postings.length ? 'No loads match' : 'No loads yet', text: state.postings.length ? 'Clear the search or pick another broker tab.' : 'Paste TQL load text above. The loads appear here right away.' }));
+      (state.postings.length ? emptyState({ icon: 'board', title: 'No loads match', text: 'Clear the search or pick another broker tab.' }) : null));
 }
