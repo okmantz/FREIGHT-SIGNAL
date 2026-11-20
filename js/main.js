@@ -67,19 +67,30 @@ function renderNav() {
   for (const t of TABS) { let g = groups.find(x => x.name === t.group); if (!g) groups.push(g = { name: t.group, tabs: [] }); g.tabs.push(t); }
   for (const g of groups) {
     const hasActive = !!current && g.tabs.some(t => t.id === current.id);
-    // The Team section starts folded until a team is joined; every section can be folded or opened with a click.
-    const pref = ui.navOpen && g.name in ui.navOpen ? !!ui.navOpen[g.name] : (g.name === 'Team' ? net.joined() : true);
-    const open = pref || hasActive;
-    const body = h('div', { class: 'grpbody', hidden: !open });
+    // Sections are folded by default; only the one holding the current page starts open. A click opens or folds a section right away
+    // (it no longer waits for a re-render) and the choice is remembered.
+    const saved = ui.navOpen && g.name in ui.navOpen ? !!ui.navOpen[g.name] : false;
+    const open = saved || hasActive;
+    const body = h('div', { class: 'grpbody' });
+    body.hidden = !open;
     for (const t of g.tabs) {
       const nb = t.badge && net.joined() ? net.badges()[t.badge] : 0;
       const badge = t.id === 'drafts' && state.drafts.length ? h('span', { class: 'badge' }, state.drafts.length) : nb ? h('span', { class: 'badge', 'data-badge': t.badge }, nb) : null;
       body.appendChild(h('a', { href: '#/' + t.id, dataset: { tab: t.id }, title: t.label, class: current && current.id === t.id ? 'active' : '', 'aria-current': current && current.id === t.id ? 'page' : null },
         icon(t.icon, 19), h('span', { class: 'lbl' }, t.label), badge));
     }
-    nav.appendChild(h('button', { class: 'grp', type: 'button', 'aria-expanded': String(open), title: open ? 'Fold this section' : 'Open this section',
-      onclick: () => { if (hasActive && open) return; actions.savePrefs({ ui: { ...ui, navOpen: { ...(ui.navOpen || {}), [g.name]: !open } } }); } },
-      h('span', null, g.name), icon(open ? 'chevdown' : 'chevright', 12)));
+    const chev = h('span', { class: 'chev' }, icon(open ? 'chevdown' : 'chevright', 12));
+    const btn = h('button', { class: 'grp', type: 'button', 'aria-expanded': String(open), title: open ? 'Fold this section' : 'Open this section' }, h('span', null, g.name), chev);
+    btn.addEventListener('click', () => {
+      const now = body.hidden;                       // hidden => this click opens it
+      body.hidden = !now;
+      btn.setAttribute('aria-expanded', String(now));
+      btn.title = now ? 'Fold this section' : 'Open this section';
+      clear(chev); chev.appendChild(icon(now ? 'chevdown' : 'chevright', 12));
+      const cur = state.settings.ui || {};
+      actions.savePrefs({ ui: { ...cur, navOpen: { ...(cur.navOpen || {}), [g.name]: now } } }).catch(() => {});
+    });
+    nav.appendChild(btn);
     nav.appendChild(body);
   }
   nav.appendChild(h('div', { class: 'side-foot' }, icon('shield', 15), h('span', null, cloud.enabled() ? 'Your workspace is saved to your own private account. No e-mail is ever sent automatically.' : 'All data stays in this browser. Nothing is sent automatically.')));
