@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-YpK+3OW7GmLUU/lQK01KHzQe9AGBrw+QBchfJIQefEM='; style-src 'sha256-rK7WYwYxy8hehQl1vtlUVlWnxRwZyEmdBFkvlW+tNg4='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-f6BC0uuTD98g+ImFN42FUPk4Vh3DUDHwSCrdM4GC3CU='; style-src 'sha256-uEZrnOJMq/2xbdRwQUQf2olhZsZQWUsNCG7htzFtXYA='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -1201,6 +1201,8 @@ nav.side button.grp { display: flex; align-items: center; justify-content: space
 nav.side button.grp:hover { color: var(--text); }
 nav.side button.grp svg { opacity: .7; }
 nav.side .grpbody { display: flex; flex-direction: column; gap: 2px; }
+nav.side .grpbody[hidden] { display: none; }
+nav.side button.grp .chev { display: inline-flex; }
 [data-sidebar="compact"] nav.side button.grp svg { display: none; }
 
 /* ---- header: calmer ---- */
@@ -16081,9 +16083,10 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     }
     for (const g of groups) {
       const hasActive = !!current3 && g.tabs.some((t2) => t2.id === current3.id);
-      const pref = ui2.navOpen && g.name in ui2.navOpen ? !!ui2.navOpen[g.name] : g.name === "Team" ? joined() : true;
-      const open2 = pref || hasActive;
-      const body = h("div", { class: "grpbody", hidden: !open2 });
+      const saved = ui2.navOpen && g.name in ui2.navOpen ? !!ui2.navOpen[g.name] : false;
+      const open2 = saved || hasActive;
+      const body = h("div", { class: "grpbody" });
+      body.hidden = !open2;
       for (const t2 of g.tabs) {
         const nb = t2.badge && joined() ? badges()[t2.badge] : 0;
         const badge = t2.id === "drafts" && state.drafts.length ? h("span", { class: "badge" }, state.drafts.length) : nb ? h("span", { class: "badge", "data-badge": t2.badge }, nb) : null;
@@ -16095,21 +16098,20 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
           badge
         ));
       }
-      nav.appendChild(h(
-        "button",
-        {
-          class: "grp",
-          type: "button",
-          "aria-expanded": String(open2),
-          title: open2 ? "Fold this section" : "Open this section",
-          onclick: () => {
-            if (hasActive && open2) return;
-            actions.savePrefs({ ui: { ...ui2, navOpen: { ...ui2.navOpen || {}, [g.name]: !open2 } } });
-          }
-        },
-        h("span", null, g.name),
-        icon(open2 ? "chevdown" : "chevright", 12)
-      ));
+      const chev = h("span", { class: "chev" }, icon(open2 ? "chevdown" : "chevright", 12));
+      const btn = h("button", { class: "grp", type: "button", "aria-expanded": String(open2), title: open2 ? "Fold this section" : "Open this section" }, h("span", null, g.name), chev);
+      btn.addEventListener("click", () => {
+        const now = body.hidden;
+        body.hidden = !now;
+        btn.setAttribute("aria-expanded", String(now));
+        btn.title = now ? "Fold this section" : "Open this section";
+        clear(chev);
+        chev.appendChild(icon(now ? "chevdown" : "chevright", 12));
+        const cur = state.settings.ui || {};
+        actions.savePrefs({ ui: { ...cur, navOpen: { ...cur.navOpen || {}, [g.name]: now } } }).catch(() => {
+        });
+      });
+      nav.appendChild(btn);
       nav.appendChild(body);
     }
     nav.appendChild(h("div", { class: "side-foot" }, icon("shield", 15), h("span", null, enabled() ? "Your workspace is saved to your own private account. No e-mail is ever sent automatically." : "All data stays in this browser. Nothing is sent automatically.")));
