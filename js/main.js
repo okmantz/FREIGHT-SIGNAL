@@ -60,6 +60,9 @@ let editing = false;
 
 const tabFromHash = () => { const id = location.hash.replace(/^#\/?/, '').split('?')[0] || 'home'; return TABS.find(t => t.id === id) || TABS[0]; };
 
+/** Open/folded state of each sidebar section for this page load (survives re-renders even before the saved setting lands). */
+const navOpenMem = {};
+
 function renderNav() {
   clear(nav);
   const ui = state.settings.ui || {};
@@ -67,10 +70,10 @@ function renderNav() {
   for (const t of TABS) { let g = groups.find(x => x.name === t.group); if (!g) groups.push(g = { name: t.group, tabs: [] }); g.tabs.push(t); }
   for (const g of groups) {
     const hasActive = !!current && g.tabs.some(t => t.id === current.id);
-    // Sections are folded by default; only the one holding the current page starts open. A click opens or folds a section right away
-    // (it no longer waits for a re-render) and the choice is remembered.
-    const saved = ui.navOpen && g.name in ui.navOpen ? !!ui.navOpen[g.name] : false;
-    const open = saved || hasActive;
+    // EVERY section is folded by default, including the one holding the current page (that one just gets a dot, see .has-active).
+    // A click opens or folds a section right away (it no longer waits for a re-render) and the choice is remembered.
+    const saved = g.name in navOpenMem ? navOpenMem[g.name] : (ui.navOpen && g.name in ui.navOpen ? !!ui.navOpen[g.name] : false);
+    const open = saved;
     const body = h('div', { class: 'grpbody' });
     body.hidden = !open;
     for (const t of g.tabs) {
@@ -80,10 +83,11 @@ function renderNav() {
         icon(t.icon, 19), h('span', { class: 'lbl' }, t.label), badge));
     }
     const chev = h('span', { class: 'chev' }, icon(open ? 'chevdown' : 'chevright', 12));
-    const btn = h('button', { class: 'grp', type: 'button', 'aria-expanded': String(open), title: open ? 'Fold this section' : 'Open this section' }, h('span', null, g.name), chev);
+    const btn = h('button', { class: 'grp' + (hasActive ? ' has-active' : ''), type: 'button', 'aria-expanded': String(open), title: open ? 'Fold this section' : 'Open this section' }, h('span', null, g.name), chev);
     btn.addEventListener('click', () => {
       const now = body.hidden;                       // hidden => this click opens it
       body.hidden = !now;
+      navOpenMem[g.name] = now;
       btn.setAttribute('aria-expanded', String(now));
       btn.title = now ? 'Fold this section' : 'Open this section';
       clear(chev); chev.appendChild(icon(now ? 'chevdown' : 'chevright', 12));

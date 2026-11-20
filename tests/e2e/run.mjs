@@ -35,7 +35,7 @@ const go = async (tab) => {
   await page.goto(url + '#/' + tab);
   await page.waitForSelector('#nav a, .authgate', { state: 'attached', timeout: 20000 });
   if (await page.locator('.authgate').count()) { await page.click('.authgate button[type=submit]', { trial: true }).catch(() => {}); await signUpLocal(page, 'tester@example.com', 'test password 1'); }
-  await page.waitForSelector('#nav a', { timeout: 20000 });
+  await page.waitForSelector('#nav a', { state: 'attached', timeout: 20000 });
   // The first-login tour opens ~350 ms after the first render. Dismiss it once so it does not sit over every later step.
   if (!tourHandled) { tourHandled = true; if (await page.locator('.tour-layer').waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await page.click('.tour-skip'); }
 };
@@ -75,6 +75,15 @@ try {
   check('app boots; bundled ZIP Map loaded (33,782 rows)', (await page.textContent('#zipstat')).includes('33,782'));
   check('branding present', (await page.textContent('header.top')).includes('By O.K. Mantz'));
   check('tagline in header and on HOME', (await page.textContent('header.top')).includes('Intelligent Carrier Sourcing Optimization System') && (await page.textContent('.hero')).includes('Intelligent Carrier Sourcing Optimization System'));
+  // Sidebar: every section is a fold button and starts folded (even the one holding the current page); clicking opens / folds it.
+  { const grps = page.locator('#nav button.grp');
+    check('sidebar: every section heading is a fold button', (await grps.count()) === 5);
+    check('sidebar: all sections start collapsed (no tab link visible)', (await page.locator('#nav button.grp[aria-expanded="true"]').count()) === 0 && (await page.locator('#nav a:visible').count()) === 0);
+    check('sidebar: the section holding the current page is marked', (await page.locator('#nav button.grp.has-active').count()) === 1);
+    await grps.first().click();
+    check('sidebar: clicking a section opens it', (await grps.first().getAttribute('aria-expanded')) === 'true' && (await page.locator('#nav a:visible').count()) === 4);
+    await grps.first().click();
+    check('sidebar: clicking again folds it', (await grps.first().getAttribute('aria-expanded')) === 'false' && (await page.locator('#nav a:visible').count()) === 0); }
   check('DAT tab is gone (nav + home tile)', (await page.locator('#nav a[data-tab="dat"]').count()) === 0 && (await page.locator('.tile', { hasText: /^DAT/ }).count()) === 0);
   const vx = page.locator('.toolkit a[data-tool="weather"]');
   check('HOME has a Ventusky weather link (Cover toolkit) that opens in a new tab', (await vx.count()) === 1 && (await vx.getAttribute('href')) === 'https://www.ventusky.com/' && (await vx.getAttribute('target')) === '_blank' && /noopener/.test(await vx.getAttribute('rel')));
@@ -244,7 +253,7 @@ try {
   check('Approved = Yes adds the sender to the Carrier Database', (await page.textContent('table.carrier')).includes('newcarrier@trucks.example'));
 
   // --- persistence across reload
-  await page.reload(); await page.waitForSelector('#nav a');
+  await page.reload(); await page.waitForSelector('#nav a', { state: 'attached' });
   await go('carriers');
   check('carriers survive reload (IndexedDB)', (await page.textContent('table.carrier')).includes('E2E Carrier'));
   await go('board');
@@ -411,7 +420,7 @@ try {
   await page.waitForFunction(async () => (await import('/js/store/state.js')).state.settings.brokers[0] === 'Pat Doe').catch(() => {});
   const after = await tabNames();
   check('brokers can be dragged into a new order and the order is saved', after[0] === 'Pat Doe' && after.length === before.length, after.join(','));
-  await page.reload(); await page.waitForSelector('#nav a');
+  await page.reload(); await page.waitForSelector('#nav a', { state: 'attached' });
   check('the broker order survives a reload', (await tabNames())[0] === 'Pat Doe');
 
   await page.evaluate(async () => { const m = await import('/js/ui/celebrate.js'); m.celebrate({ week: 50, floor: 50 }); });
@@ -533,7 +542,7 @@ try {
   // --- theme toggle persists
   await page.click('#themebtn'); await page.waitForTimeout(400);
   const themeNow = await page.getAttribute('html', 'data-theme'); check('light theme applies', themeNow === 'light', 'data-theme=' + themeNow);
-  await page.reload(); await page.waitForSelector('#nav a');
+  await page.reload(); await page.waitForSelector('#nav a', { state: 'attached' });
   check('theme persists after reload', (await page.getAttribute('html', 'data-theme')) === 'light');
 
   // --- Account Settings + copy original load details
@@ -548,14 +557,14 @@ try {
   await page.click('.skin-tile:has-text("Obsidian Gold")'); await page.click('.bg-tile:has-text("Sakura Reverie")'); await page.click('.swatch[title="Violet"]');
   await page.waitForTimeout(500);
   const sk = await page.getAttribute('html', 'data-skin'), bgv = await page.getAttribute('html', 'data-bg'); check('skin + background apply live', sk === 'obsidian-gold' && bgv === 'sakura-reverie', sk + ' / ' + bgv);
-  await page.waitForTimeout(500); await page.reload(); await page.waitForSelector('#nav a');
+  await page.waitForTimeout(500); await page.reload(); await page.waitForSelector('#nav a', { state: 'attached' });
   check('skin + background persist after reload', (await page.getAttribute('html', 'data-skin')) === 'obsidian-gold' && (await page.getAttribute('html', 'data-bg')) === 'sakura-reverie');
 
   // --- local accounts: keep signed in, sign out, wrong password, sign back in, a second person on the same computer
   await go('account');
   await page.click('#acct-signin > summary');
   check('Account Settings shows the signed-in e-mail', (await page.textContent('#acct-signin')).includes('tester@example.com'));
-  await page.reload(); await page.waitForSelector('#nav a');
+  await page.reload(); await page.waitForSelector('#nav a', { state: 'attached' });
   check('kept signed in: no gate after a reload', (await page.locator('.authgate').count()) === 0);
   await page.click('#signoutbtn'); await page.waitForSelector('.authgate');
   check('signing out shows the sign-in form', (await page.locator('.authgate [data-act="tab-signin"][aria-pressed="true"]').count()) === 1);
@@ -564,7 +573,7 @@ try {
   await page.waitForFunction(() => /do not match/i.test(document.querySelector('.authgate .autherr').textContent));
   check('a wrong password is refused and the app stays locked', (await page.locator('#nav a:visible').count()) === 0);
   await page.fill('.authgate .pw input', 'test password 1'); await page.click('.authgate button[type=submit]');
-  await page.waitForSelector('#nav a');
+  await page.waitForSelector('#nav a', { state: 'attached' });
   check('the right password opens the app again', (await page.locator('.authgate').count()) === 0);
 
   // --- v10: Find trucks menu on a load, and a load-level truck check

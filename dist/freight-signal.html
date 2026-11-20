@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-f6BC0uuTD98g+ImFN42FUPk4Vh3DUDHwSCrdM4GC3CU='; style-src 'sha256-uEZrnOJMq/2xbdRwQUQf2olhZsZQWUsNCG7htzFtXYA='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-/kliz0LXcVtewiK8LUBHUUDDSV5GEdAsQQPchwm/Yls='; style-src 'sha256-IztF9RmAIPR/VYlfUTYAfKBQxRNo4AzLtuSOjSqynV4='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -1204,6 +1204,12 @@ nav.side .grpbody { display: flex; flex-direction: column; gap: 2px; }
 nav.side .grpbody[hidden] { display: none; }
 nav.side button.grp .chev { display: inline-flex; }
 [data-sidebar="compact"] nav.side button.grp svg { display: none; }
+/* the section that holds the page you are on shows a dot while it is folded */
+nav.side button.grp.has-active > span:first-child::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 8px; border-radius: 50%; background: var(--accent, currentColor); vertical-align: middle; }
+nav.side button.grp.has-active[aria-expanded="true"] > span:first-child::after { display: none; }
+/* compact sidebar shows icons only, so folded sections must not hide their icons there */
+[data-sidebar="compact"] nav.side .grpbody[hidden] { display: flex; }
+@media (max-width: 900px) { [data-sidebar="compact"] nav.side .grpbody[hidden] { display: none; } }
 
 /* ---- header: calmer ---- */
 header.top #zipstat:not(.warn) { background: transparent; border-color: transparent; color: var(--muted); font-weight: 600; }
@@ -16083,8 +16089,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     }
     for (const g of groups) {
       const hasActive = !!current3 && g.tabs.some((t2) => t2.id === current3.id);
-      const saved = ui2.navOpen && g.name in ui2.navOpen ? !!ui2.navOpen[g.name] : false;
-      const open2 = saved || hasActive;
+      const saved = g.name in navOpenMem ? navOpenMem[g.name] : ui2.navOpen && g.name in ui2.navOpen ? !!ui2.navOpen[g.name] : false;
+      const open2 = saved;
       const body = h("div", { class: "grpbody" });
       body.hidden = !open2;
       for (const t2 of g.tabs) {
@@ -16099,10 +16105,11 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         ));
       }
       const chev = h("span", { class: "chev" }, icon(open2 ? "chevdown" : "chevright", 12));
-      const btn = h("button", { class: "grp", type: "button", "aria-expanded": String(open2), title: open2 ? "Fold this section" : "Open this section" }, h("span", null, g.name), chev);
+      const btn = h("button", { class: "grp" + (hasActive ? " has-active" : ""), type: "button", "aria-expanded": String(open2), title: open2 ? "Fold this section" : "Open this section" }, h("span", null, g.name), chev);
       btn.addEventListener("click", () => {
         const now = body.hidden;
         body.hidden = !now;
+        navOpenMem[g.name] = now;
         btn.setAttribute("aria-expanded", String(now));
         btn.title = now ? "Fold this section" : "Open this section";
         clear(chev);
@@ -16385,7 +16392,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {
     });
   }
-  var TABS, view4, nav, current3, tabFromHash, SYNC_TEXT, renderPending, isTextual;
+  var TABS, view4, nav, current3, tabFromHash, navOpenMem, SYNC_TEXT, renderPending, isTextual;
   var init_main = __esm({
     "js/main.js"() {
       init_dom();
@@ -16447,6 +16454,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         const id = location.hash.replace(/^#\/?/, "").split("?")[0] || "home";
         return TABS.find((t2) => t2.id === id) || TABS[0];
       };
+      navOpenMem = {};
       SYNC_TEXT = { synced: ["Saved to account", ""], saving: ["Saving\u2026", ""], offline: ["Offline: will sync", " warn"], error: ["Sync problem", " warn"], off: ["", ""] };
       renderPending = false;
       view4.addEventListener("input", (e) => {

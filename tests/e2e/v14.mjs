@@ -27,7 +27,7 @@ async function device(name, email) {
   await page.fill('.authgate input[type=email]', email);
   await page.fill('.authgate input[name=password]', 'long password 123'); await page.fill('.authgate input[name=confirm]', 'long password 123');
   await page.click('.authgate button[type=submit]');
-  await page.waitForSelector('#nav a', { timeout: 45000 });
+  await page.waitForSelector('#nav a', { state: 'attached', timeout: 45000 });
   if (await page.locator('.tour-layer').waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await page.click('.tour-skip');
   return { ctx, page, name };
 }

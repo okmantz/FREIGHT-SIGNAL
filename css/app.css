@@ -1196,6 +1196,12 @@ nav.side .grpbody { display: flex; flex-direction: column; gap: 2px; }
 nav.side .grpbody[hidden] { display: none; }
 nav.side button.grp .chev { display: inline-flex; }
 [data-sidebar="compact"] nav.side button.grp svg { display: none; }
+/* the section that holds the page you are on shows a dot while it is folded */
+nav.side button.grp.has-active > span:first-child::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 8px; border-radius: 50%; background: var(--accent, currentColor); vertical-align: middle; }
+nav.side button.grp.has-active[aria-expanded="true"] > span:first-child::after { display: none; }
+/* compact sidebar shows icons only, so folded sections must not hide their icons there */
+[data-sidebar="compact"] nav.side .grpbody[hidden] { display: flex; }
+@media (max-width: 900px) { [data-sidebar="compact"] nav.side .grpbody[hidden] { display: none; } }
 
 /* ---- header: calmer ---- */
 header.top #zipstat:not(.warn) { background: transparent; border-color: transparent; color: var(--muted); font-weight: 600; }

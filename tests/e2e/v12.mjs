@@ -21,7 +21,7 @@ try {
     await page.fill('.authgate input[type=email]', 't@example.com'); await page.fill('.authgate input[name=password]', 'test password 1'); await page.fill('.authgate input[name=confirm]', 'test password 1');
     await page.click('.authgate button[type=submit]');
   }
-  await page.waitForSelector('#nav a', { timeout: 20000 });
+  await page.waitForSelector('#nav a', { state: 'attached', timeout: 20000 });
   if (await page.locator('.tour-layer').waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await page.click('.tour-skip');
   await page.evaluate(() => { location.hash = '#/board'; });
   await page.waitForSelector('textarea.pastebox', { timeout: 20000 });

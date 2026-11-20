@@ -15,8 +15,8 @@ page.on('request', (r) => { if (!r.url().startsWith(url) && !/^(data|blob):/.tes
 const carriers = () => page.evaluate(async () => (await import('/js/store/state.js')).state.carriers.map(c => c.carrierName));
 const addCarrier = (n) => page.evaluate(async (n) => { const m = await import('/js/store/state.js'); await m.actions.saveCarrier({ carrierName: n, email: n.toLowerCase().replace(/\W/g, '') + '@example.test', status: 'Active' }); }, n);
 const skipTour = async () => { if (await page.locator('.tour-layer').waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await page.click('.tour-skip'); };
-const create = async (email, pw) => { await page.click('.authgate [data-act="tab-create"]'); await page.fill('.authgate input[type=email]', email); await page.fill('.authgate input[name=password]', pw); await page.fill('.authgate input[name=confirm]', pw); await page.click('.authgate button[type=submit]'); await page.waitForSelector('#nav a', { timeout: 45000 }); await skipTour(); };
-const signIn = async (email, pw) => { await page.fill('.authgate input[type=email]', email); await page.fill('.authgate input[name=password]', pw); await page.click('.authgate button[type=submit]'); await page.waitForSelector('#nav a, .authgate .autherr:not(:empty)', { timeout: 45000 }); };
+const create = async (email, pw) => { await page.click('.authgate [data-act="tab-create"]'); await page.fill('.authgate input[type=email]', email); await page.fill('.authgate input[name=password]', pw); await page.fill('.authgate input[name=confirm]', pw); await page.click('.authgate button[type=submit]'); await page.waitForSelector('#nav a', { state: 'attached', timeout: 45000 }); await skipTour(); };
+const signIn = async (email, pw) => { await page.fill('.authgate input[type=email]', email); await page.fill('.authgate input[name=password]', pw); await page.click('.authgate button[type=submit]'); await page.waitForSelector('#nav a, .authgate .autherr:not(:empty)', { state: 'attached', timeout: 45000 }); };
 const signOut = async () => { await page.click('#signoutbtn'); await page.waitForSelector('.authgate'); };
 
 try {
@@ -33,7 +33,7 @@ try {
   check('a computer with an old sign-in opens on Sign in (not Create account)', (await page.locator('.authgate [data-act="tab-signin"][aria-pressed="true"]').count()) === 1);
   await signIn('owen@example.com', 'wrong'); 
   check('wrong password for the old account is refused', /do not match/.test(await page.textContent('.authgate .autherr')));
-  await page.fill('.authgate input[name=password]', 'old password 1'); await page.click('.authgate button[type=submit]'); await page.waitForSelector('#nav a', { timeout: 45000 }); await skipTour();
+  await page.fill('.authgate input[name=password]', 'old password 1'); await page.click('.authgate button[type=submit]'); await page.waitForSelector('#nav a', { state: 'attached', timeout: 45000 }); await skipTour();
   check('the old account signs in with its old password and keeps its data', (await carriers()).includes('Pre-Accounts Carrier'), JSON.stringify(await carriers()));
   check('header shows the e-mail', /owen/.test(await page.textContent('#profilechip')));
   await addCarrier('Owen Added Later');
@@ -50,7 +50,7 @@ try {
   await signOut(); await signIn('maria@example.com', 'maria password 2');
   const mc = await carriers();
   check('the second person sees only theirs', mc.length === 1 && mc[0] === 'Maria Hauling', JSON.stringify(mc));
-  await page.reload(); await page.waitForSelector('#nav a');
+  await page.reload(); await page.waitForSelector('#nav a', { state: 'attached' });
   check('reload keeps the person signed in with their data', (await carriers()).includes('Maria Hauling'));
 
   // Duplicate e-mail, then forgot password (reset on this computer), then change password.

@@ -29,14 +29,14 @@ async function createAccount(page, email, pw) {
   await page.fill('.authgate input[type=email]', email);
   await page.fill('.authgate input[name=password]', pw); await page.fill('.authgate input[name=confirm]', pw);
   await page.click('.authgate button[type=submit]');
-  await page.waitForSelector('#nav a', { timeout: 45000 });
+  await page.waitForSelector('#nav a', { state: 'attached', timeout: 45000 });
   await skipTour(page);
 }
 async function signIn(page, email, pw) {
   await page.goto(url + '#/home'); await page.waitForSelector('.authgate');
   await page.fill('.authgate input[type=email]', email); await page.fill('.authgate input[name=password]', pw);
   await page.click('.authgate button[type=submit]');
-  await page.waitForSelector('#nav a, .authgate .autherr:not(:empty)', { timeout: 20000 });
+  await page.waitForSelector('#nav a, .authgate .autherr:not(:empty)', { state: 'attached', timeout: 20000 });
 }
 const carriers = (page) => page.evaluate(async () => (await import('/js/store/state.js')).state.carriers.map(c => c.carrierName));
 const addCarrier = (page, name) => page.evaluate(async (n) => { const m = await import('/js/store/state.js'); await m.actions.saveCarrier({ carrierName: n, email: n.toLowerCase().replace(/\W/g, '') + '@example.test', status: 'Active' }); }, name);
@@ -88,7 +88,7 @@ try {
   await C.ctx.close();
 
   // 6. Reload keeps you signed in (no gate), data is there from the on-device copy.
-  await A.page.reload(); await A.page.waitForSelector('#nav a');
+  await A.page.reload(); await A.page.waitForSelector('#nav a', { state: 'attached' });
   check('reload keeps the person signed in', (await A.page.locator('.authgate').count()) === 0 && (await carriers(A.page)).length === 2);
 
   // 7. Sharing: Bob uses the SAME browser after Alice signs out and must see none of her data.
@@ -125,7 +125,7 @@ try {
   await D.page.fill('.authgate input[type=email]', 'dana@example.test'); await D.page.fill('.authgate input[name=password]', 'danas password 3'); await D.page.fill('.authgate input[name=confirm]', 'danas password 3'); await D.page.click('.authgate button[type=submit]');
   await D.page.waitForSelector('.modal:has-text("existing data")', { timeout: 20000 });
   check('old local data is offered to the new account (with counts)', /1 carrier/.test(await D.page.textContent('.modal')));
-  await D.page.click('.modal >> text=Add it to my account'); await D.page.waitForSelector('#nav a'); await skipTour(D.page);
+  await D.page.click('.modal >> text=Add it to my account'); await D.page.waitForSelector('#nav a', { state: 'attached' }); await skipTour(D.page);
   check('...and, when accepted, it appears in the account', (await carriers(D.page)).includes('Legacy Carrier Co'));
   const danaUid = [...fb.users.values()].find(u => u.email === 'dana@example.test').uid;
   check('...and is uploaded to the cloud', await until(() => fb.tree.users[danaUid] && fb.tree.users[danaUid].stores && /Legacy Carrier Co/.test(fb.tree.users[danaUid].stores.carriers.p0)));
