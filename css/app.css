@@ -1193,6 +1193,8 @@ nav.side button.grp { display: flex; align-items: center; justify-content: space
 nav.side button.grp:hover { color: var(--text); }
 nav.side button.grp svg { opacity: .7; }
 nav.side .grpbody { display: flex; flex-direction: column; gap: 2px; }
+nav.side .grpbody[hidden] { display: none; }
+nav.side button.grp .chev { display: inline-flex; }
 [data-sidebar="compact"] nav.side button.grp svg { display: none; }
 
 /* ---- header: calmer ---- */
