@@ -6,8 +6,11 @@ import { toDelimited } from '../../core/csv.js';
 import { fmtDate } from '../dom.js';
 import { money } from '../board/util.js';
 import { safeNumeric } from '../../core/util.js';
+import { icon } from '../icons.js';
+import { avatar, statusPill, segmented, searchBox, expandRows, groupRow, groupBy, detailCard, relDate } from './../directory.js';
 
-let outcome = 'All';
+let outcome = 'All', cq = '';
+const openRows = new Set();
 const rerender = () => import('../../main.js').then(m => m.render());
 const pct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '-');
 
@@ -43,7 +46,7 @@ export function render() {
   const avg = rated.length ? Math.round(rated.reduce((n, e) => n + safeNumeric(e.rate), 0) / rated.length) : 0;
   const a = attributionFromLog(log);
   const top = topCarriersByCovers(log, 5);
-  const shown = log.filter(e => outcome === 'All' || e.outcome === outcome);
+  const shown = log.filter(e => (outcome === 'All' || e.outcome === outcome) && (!cq || JSON.stringify([e.carrier, e.covered || e.lane, e.broker]).toLowerCase().includes(cq.toLowerCase())));
   const csv = () => toDelimited([['Closed', 'Outcome', 'Broker', 'Origin', 'Destination', 'Grid', 'Carrier', 'Carrier e-mail', 'Rate', 'DAT rate', 'Target', 'Inquiries', 'Age hours', 'Note'],
     ...log.map(e => [e.closedAt, e.outcome, e.broker || '', `${(e.covered || e.lane || {}).originCity || ''}, ${(e.covered || e.lane || {}).originState || ''}`, `${(e.covered || e.lane || {}).destCity || ''}, ${(e.covered || e.lane || {}).destState || ''}`, e.covered && e.covered.grid || '', e.carrier && e.carrier.name || '', e.carrier && e.carrier.email || '', e.rate, e.datRate, e.targetRate, e.inquiries, e.ageHours === '' ? '' : Math.round(e.ageHours * 10) / 10, e.note || ''])], ',');
   return h('div', null,
@@ -51,20 +54,33 @@ export function render() {
       actions: [h('button', { class: 'btn primary', type: 'button', onclick: manualDialog }, 'Log a cover by hand'), h('button', { class: 'btn', type: 'button', disabled: !log.length, onclick: () => download('cover-log.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV')] }),
     statTiles([[pace.today, 'Covers today'], [`${pace.week} / ${pace.floor}`, 'This week'], [pace.projection === null ? '-' : pace.projection, 'Projected for the week', pace.status === 'on' ? 'ok' : pace.status === 'short' ? 'urgent' : 'act'], [avg ? money(avg) : '-', 'Average rate']]),
     h('p', { class: 'muted pacetext' }, pace.text + (pace.status !== 'on' && pace.status !== 'early' ? ` You need about ${pace.perDay} a day for the rest of the week.` : '')),
-    covered.length ? h('div', { class: 'grid2 insightgrid' },
+    covered.length ? h('details', { class: 'insights' }, h('summary', null, icon('activity', 15), 'Performance insights: which postings, carriers and cities cover loads'), h('div', { class: 'grid2 insightgrid' },
       h('div', { class: 'panel' }, h('h4', null, 'Which of the 9 postings covers loads'), gridTable(a), h('p', { class: 'muted small' }, 'Rows are origin A (original) to C, columns destination A to C. Each box: covers of postings in that position.')),
       h('div', { class: 'panel' }, h('h4', null, 'Top carriers'), top.length ? h('table', { class: 'lanetable' }, h('thead', null, h('tr', null, ['Carrier', 'Covers', 'Avg rate'].map(x => h('th', null, x)))),
         h('tbody', null, top.map(t => { const c = state.carriers.find(x => String(x.email || '').toLowerCase() === t.email); return h('tr', null, h('td', null, (c && c.carrierName) || t.email), h('td', null, t.covers), h('td', null, t.avgRate ? money(t.avgRate) : '-')); }))) : h('p', { class: 'muted' }, 'No carriers credited yet.')),
-      cityTable(cityPerformance(log, 'origin'), 'Origin cities that produce covers'), cityTable(cityPerformance(log, 'dest'), 'Destination cities that produce covers')) : null,
-    h('div', { class: 'toolbar' }, h('label', { class: 'inl' }, 'Show ', h('select', { class: 'cell', 'data-live': '', onchange: (e) => { outcome = e.target.value; rerender(); } }, ['All', 'Covered', 'Expired', 'Manual'].map(o => h('option', { value: o, selected: o === outcome }, o === 'Manual' ? 'Closed without cover' : o)))), h('span', { class: 'muted' }, `${shown.length} of ${log.length}`)),
-    shown.length ? h('div', { class: 'tablewrap' }, h('table', { class: 'lanetable' }, h('thead', null, h('tr', null, ['Closed', 'Result', 'Lane', 'Posting', 'Carrier', 'Rate', 'DAT / target', 'Inq', 'Broker', ''].map(x => h('th', null, x)))),
-      h('tbody', null, shown.slice(0, 400).map(e => { const l = e.covered || e.lane || {}; return h('tr', { class: 'o-' + e.outcome.toLowerCase() },
-        h('td', null, fmtDate(e.closedAt)), h('td', null, h('span', { class: 'pill ' + (e.outcome === 'Covered' ? 'ok' : '') }, e.outcome === 'Manual' ? 'Closed' : e.outcome)),
-        h('td', null, `${l.originCity || '?'}, ${l.originState || ''} → ${l.destCity || '?'}, ${l.destState || ''}`), h('td', null, e.covered && e.covered.grid || ''),
-        h('td', null, (e.carrier && (e.carrier.name || e.carrier.email)) || ''), h('td', null, e.rate ? money(e.rate) : ''), h('td', { class: 'muted' }, [e.datRate ? money(e.datRate) : '', e.targetRate ? money(e.targetRate) : ''].filter(Boolean).join(' / ')),
-        h('td', null, e.inquiries || 0), h('td', null, e.broker || ''),
-        h('td', null, h('div', { class: 'rowact' },
-          e.rows && e.rows.length ? h('button', { class: 'btn small', type: 'button', title: 'Put this load back on the board', onclick: async () => { const n = await actions.restoreFromLog(e.id); toast(n ? `Restored ${n} posting(s) to the board.` : 'Nothing to restore.', n ? 'ok' : 'warn'); } }, 'Restore') : null,
-          h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete log entry', 'Remove this record? Lane memory and statistics forget it.', 'Delete')) actions.deleteLogEntry(e.id); } }, '✕')))); })))) :
-      emptyState({ icon: 'covers', title: 'Nothing logged yet', text: 'Use "Mark covered" on a load (or Log a cover by hand). Expired loads are logged here too, and can be restored.' }));
+      cityTable(cityPerformance(log, 'origin'), 'Origin cities that produce covers'), cityTable(cityPerformance(log, 'dest'), 'Destination cities that produce covers'))) : null,
+    h('div', { class: 'dir-bar' }, searchBox(cq, 'Search carrier, city, broker…', (v) => { cq = v; }, rerender),
+      segmented([['All', 'All', log.length], ['Covered', 'Covered', covered.length], ['Expired', 'Expired', log.filter(e => e.outcome === 'Expired').length], ['Manual', 'Closed without cover', log.filter(e => e.outcome === 'Manual').length]], outcome, (v) => { outcome = v; rerender(); }, 'Show')),
+    h('div', { class: 'dir-count' }, h('span', null, `${shown.length} of ${log.length}`)),
+    shown.length ? h('div', { class: 'dirwrap tablewrap' }, h('table', { class: 'lanetable dirtable' }, h('thead', null, h('tr', null, ['Result', 'Lane', 'Carrier', 'Rate', 'Posting', 'Broker', ''].map(x => h('th', null, x)))),
+      h('tbody', null, groupBy(shown.slice(0, 400), (e) => dayLabel(e.closedAt)).sort((x, y) => 0).flatMap(([day, list]) => [groupRow(day, list.length, 7), ...expandRows(list.map(logRow), openRows, 7)])))) :
+      emptyState({ icon: 'covers', title: log.length ? 'No entries match' : 'Nothing logged yet', text: log.length ? 'Try another view or clear the search.' : 'Use "Mark covered" on a load (or Log a cover by hand). Expired loads are logged here too, and can be restored.' }));
+}
+
+function dayLabel(iso) { const t = new Date(iso); if (Number.isNaN(t.getTime())) return 'Undated'; const d = Math.floor((Date.now() - t.getTime()) / 86400000); return d <= 0 ? 'Today' : d === 1 ? 'Yesterday' : t.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: t.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }); }
+
+function logRow(e) {
+  const l = e.covered || e.lane || {}; const car = (e.carrier && (e.carrier.name || e.carrier.email)) || '';
+  const cells = [
+    h('td', null, statusPill(e.outcome === 'Manual' ? 'Closed' : e.outcome, e.outcome === 'Covered' ? 'good' : e.outcome === 'Expired' ? 'warn' : 'muted')),
+    h('td', { class: 'c-lane' }, h('span', { class: 'dir-lane' }, `${l.originCity || '?'}, ${l.originState || ''}`, icon('chevright', 12), `${l.destCity || '?'}, ${l.destState || ''}`)),
+    h('td', null, car ? h('div', { class: 'dir-id' }, avatar(car), h('div', { class: 't' }, h('b', null, e.carrier.name || e.carrier.email), e.carrier.name && e.carrier.email ? h('small', null, e.carrier.email) : null)) : h('span', { class: 'dir-none' }, '—')),
+    h('td', { class: 'c-num' }, e.rate ? h('b', null, money(e.rate)) : h('span', { class: 'dir-none' }, '—')),
+    h('td', null, e.covered && e.covered.grid ? h('span', { class: 'dir-chip ok' }, e.covered.grid) : h('span', { class: 'dir-none' }, '—')),
+    h('td', null, e.broker || h('span', { class: 'dir-none' }, '—')),
+    h('td', { class: 'c-act' }, h('div', { class: 'rowact' },
+      e.rows && e.rows.length ? h('button', { class: 'btn small', type: 'button', title: 'Put this load back on the board', onclick: async () => { const n = await actions.restoreFromLog(e.id); toast(n ? `Restored ${n} posting(s) to the board.` : 'Nothing to restore.', n ? 'ok' : 'warn'); } }, 'Restore') : null,
+      h('button', { class: 'btn small danger', type: 'button', 'aria-label': 'Delete entry', onclick: async () => { if (await confirmDialog('Delete log entry', 'Remove this record? Lane memory and statistics forget it.', 'Delete')) actions.deleteLogEntry(e.id); } }, '✕'))),
+  ];
+  return { id: e.id, cells, cls: 'o-' + String(e.outcome).toLowerCase(), detail: detailCard({ fields: [['Closed', fmtDate(e.closedAt) + ' (' + relDate(e.closedAt) + ')'], ['DAT rate', e.datRate ? money(e.datRate) : ''], ['Your target', e.targetRate ? money(e.targetRate) : ''], ['Inquiries', e.inquiries || ''], ['Time on the board', e.ageHours === '' || e.ageHours === undefined ? '' : Math.round(e.ageHours * 10) / 10 + ' h']], notes: e.note }) };
 }

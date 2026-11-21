@@ -10,64 +10,123 @@ import { toDelimited } from '../../core/csv.js';
 import { tableToRecords } from '../importer.js';
 import { storedWhere } from '../../store/cloud.js';
 import { createTableSort } from '../tablesort.js';
-import { contactCell } from '../cells.js';
+import { telHref, mailHref, fmcsaUrl } from '../../core/resources.js';
+import { avatar, chips, statusPill, whenCell, segmented, searchBox, moreMenu, filterSelect, expandRows, groupRow, groupBy, detailCard, contactStack, countLine, DAY, relDate } from '../directory.js';
 import { openPublish } from './trucks.js';
 import * as net from '../../store/net.js';
 
 let q = '';
-// Quick filters: narrow the table to a group of carriers, then "Truck check" asks exactly that group.
-const F = { equip: '', state: '', status: '', contacted: '', mail: '' };
-const DAY = 86400000;
+let view = 'all', groupKey = '';
+const F = { equip: '', state: '', status: '' };
+const open = new Set();
 const rerender = () => import('../../main.js').then(m => m.render());
 const sorter = createTableSort(rerender);   // click a header: A-Z, Z-A, random
 
 const eqTokens = (c) => String(c.equipment ?? '').split(/[,/;|]+/).map(x => x.trim()).filter(Boolean);
 const uniq = (list) => [...new Set(list)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+const statusOf = (c) => String(c.status || 'Active').trim();
+const days = (c) => { const t = Date.parse(c.lastContacted); return Number.isFinite(t) ? (Date.now() - t) / DAY : Infinity; };
+const VIEWS = {
+  all: () => true,
+  active: (c) => statusOf(c).toLowerCase() !== 'inactive',
+  reach: (c) => String(c.email || '').trim() && days(c) >= 7,
+  never: (c) => days(c) === Infinity,
+  proven: (c) => Number(c.coverCount) > 0,
+};
 const passes = (c) => {
+  if (!VIEWS[view](c)) return false;
   if (F.equip && !eqTokens(c).some(x => x.toLowerCase() === F.equip.toLowerCase())) return false;
   if (F.state && String(c.originState ?? '').trim().toUpperCase() !== F.state) return false;
-  if (F.status && (String(c.status || 'Active').trim().toLowerCase() !== F.status.toLowerCase())) return false;
-  if (F.mail === 'yes' && !String(c.email ?? '').trim()) return false;
-  if (F.contacted) {
-    const t = Date.parse(c.lastContacted);
-    if (F.contacted === 'never') return !Number.isFinite(t);
-    const days = Number(F.contacted);
-    if (Number.isFinite(t) && Date.now() - t < days * DAY) return false;
-  }
+  if (F.status && statusOf(c).toLowerCase() !== F.status.toLowerCase()) return false;
   return true;
 };
-const filtersOn = () => Object.values(F).some(Boolean);
+const filtersOn = () => Object.values(F).some(Boolean) || view !== 'all' || q;
+const laneText = (c) => {
+  const o = [c.originCity, c.originState].filter(Boolean).join(', '), d = [c.destCity, c.destState].filter(Boolean).join(', ');
+  return { o, d };
+};
+const GROUPS = { '': null, equipment: (c) => eqTokens(c)[0] || 'No equipment listed', originState: (c) => String(c.originState || '').trim().toUpperCase() || 'No home state', status: statusOf };
 
-/** The filter row under the toolbar. Options come from the carriers you actually have. */
-function filterBar() {
+function toolbar(all, rows) {
   const cs = state.carriers;
-  const sel = (key, label, options, fk) => {
-    const s = h('select', { class: 'cell', 'aria-label': label, title: label, 'data-fk': 'f:' + fk },
-      h('option', { value: '' }, label), options.map(([v, t]) => h('option', { value: v, selected: v === F[key] }, t ?? v)));
-    s.addEventListener('change', () => { F[key] = s.value; rerender(); });
-    return s;
-  };
-  return h('div', { class: 'toolbar filterbar' }, h('span', { class: 'muted small' }, 'Filter'),
-    sel('equip', 'Any equipment', uniq(cs.flatMap(eqTokens)).map(x => [x]), 'equip'),
-    sel('state', 'Any origin state', uniq(cs.map(c => String(c.originState ?? '').trim().toUpperCase()).filter(Boolean)).map(x => [x]), 'state'),
-    sel('status', 'Any status', uniq(cs.map(c => String(c.status || 'Active').trim())).map(x => [x]), 'status'),
-    sel('contacted', 'Any last contact', [['never', 'Never contacted'], ['7', 'Not contacted in 7+ days'], ['30', 'Not contacted in 30+ days']], 'contacted'),
-    sel('mail', 'With or without e-mail', [['yes', 'Has an e-mail address']], 'mail'),
-    filtersOn() ? h('button', { class: 'btn small', type: 'button', onclick: () => { Object.keys(F).forEach(k => { F[k] = ''; }); rerender(); } }, 'Clear filters') : null);
+  const count = (k) => cs.filter(VIEWS[k]).length;
+  return [
+    h('div', { class: 'dir-bar' },
+      searchBox(q, 'Search name, MC, e-mail, city, equipment…', (v) => { q = v; }, rerender),
+      segmented([['all', 'All', count('all')], ['active', 'Active', count('active')], ['reach', 'Ready to contact', count('reach')], ['never', 'Never contacted', count('never')], ['proven', 'Has covered', count('proven')]], view, (v) => { view = v; rerender(); }, 'Quick views'),
+      h('span', { class: 'grow' }),
+      h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, icon('plus', 15), 'Add carrier'),
+      h('button', { class: 'btn', type: 'button', disabled: !rows.length, title: 'Draft a truck-availability e-mail to every carrier shown (with an e-mail address). Use the filters first to ask just one group.', onclick: () => truckCheck(rows) }, icon('mail', 15), `Truck check (${rows.filter(c => String(c.email || '').trim()).length})`),
+      moreMenu('More', [
+        ['Import from Excel / CSV…', 'upload', importDialog],
+        ['Export CSV', 'download', () => download('carrier-database.csv', '﻿' + csv(), 'text/csv;charset=utf-8')],
+        ['Copy for Excel', 'copy', () => copyText(toDelimited([CARRIER_HEADERS, ...state.carriers.map(c => CARRIER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).')],
+        ['Clean up duplicates', 'layers', async () => {
+          const d = duplicateRows(state.carriers); if (!d.drop.length) return toast('No duplicate rows found.', 'ok');
+          if (!(await confirmDialog('Clean up duplicates', d.drop.length + ' duplicate row' + (d.drop.length === 1 ? '' : 's') + ' (same carrier, same lane) will be removed. The fullest row of each is kept and fills its blanks from the others.', 'Clean up'))) return;
+          const r = await actions.cleanupCarrierDuplicates(); toast(r.removed + ' duplicate row' + (r.removed === 1 ? '' : 's') + ' removed.', 'ok');
+        }, { act: 'dedupe', title: 'Remove exact duplicate rows (same carrier and same lane)' }],
+      ])),
+    h('div', { class: 'dir-filters' }, h('span', { class: 'lbl' }, 'Filter'),
+      filterSelect('Any equipment', uniq(cs.flatMap(eqTokens)).map(x => [x]), F.equip, (v) => { F.equip = v; rerender(); }, 'equip'),
+      filterSelect('Any home state', uniq(cs.map(c => String(c.originState ?? '').trim().toUpperCase()).filter(Boolean)).map(x => [x]), F.state, (v) => { F.state = v; rerender(); }, 'state'),
+      filterSelect('Any status', uniq(cs.map(statusOf)).map(x => [x]), F.status, (v) => { F.status = v; rerender(); }, 'status'),
+      h('span', { class: 'lbl' }, 'Group by'),
+      filterSelect('No grouping', [['equipment', 'Equipment'], ['originState', 'Home state'], ['status', 'Status']], groupKey, (v) => { groupKey = v; rerender(); }, 'group'),
+      filtersOn() ? h('button', { class: 'btn small', type: 'button', onclick: () => { Object.keys(F).forEach(k => { F[k] = ''; }); view = 'all'; q = ''; rerender(); } }, 'Clear filters') : null),
+    h('div', { class: 'dir-count' }, h('span', null, `${rows.length} of ${all.length}`), (() => { const top = topCarriersByCovers(state.coverLog, 3).map(t => { const c = cs.find(x => String(x.email || '').toLowerCase() === t.email); return `${(c && c.carrierName) || t.email} (${t.covers})`; }); return top.length ? h('span', { class: 'topline' }, icon('trendup', 14), ' Top in your Cover Log: ' + top.join(', ')) : null; })()),
+  ];
 }
 
-function overview() {
-  const cs = state.carriers; const now = Date.now();
-  const active = cs.filter(c => String(c.status || 'Active').toLowerCase() !== 'inactive');
-  const withEmail = cs.filter(c => String(c.email || '').trim()).length, withPhone = cs.filter(c => String(c.phone || '').trim()).length;
-  const covers = cs.reduce((n, c) => n + (Number(c.coverCount) || 0), 0);
-  const wk = weekStart(new Date(now)).getTime();   // the week starts Monday 12:00 AM, same as the cover pace tracker
+function row(c) {
+  const { o, d } = laneText(c); const mc = String(c.mc || '').trim();
+  const cells = [
+    h('td', { class: 'c-name' }, h('div', { class: 'dir-id' }, avatar(c.carrierName || c.email),
+      h('div', { class: 't' }, h('b', { title: c.carrierName }, c.carrierName || '(no name)'), h('small', null, mc ? (fmcsaUrl(mc) ? h('a', { class: 'xlink', href: fmcsaUrl(mc), target: '_blank', rel: 'noopener', title: 'Look up on FMCSA SAFER' }, 'MC ' + mc.replace(/^mc[\s#:-]*/i, '')) : 'MC ' + mc) : 'No MC on file')))),
+    h('td', null, contactStack(c, { telHref, mailHref })),
+    h('td', { class: 'c-lane' }, o || d ? h('span', { class: 'dir-lane' }, o || 'Anywhere', icon('chevright', 12), d || 'Anywhere') : h('span', { class: 'dir-none' }, 'No lane on file')),
+    h('td', null, chips(eqTokens(c), 2)),
+    h('td', null, whenCell(c.lastContacted)),
+    h('td', { class: 'c-num' }, Number(c.coverCount) ? h('b', null, c.coverCount) : h('span', { class: 'dir-none' }, '0')),
+    h('td', null, statusPill(statusOf(c))),
+    h('td', { class: 'c-act' }, h('div', { class: 'rowact' },
+      h('button', { class: 'btn small primary', type: 'button', 'data-act': 'truck', title: 'Draft "Do you have any trucks available?" to this carrier', disabled: !String(c.email || '').trim(), onclick: () => truckCheck([c]) }, 'Truck?'),
+      h('button', { class: 'btn small', type: 'button', 'aria-label': 'Edit carrier', title: 'Edit', onclick: () => edit(c) }, icon('edit', 14)))),
+  ];
+  const detail = detailCard({
+    fields: [['Preferred pickup', c.preferredPickupDates], ['Usual rate', c.rate], ['Last covered', c.lastCovered ? relDate(c.lastCovered) + ' (' + c.lastCovered + ')' : ''], ['Response rate', c.responseRate], ['Covers', c.coverCount], ['All equipment', eqTokens(c).join(', ')]],
+    notes: c.notes,
+    actions: [
+      net.joined() ? h('button', { class: 'btn small', type: 'button', 'data-act': 'share-truck-row', title: "Share this carrier's truck with the team", onclick: () => openPublish({ carrierName: c.carrierName, mc: c.mc, email: c.email, phone: c.phone, oCity: c.originCity, oState: c.originState, dCity: c.destCity, dState: c.destState, destOpen: !(c.destCity || c.destState), equip: /reef/i.test(c.equipment || '') ? 'R' : /flat/i.test(c.equipment || '') ? 'F' : 'V' }) }, icon('truck', 14), 'Share with team') : null,
+      h('button', { class: 'btn small', type: 'button', onclick: () => edit(c) }, icon('edit', 14), 'Edit all fields'),
+      h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete carrier', `Delete ${c.carrierName || c.email}?`, 'Delete')) actions.deleteCarrier(c.id); } }, icon('trash', 14), 'Delete')],
+  });
+  return { id: c.id, cells, detail };
+}
+
+export function render() {
+  const rows = sorter.sort(state.carriers.filter(passes).filter(c => !q || CARRIER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
+  const COLS = [['carrierName', 'Carrier'], ['email', 'Contact'], ['originState', 'Lane'], ['equipment', 'Equipment'], ['lastContacted', 'Last contacted'], ['coverCount', 'Covers'], ['status', 'Status']];
+  const body = [];
+  const gf = GROUPS[groupKey];
+  if (gf && rows.length) { for (const [name, list] of groupBy(rows, gf)) { body.push(groupRow(name, list.length, 8)); body.push(...expandRows(list.map(row), open, 8)); } }
+  else body.push(...expandRows(rows.map(row), open, 8));
+  return h('div', null,
+    pageHead({ icon: 'carriers', title: 'Carrier Database', sub: 'Everyone you cover with. Search, pick a quick view, then click a row to open all its details. ' + storedWhere() }),
+    !state.carriers.length ? emptyState({ icon: 'carriers', title: 'No carriers yet', text: 'Import the carriers you already work with (an Excel or CSV list), or add one by hand. You can also approve a sender in the Inquiry Log and they land here.',
+      actions: [h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add carrier'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import from Excel / CSV')] }) : statTilesFor(),
+    !state.carriers.length ? null : toolbar(state.carriers, rows),
+    !state.carriers.length ? null : h('div', { class: 'dirwrap tablewrap' }, h('table', { class: 'carrier dirtable' },
+      h('thead', null, h('tr', null, COLS.map(([k, l]) => sorter.th(k, l)), h('th', null, ''))),
+      h('tbody', null, rows.length ? body : h('tr', null, h('td', { colspan: 8, class: 'muted' }, 'No carriers match. Clear the filters or search for something else.'))))));
+}
+
+function statTilesFor() {
+  const cs = state.carriers; const wk = weekStart(new Date()).getTime();
+  const withEmail = cs.filter(c => String(c.email || '').trim()).length;
   const recent = cs.filter(c => { const t = Date.parse(c.lastContacted); return Number.isFinite(t) && t >= wk; }).length;
   const never = cs.filter(c => !Date.parse(c.lastContacted)).length;
-  const states = new Set(cs.flatMap(c => [c.originState, c.destState]).map(x => String(x || '').trim().toUpperCase()).filter(Boolean)).size;
-  const top = topCarriersByCovers(state.coverLog, 3).map(t => { const c = cs.find(x => String(x.email || '').toLowerCase() === t.email); return `${(c && c.carrierName) || t.email} (${t.covers})`; });
-  return h('div', null, statTiles([[cs.length, 'Carriers'], [withEmail, 'With e-mail'], [recent, 'Contacted this week'], [never, 'Never contacted', never ? 'act' : '']]),
-    top.length ? h('p', { class: 'muted small topline' }, icon('trendup', 14), ' Top carriers in your Cover Log: ' + top.join(', ')) : null);
+  return statTiles([[cs.length, 'Carriers'], [withEmail, 'With e-mail'], [recent, 'Contacted this week'], [never, 'Never contacted', never ? 'act' : '']]);
 }
 
 /** One-click "Do you have any trucks available?" drafts (never sent; saved to Outlook Drafts when Outlook is connected). */
@@ -109,35 +168,3 @@ function importDialog() {
   });
 }
 
-export function render() {
-  const rows = sorter.sort(state.carriers.filter(passes).filter(c => !q || CARRIER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
-  const search = h('input', { type: 'search', placeholder: 'Search carriers…', value: q, 'data-rerender': '' });
-  search.addEventListener('input', () => { q = search.value; });
-  search.addEventListener('keydown', (e) => { if (e.key === 'Enter') import('../../main.js').then(m => m.render()); });
-  return h('div', null,
-    pageHead({ icon: 'carriers', title: 'Carrier Database', sub: 'Approved carriers used by outreach. ' + storedWhere() + ' Use the Truck? button to ask any carrier if they have trucks available, or filter the list and use Truck check to ask a whole group. Click a column header to sort.' }),
-    !state.carriers.length ? emptyState({ icon: 'carriers', title: 'No carriers yet', text: 'Import the carriers you already work with (an Excel or CSV list), or add one by hand. You can also approve a sender in the Inquiry Log and they land here.',
-      actions: [h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add carrier'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import from Excel / CSV')] }) : overview(),
-    !state.carriers.length ? null : h('div', { class: 'toolbar' }, search,
-      h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add carrier'),
-      h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import…'),
-      h('button', { class: 'btn', type: 'button', disabled: !rows.length, title: 'Draft a truck-availability e-mail to every carrier shown (with an e-mail address). Use the filters first to ask just one group.', onclick: () => truckCheck(rows) }, icon('mail', 15), `Truck check (${rows.filter(c => String(c.email || '').trim()).length})`),
-      h('button', { class: 'btn', type: 'button', 'data-act': 'dedupe', title: 'Remove exact duplicate rows (same carrier and same lane) from imports of several lists, keeping the fullest row.', onclick: async () => {
-        const d = duplicateRows(state.carriers); if (!d.drop.length) return toast('No duplicate rows found.', 'ok');
-        if (!(await confirmDialog('Clean up duplicates', d.drop.length + ' duplicate row' + (d.drop.length === 1 ? '' : 's') + ' (same carrier, same lane) will be removed. The fullest row of each is kept and fills its blanks from the others.', 'Clean up'))) return;
-        const r = await actions.cleanupCarrierDuplicates(); toast(r.removed + ' duplicate row' + (r.removed === 1 ? '' : 's') + ' removed.', 'ok'); } }, 'Clean up duplicates'),
-      h('button', { class: 'btn', type: 'button', disabled: !state.carriers.length, onclick: () => download('carrier-database.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV'),
-      h('button', { class: 'btn', type: 'button', disabled: !state.carriers.length, onclick: () => copyText(toDelimited([CARRIER_HEADERS, ...state.carriers.map(c => CARRIER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).') }, 'Copy for Excel'),
-      h('span', { class: 'muted' }, `${rows.length} of ${state.carriers.length}`)),
-    state.carriers.length ? filterBar() : null,
-    !state.carriers.length ? null : h('div', { class: 'tablewrap' }, h('table', { class: 'carrier' },
-      h('thead', null, h('tr', null, h('th', null, ''), CARRIER_HEADERS.map((x, i) => sorter.th(CARRIER_KEYS[i], x)))),
-      h('tbody', null, rows.length ? rows.map(c => h('tr', null,
-        h('td', null, h('div', { class: 'rowact' },
-          h('button', { class: 'btn small primary', type: 'button', 'data-act': 'truck', title: 'Draft "Do you have any trucks available?" to this carrier', disabled: !String(c.email || '').trim(), onclick: () => truckCheck([c]) }, 'Truck?'),
-          net.joined() ? h('button', { class: 'btn small', type: 'button', 'data-act': 'share-truck-row', title: 'Share this carrier\'s truck with the team', onclick: () => openPublish({ carrierName: c.carrierName, mc: c.mc, email: c.email, phone: c.phone, oCity: c.originCity, oState: c.originState, dCity: c.destCity, dState: c.destState, destOpen: !(c.destCity || c.destState) && true, equip: /reef/i.test(c.equipment || '') ? 'R' : /flat/i.test(c.equipment || '') ? 'F' : 'V' }) }, 'Share') : null,
-          h('button', { class: 'btn small', type: 'button', onclick: () => edit(c) }, 'Edit'),
-          h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete carrier', `Delete ${c.carrierName || c.email}?`, 'Delete')) actions.deleteCarrier(c.id); } }, '✕'))),
-        CARRIER_KEYS.map(k => contactCell(k, c[k])))) :
-        h('tr', null, h('td', { colspan: 18, class: 'muted' }, 'No carriers yet. Add one, import from Excel, or approve a sender in the Inquiry Log.'))))));
-}

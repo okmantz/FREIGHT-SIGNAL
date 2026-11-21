@@ -13,6 +13,8 @@ import { activeTrucks, matchLoadsToTruck, carrierHistoryFromLog, freshness, fres
 import { headsOf, bundleOpportunities } from '../../core/corridor.js';
 import { gridEffectiveness, gridSummary } from '../../core/effectiveness.js';
 import { mailtoUrl } from '../../core/eml.js';
+import { matchStats, matchesForLoad, QUALIFIED } from '../../core/matching.js';
+import { rescueButton } from '../board/autorescue.js';
 import { placeText, money } from '../../core/netcommon.js';
 import { equipLabel } from '../../core/equipment.js';
 import { sendModeOf, MODE_LABEL } from '../../core/sendpolicy.js';
@@ -65,6 +67,16 @@ export function render() {
   // 1. exception queue
   root.append(sect('Needs your eyes', queue.length ? 'Everything here is a message Freight Signal chose not to answer by itself. Each has a suggested reply when one makes sense.' : null,
     ...(queue.length ? queue.slice(0, 30).map(queueItem) : [emptyState({ icon: 'check', title: 'Nothing is waiting for you', text: 'Carrier e-mails that need a person will show up here with the carrier\'s words and a ready reply.' })])));
+
+  // 1b. two-way matching: every open load against every available truck (yours and the team's)
+  const ms = matchStats(state.matches, heads);
+  root.append(sect('Truck matches per load', 'Every new load is checked against every available truck, and every new truck against every open load. The number to watch is how many qualified trucks each load has.',
+    ...(heads.length ? [h('div', { class: 'mstats' }, h('div', { class: 'metric' }, h('div', { class: 'k' }, 'Avg qualified trucks per load'), h('div', { class: 'v' }, ms.avgPerLoad.toFixed(1))),
+      h('div', { class: 'metric' }, h('div', { class: 'k' }, 'Loads with a match'), h('div', { class: 'v' }, `${ms.withMatch} / ${ms.loads}`)), h('div', { class: 'metric' }, h('div', { class: 'k' }, 'Hot matches'), h('div', { class: 'v' }, ms.hot))),
+      h('div', null, heads.map(hd => { const list = matchesForLoad(state.matches, hd.id).filter(m => QUALIFIED.includes(m.tier)); return h('div', { class: 'cv-row' },
+        h('b', null, placeText(hd.originCity, hd.originState) + ' to ' + placeText(hd.destCity, hd.destState)), ' ', h('span', { class: 'dir-chip ' + (list.length ? 'ok' : 'warn') }, list.length + ' qualified truck' + (list.length === 1 ? '' : 's')),
+        list.length ? h('div', { class: 'muted small' }, list.slice(0, 4).map(m => (m.carrierName || m.email || 'Carrier') + (m.phone ? ' ' + m.phone : '')).join(' · ')) : null,
+        h('div', { class: 'toolbar' }, rescueButton({ head: hd, members: [hd] }, hd))); }))] : [emptyState({ icon: 'truck', title: 'No open loads', text: 'Add a load on the Load board and its truck matches appear here.' })])));
 
   // 2. call sheet
   const histTrucks = [];

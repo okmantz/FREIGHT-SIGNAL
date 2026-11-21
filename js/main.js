@@ -20,6 +20,7 @@ import * as rescue from './ui/pages/rescue.js';
 import * as lanes from './ui/pages/lanes.js';
 import * as channels from './ui/pages/channels.js';
 import * as net from './store/net.js';
+import { mountOwen } from './ui/owen.js';
 import { openPublish } from './ui/pages/trucks.js';
 import { initBridge, onBridge } from './store/bridge.js';
 import { startWeather } from './store/weather.js';
@@ -268,6 +269,9 @@ async function boot() {
   rollover();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderPace(); render(); } });   // a laptop that slept through the rollover catches up on wake
   state.hooks.onWeeklyGoal = (g) => celebrate(g);
+  state.hooks.teamTrucks = () => (net.joined() ? net.resolvedTrucks() : []);
+  state.hooks.askTeam = (members, o) => net.askForHelp(members, o);
+  state.hooks.onMatches = (r) => { const t = r.newTrucks[0]; if (t && t.truck) toast(`New truck ${t.truck.carrierName ? t.truck.carrierName + ' ' : ''}in ${t.truck.oCity || t.truck.oState} fits ${t.loads.length} open load${t.loads.length === 1 ? '' : 's'}. See Cover Desk.`, 'ok', 8000); };
   if (cloudOn) {
     const NAMES = { postings: 'loads', carriers: 'carriers', inquiries: 'the inquiry log', outreach: 'outreach history', spares: 'spare loads', drafts: 'drafts', kv: 'settings', customers: 'customers', coverLog: 'the cover log' };
     const list = (ss) => ss.map(s => NAMES[s] || s).join(', ');
@@ -287,8 +291,11 @@ async function boot() {
   // Housekeeping: retire loads past pickup, refresh the time-based flags and the pace tracker.
   const tick = async () => { try { const n = await actions.expireDue(); if (n) toast(`${n} load${n === 1 ? '' : 's'} past pickup moved to the Cover Log (Expired). You can restore them there.`, 'info', 8000); } catch (e) { console.error(e); } };
   tick();
+  const rescueTick = () => actions.runMatching().then(() => actions.tickAutoRescue()).then((n) => { if (n && current && ['board', 'coverdesk', 'drafts'].includes(current.id)) render(); }).catch((e) => console.error(e));
+  mountOwen();
+  setTimeout(rescueTick, 4000);
   let beat = 0;
-  setInterval(() => { renderPace(); if (++beat % 5 === 0 && !document.hidden) { tick().then(() => render()); } }, 60000);
+  setInterval(() => { renderPace(); rescueTick(); if (++beat % 5 === 0 && !document.hidden) { tick().then(() => render()); } }, 60000);
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 }

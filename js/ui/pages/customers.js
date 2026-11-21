@@ -6,23 +6,49 @@ import { toDelimited } from '../../core/csv.js';
 import { tableToRecords } from '../importer.js';
 import { storedWhere } from '../../store/cloud.js';
 import { createTableSort } from '../tablesort.js';
-import { contactCell } from '../cells.js';
+import { telHref, mailHref } from '../../core/resources.js';
+import { icon } from '../icons.js';
+import { avatar, statusPill, whenCell, segmented, searchBox, moreMenu, filterSelect, expandRows, groupRow, groupBy, detailCard, contactStack, DAY, relDate } from '../directory.js';
 
 let q = '';
 const rerender = () => import('../../main.js').then(m => m.render());
 const sorter = createTableSort(rerender);   // click a header: A-Z, Z-A, random
-const DAY = 86400000;
+let view = 'all', groupKey = 'company';
+const F = { state: '', status: '' };
+const open = new Set();
 const csv = () => toDelimited([CUSTOMER_HEADERS, ...state.customers.map(c => CUSTOMER_KEYS.map(k => c[k] ?? ''))], ',');
+
+const statusOf = (c) => String(c.status || 'Active').trim();
+const age = (c) => { const t = Date.parse(c.lastContacted); return Number.isFinite(t) ? (Date.now() - t) / DAY : Infinity; };
+const VIEWS = { all: () => true, active: (c) => statusOf(c).toLowerCase() !== 'inactive', recent: (c) => age(c) < 30, stale: (c) => age(c) >= 90 };
+const uniq = (l) => [...new Set(l)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+const passes = (c) => VIEWS[view](c) && (!F.state || String(c.state || '').trim().toUpperCase() === F.state) && (!F.status || statusOf(c).toLowerCase() === F.status.toLowerCase());
+const GROUPS = { '': null, company: (c) => c.company || 'No company', state: (c) => String(c.state || '').trim().toUpperCase() || 'No state', status: statusOf };
+const nameOf = (c) => c.contactName || c.company || c.email || '(no name)';
 
 function overview() {
   const cs = state.customers; const now = Date.now();
-  const active = cs.filter(c => String(c.status || 'Active').toLowerCase() !== 'inactive').length;
   const companies = new Set(cs.map(c => String(c.company || '').trim().toLowerCase()).filter(Boolean)).size;
-  const withEmail = cs.filter(c => String(c.email || '').trim()).length, withPhone = cs.filter(c => String(c.phone || '').trim()).length;
-  const states = new Set(cs.map(c => String(c.state || '').trim().toUpperCase()).filter(Boolean)).size;
-  const touched = cs.filter(c => { const t = Date.parse(c.lastContacted); return Number.isFinite(t) && now - t < 30 * DAY; }).length;
-  const stale = cs.filter(c => { const t = Date.parse(c.lastContacted); return !Number.isFinite(t) || now - t >= 90 * DAY; }).length;
+  const touched = cs.filter(c => age(c) < 30).length, stale = cs.filter(c => age(c) >= 90).length;
   return statTiles([[cs.length, 'Contacts'], [companies, 'Companies'], [touched, 'Contacted in 30 days'], [stale, 'Not contacted in 90+ days', stale ? 'act' : '']]);
+}
+
+function row(c) {
+  const place = [c.city, c.state].filter(Boolean).join(', ');
+  const cells = [
+    h('td', { class: 'c-name' }, h('div', { class: 'dir-id' }, avatar(c.company || nameOf(c), { square: true }),
+      h('div', { class: 't' }, h('b', { title: c.company }, c.company || nameOf(c)), h('small', null, c.company ? (c.contactName || c.title || '') : (c.title || ''))))),
+    h('td', null, contactStack(c, { telHref, mailHref })),
+    h('td', null, place || h('span', { class: 'dir-none' }, '—')),
+    h('td', null, whenCell(c.lastContacted)),
+    h('td', null, statusPill(statusOf(c))),
+    h('td', { class: 'c-act' }, h('div', { class: 'rowact' }, h('button', { class: 'btn small', type: 'button', 'aria-label': 'Edit customer', title: 'Edit', onclick: () => edit(c) }, icon('edit', 14)))),
+  ];
+  const shown = new Set(['company', 'contactName', 'email', 'phone', 'city', 'state', 'lastContacted', 'status', 'notes']);
+  const extra = CUSTOMER_KEYS.map((k, i) => [CUSTOMER_HEADERS[i], c[k], k]).filter(([, v, k]) => !shown.has(k) && String(v ?? '').trim()).map(([l, v]) => [l, v]);
+  return { id: c.id, cells, detail: detailCard({ fields: [['Last contacted', c.lastContacted ? relDate(c.lastContacted) : ''], ...extra], notes: c.notes, actions: [
+    h('button', { class: 'btn small', type: 'button', onclick: () => edit(c) }, icon('edit', 14), 'Edit all fields'),
+    h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete customer', `Delete ${c.company || c.contactName || c.email}?`, 'Delete')) actions.deleteCustomer(c.id); } }, icon('trash', 14), 'Delete')] }) };
 }
 
 function edit(c) {
@@ -54,26 +80,33 @@ function importDialog() {
 }
 
 export function render() {
-  const rows = sorter.sort(state.customers.filter(c => !q || CUSTOMER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
-  const search = h('input', { type: 'search', placeholder: 'Search customers…', value: q, 'data-rerender': '' });
-  search.addEventListener('input', () => { q = search.value; });
-  search.addEventListener('keydown', (e) => { if (e.key === 'Enter') import('../../main.js').then(m => m.render()); });
+  const rows = sorter.sort(state.customers.filter(passes).filter(c => !q || CUSTOMER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
+  const cs = state.customers; const count = (k) => cs.filter(VIEWS[k]).length;
+  const COLS = [['company', 'Company'], ['email', 'Contact'], ['state', 'Location'], ['lastContacted', 'Last contacted'], ['status', 'Status']];
+  const body = []; const gf = GROUPS[groupKey];
+  if (gf && rows.length) { for (const [name, list] of groupBy(rows, gf)) { body.push(groupRow(name, list.length, 6)); body.push(...expandRows(list.map(row), open, 6)); } }
+  else body.push(...expandRows(rows.map(row), open, 6));
+  const on = Object.values(F).some(Boolean) || view !== 'all' || q;
   return h('div', null,
-    pageHead({ icon: 'customers', title: 'Customer Database', sub: 'Shippers and customer contacts. Import them from Excel the same way as carriers. ' + storedWhere() }),
-    !state.customers.length ? emptyState({ icon: 'customers', title: 'No customers yet', text: 'Import your shipper contact list from Excel or CSV, or add a customer by hand.',
+    pageHead({ icon: 'customers', title: 'Customer Database', sub: 'Shippers and customer contacts, grouped by company. Click a row to open it. ' + storedWhere() }),
+    !cs.length ? emptyState({ icon: 'customers', title: 'No customers yet', text: 'Import your shipper contact list from Excel or CSV, or add a customer by hand.',
       actions: [h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add customer'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import from Excel / CSV')] }) : overview(),
-    !state.customers.length ? null : h('div', { class: 'toolbar' }, search,
-      h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add customer'),
-      h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import…'),
-      h('button', { class: 'btn', type: 'button', disabled: !state.customers.length, onclick: () => download('customer-database.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV'),
-      h('button', { class: 'btn', type: 'button', disabled: !state.customers.length, onclick: () => copyText(toDelimited([CUSTOMER_HEADERS, ...state.customers.map(c => CUSTOMER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).') }, 'Copy for Excel'),
-      h('span', { class: 'muted' }, `${rows.length} of ${state.customers.length}`)),
-    !state.customers.length ? null : h('div', { class: 'tablewrap' }, h('table', { class: 'carrier' },
-      h('thead', null, h('tr', null, h('th', null, ''), CUSTOMER_HEADERS.map((x, i) => sorter.th(CUSTOMER_KEYS[i], x)))),
-      h('tbody', null, rows.length ? rows.map(c => h('tr', null,
-        h('td', null, h('div', { class: 'rowact' },
-          h('button', { class: 'btn small', type: 'button', onclick: () => edit(c) }, 'Edit'),
-          h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete customer', `Delete ${c.company || c.contactName || c.email}?`, 'Delete')) actions.deleteCustomer(c.id); } }, '✕'))),
-        CUSTOMER_KEYS.map(k => contactCell(k, c[k])))) :
-        h('tr', null, h('td', { colspan: CUSTOMER_KEYS.length + 1, class: 'muted' }, 'No customers yet. Add one, or import your contact list from Excel.'))))));
+    !cs.length ? null : [
+      h('div', { class: 'dir-bar' }, searchBox(q, 'Search company, contact, e-mail, city…', (v) => { q = v; }, rerender),
+        segmented([['all', 'All', count('all')], ['active', 'Active', count('active')], ['recent', 'Contacted lately', count('recent')], ['stale', 'Gone quiet', count('stale')]], view, (v) => { view = v; rerender(); }, 'Quick views'),
+        h('span', { class: 'grow' }),
+        h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, icon('plus', 15), 'Add customer'),
+        moreMenu('More', [['Import from Excel / CSV…', 'upload', importDialog], ['Export CSV', 'download', () => download('customer-database.csv', '﻿' + csv(), 'text/csv;charset=utf-8')],
+          ['Copy for Excel', 'copy', () => copyText(toDelimited([CUSTOMER_HEADERS, ...cs.map(c => CUSTOMER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).')]])),
+      h('div', { class: 'dir-filters' }, h('span', { class: 'lbl' }, 'Filter'),
+        filterSelect('Any state', uniq(cs.map(c => String(c.state || '').trim().toUpperCase()).filter(Boolean)).map(x => [x]), F.state, (v) => { F.state = v; rerender(); }, 'state'),
+        filterSelect('Any status', uniq(cs.map(statusOf)).map(x => [x]), F.status, (v) => { F.status = v; rerender(); }, 'status'),
+        h('span', { class: 'lbl' }, 'Group by'),
+        filterSelect('No grouping', [['company', 'Company'], ['state', 'State'], ['status', 'Status']], groupKey, (v) => { groupKey = v; rerender(); }, 'group'),
+        on ? h('button', { class: 'btn small', type: 'button', onclick: () => { F.state = F.status = ''; view = 'all'; q = ''; rerender(); } }, 'Clear filters') : null),
+      h('div', { class: 'dir-count' }, h('span', null, `${rows.length} of ${cs.length}`)),
+      h('div', { class: 'dirwrap tablewrap' }, h('table', { class: 'carrier dirtable' },
+        h('thead', null, h('tr', null, COLS.map(([k, l]) => sorter.th(k, l)), h('th', null, ''))),
+        h('tbody', null, rows.length ? body : h('tr', null, h('td', { colspan: 6, class: 'muted' }, 'No customers match. Clear the filters or search for something else.'))))),
+    ]);
 }

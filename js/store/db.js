@@ -4,7 +4,7 @@
 // Stores: postings, carriers, inquiries, outreach, spares, drafts, kv (settings/counters), zipmap (raw CSV text), handles (bridge folder).
 
 export const DB_NAME = 'freight-signal';
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 export const STORES = {
   postings: { keyPath: 'id' },
   carriers: { keyPath: 'id' },
@@ -18,10 +18,12 @@ export const STORES = {
   coverLog: { keyPath: 'id' },   // v3: attribution log of covered / expired / manually closed loads
   trucks: { keyPath: 'id' },     // v4: Truck Book: available trucks you learned about (e-mails, pasted lists, imports)
   ledger: { keyPath: 'id' },     // v4: processing ledger: every inbound carrier e-mail judged, what happened, what needs you
+  matches: { keyPath: 'id' },    // v5: two-way matching: which open load fits which available truck (and the success metric)
+  autorescues: { keyPath: 'id' },// v5: Auto Rescue runs (one per load that is being worked automatically)
   handles: { keyPath: 'key' },   // v2: Outlook-bridge folder handle (never exported in backups)
 };
 
-export const BACKUP_STORES = ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv', 'customers', 'coverLog', 'trucks', 'ledger'];
+export const BACKUP_STORES = ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv', 'customers', 'coverLog', 'trucks', 'ledger', 'matches', 'autorescues'];
 
 let dbPromise = null;
 let activeName = DB_NAME;

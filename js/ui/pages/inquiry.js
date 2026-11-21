@@ -9,10 +9,13 @@ import { draftCard } from '../draftcard.js';
 import { formatCurrency0, safeNumeric, safeString } from '../../core/util.js';
 import { judgeQuote } from '../../core/quotes.js';
 import { buildOutlookLoadDetails } from '../../core/outreach.js';
+import { icon } from '../icons.js';
+import { avatar, statusPill, segmented, searchBox, moreMenu, expandRows, groupRow, groupBy, detailCard, relDate } from '../directory.js';
 
 let tab = 'log';
 let q = '';
 let statusF = 'All';
+const openRows = new Set();
 const mail = { from: '', subject: '', body: '' };
 let lastResult = null;
 
@@ -70,33 +73,47 @@ function rateCell(i) {
     h('span', { class: 'rc-mark', 'aria-hidden': 'true' }, '\u26A0 '), h('span', { class: v.ok ? '' : 'rc-struck' }, txt));
 }
 
+const dayLabel = (iso) => { const t = new Date(iso); if (Number.isNaN(t.getTime())) return 'Undated'; const d = Math.floor((Date.now() - t.getTime()) / 86400000); return d <= 0 ? 'Today' : d === 1 ? 'Yesterday' : t.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: t.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }); };
+const statusTone = (st) => /won|cover|book|accept/i.test(st) ? 'good' : /declin|lost|no /i.test(st) ? 'muted' : /quote|rate|wait|pending/i.test(st) ? 'warn' : 'accent';
+
+function inqRow(i) {
+  const lane = [i.originCity, i.originState].filter(Boolean).join(', ') + ((i.destCity || i.destState) ? ' → ' + [i.destCity, i.destState].filter(Boolean).join(', ') : '');
+  const rc = (i.lastCarrierRate !== '' && i.lastCarrierRate !== undefined) ? rateCell(i) : h('td', { class: 'num' }, h('span', { class: 'dir-none' }, '—'));
+  rc.classList.add('c-num');
+  const cells = [
+    h('td', null, h('div', { class: 'dir-id' }, avatar(i.senderEmail), h('div', { class: 't' }, h('b', { title: i.senderEmail }, i.senderEmail || '(unknown sender)'), h('small', { title: i.subject }, i.subject || '')))),
+    h('td', { class: 'c-lane' }, lane ? h('span', { class: 'dir-lane' }, lane) : h('span', { class: 'dir-none' }, 'No lane')),
+    rc,
+    h('td', null, statusPill(i.status || 'New', statusTone(String(i.status || '')))),
+    h('td', null, i.lastAction ? h('span', { class: 'dir-sub' }, i.lastAction) : h('span', { class: 'dir-none' }, '—')),
+    h('td', null, selectEl(['No', 'Yes'], i.approved || 'No', async (v) => { const c = await actions.setApproved(i.id, v); if (c) toast('Carrier added/updated in the Carrier Database.', 'ok'); })),
+    h('td', { class: 'c-act' }, h('div', { class: 'rowact' },
+      h('button', { class: 'btn small', type: 'button', 'aria-label': 'Edit entry', title: 'Edit', onclick: () => editInquiry(i) }, icon('edit', 14)),
+      h('button', { class: 'btn small danger', type: 'button', 'aria-label': 'Delete entry', onclick: async () => { if (await confirmDialog('Delete entry', 'Delete this inquiry row?', 'Delete')) actions.deleteInquiry(i.id); } }, '✕'))),
+  ];
+  return { id: i.id, cells, detail: detailCard({ fields: [['Counted', fmtDate(i.dateCounted) + (i.dateCounted ? ' (' + relDate(i.dateCounted) + ')' : '')], ['Posting row', i.postingRow], ['Stage', i.stage], ['Your target', i.targetRate], ['Inquiries on the load', i.countAfterInquiry], ['Rate reply sent', i.rateResponseSent], ['Events', i.eventCount], ['Added', fmtDate(i.dateAdded)], ['Conversation', i.conversationId, true]] }) };
+}
+
 function log() {
-  const statuses = ['All', ...new Set(state.inquiries.map(i => i.status).filter(Boolean))];
-  const rows = state.inquiries.filter(i => (statusF === 'All' || i.status === statusF) && (!q || INQUIRY_KEYS.some(k => String(i[k] ?? '').toLowerCase().includes(q.toLowerCase()))));
-  const search = h('input', { type: 'search', placeholder: 'Search the log…', value: q, 'data-rerender': '' });
-  search.addEventListener('input', () => { q = search.value; });
-  search.addEventListener('keydown', (e) => { if (e.key === 'Enter') rerender(); });
-  const csv = () => toDelimited([INQUIRY_HEADERS, ...state.inquiries.map(i => INQUIRY_KEYS.map(k => i[k] ?? ''))], ',');
-  if (!state.inquiries.length) return h('div', null, emptyState({ icon: 'inquiry', title: 'No carrier replies logged yet', text: 'When a carrier answers one of your posts, paste their e-mail into "Process carrier e-mail" (or let Outlook do it once connected). It is logged here and a reply is drafted for you.',
-    actions: [h('button', { class: 'btn primary', type: 'button', 'data-act': 'go-process', onclick: () => { tab = 'email'; rerender(); } }, 'Process a carrier e-mail'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import a log'), h('button', { class: 'btn', type: 'button', onclick: () => editInquiry(Object.fromEntries(INQUIRY_KEYS.map(k => [k, k === 'dateCounted' ? new Date().toISOString() : k === 'approved' ? 'No' : '']))) }, 'Add one by hand')] }));
+  const all = state.inquiries;
+  const statuses = [...new Set(all.map(i => i.status).filter(Boolean))];
+  const rows = all.filter(i => (statusF === 'All' || i.status === statusF) && (!q || INQUIRY_KEYS.some(k => String(i[k] ?? '').toLowerCase().includes(q.toLowerCase()))));
+  const csv = () => toDelimited([INQUIRY_HEADERS, ...all.map(i => INQUIRY_KEYS.map(k => i[k] ?? ''))], ',');
+  const blank = () => Object.fromEntries(INQUIRY_KEYS.map(k => [k, k === 'dateCounted' ? new Date().toISOString() : k === 'approved' ? 'No' : '']));
+  if (!all.length) return h('div', null, emptyState({ icon: 'inquiry', title: 'No carrier replies logged yet', text: 'When a carrier answers one of your posts, paste their e-mail into "Process carrier e-mail" (or let Outlook do it once connected). It is logged here and a reply is drafted for you.',
+    actions: [h('button', { class: 'btn primary', type: 'button', 'data-act': 'go-process', onclick: () => { tab = 'email'; rerender(); } }, 'Process a carrier e-mail'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import a log'), h('button', { class: 'btn', type: 'button', onclick: () => editInquiry(blank()) }, 'Add one by hand')] }));
+  const sorted = [...rows].sort((a, b) => (Date.parse(b.dateCounted) || 0) - (Date.parse(a.dateCounted) || 0));
+  const body = groupBy(sorted, (i) => dayLabel(i.dateCounted)).sort(() => 0).flatMap(([day, list]) => [groupRow(day, list.length, 7), ...expandRows(list.map(inqRow), openRows, 7)]);
   return h('div', null,
-    h('div', { class: 'toolbar' }, search, selectEl(statuses, statusF, (v) => { statusF = v; rerender(); }, { 'data-rerender': '' }),
-      h('button', { class: 'btn primary', type: 'button', onclick: () => editInquiry(Object.fromEntries(INQUIRY_KEYS.map(k => [k, k === 'dateCounted' ? new Date().toISOString() : k === 'approved' ? 'No' : '']))) }, 'Add entry'),
-      h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import…'),
-      h('button', { class: 'btn', type: 'button', disabled: !state.inquiries.length, onclick: () => download('inquiry-log.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV'),
-      h('span', { class: 'muted' }, `${rows.length} of ${state.inquiries.length}`)),
-    h('div', { class: 'tablewrap' }, h('table', { class: 'inq' },
-      h('thead', null, h('tr', null, h('th', null, ''), INQUIRY_HEADERS.map(x => h('th', null, x)))),
-      h('tbody', null, rows.length ? rows.map(i => h('tr', null,
-        h('td', null, h('div', { class: 'rowact' },
-          h('button', { class: 'btn small', type: 'button', onclick: () => editInquiry(i) }, 'Edit'),
-          h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete entry', 'Delete this inquiry row?', 'Delete')) actions.deleteInquiry(i.id); } }, '✕'))),
-        INQUIRY_KEYS.map(k => {
-          if (k === 'approved') return h('td', null, selectEl(['No', 'Yes'], i.approved || 'No', async (v) => { const c = await actions.setApproved(i.id, v); if (c) toast('Carrier added/updated in the Carrier Database.', 'ok'); }));
-          if (k === 'dateCounted' || k === 'dateAdded') return h('td', null, fmtDate(i[k]));
-          if (k === 'lastCarrierRate' && i[k] !== '' && i[k] !== undefined) return rateCell(i);
-          return h('td', null, i[k] ?? '');
-        }))) : h('tr', null, h('td', { colspan: 20, class: 'muted' }, 'No inquiries logged.'))))));
+    h('div', { class: 'dir-bar' }, searchBox(q, 'Search sender, subject, city, status…', (v) => { q = v; }, rerender),
+      segmented([['All', 'All', all.length], ...statuses.map(st => [st, st, all.filter(i => i.status === st).length])], statusF, (v) => { statusF = v; rerender(); }, 'Status'),
+      h('span', { class: 'grow' }),
+      h('button', { class: 'btn primary', type: 'button', onclick: () => editInquiry(blank()) }, icon('plus', 15), 'Add entry'),
+      moreMenu('More', [['Import…', 'upload', importDialog], ['Export CSV', 'download', () => download('inquiry-log.csv', '﻿' + csv(), 'text/csv;charset=utf-8')]])),
+    h('div', { class: 'dir-count' }, h('span', null, `${rows.length} of ${all.length}`), h('span', { class: 'muted' }, 'Newest first. Click a row for the full record.')),
+    h('div', { class: 'dirwrap tablewrap' }, h('table', { class: 'inq dirtable' },
+      h('thead', null, h('tr', null, ['Carrier', 'Lane', 'Their rate', 'Status', 'Last action', 'Approved', ''].map(x => h('th', null, x)))),
+      h('tbody', null, rows.length ? body : h('tr', null, h('td', { colspan: 7, class: 'muted' }, 'No inquiries match.'))))));
 }
 
 function processor() {

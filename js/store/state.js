@@ -20,6 +20,10 @@ import { ledgerKey, buildLedgerEntry, sendCounts } from '../core/ledger.js';
 import { parseTruckText, parseTruckList, makeTruck, mergeTrucks, isActive } from '../core/truckbook.js';
 import { suggestRate } from '../core/raterec.js';
 import { duplicateRows, mergePatches } from '../core/prospects.js';
+import { reconcileMatches, openLoads } from '../core/matching.js';
+import { newRescue, dueStages, planStage, signatureOf, shouldAutoStart, keyOfEmail, minutesIn } from '../core/autorescue.js';
+import { activeTrucks } from '../core/truckbook.js';
+import { headsOf } from '../core/corridor.js';
 
 /** DAT rates are whole dollars: "$1,650.00" -> "1650"; blank/invalid -> "". */
 export function cleanRate(v) {
@@ -32,10 +36,10 @@ export function cleanRate(v) {
 export const state = {
   ready: false,
   settings: { ...DEFAULT_SETTINGS },
-  postings: [], carriers: [], inquiries: [], outreach: [], spares: [], drafts: [], customers: [], coverLog: [], trucks: [], ledger: [],
+  postings: [], carriers: [], inquiries: [], outreach: [], spares: [], drafts: [], customers: [], coverLog: [], trucks: [], ledger: [], matches: [], autoRescues: [],
   weather: new Map(),          // "city|st" -> alerts[] (filled by store/weather.js)
   carrierRev: 0,               // bumped whenever the carrier list changes (invalidates cached lane depth)
-  hooks: { sendToOutlook: null, onWeeklyGoal: null }, // sendToOutlook: set by store/bridge.js when an Outlook folder is connected. onWeeklyGoal: set by main.js (confetti)
+  hooks: { sendToOutlook: null, onWeeklyGoal: null, teamTrucks: null, askTeam: null, onMatches: null }, // sendToOutlook: set by store/bridge.js when an Outlook folder is connected. onWeeklyGoal: set by main.js (confetti)
   counters: { lifetimeCovers: 0, coversToday: 0, coversTodayDate: todayKey(), goalWeek: '' },
   zip: null, zipInfo: { source: '', importedAt: '' },
   listeners: new Set(),
@@ -62,6 +66,8 @@ async function loadStores() {
   state.coverLog = (await db.getAll('coverLog')).sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt)));
   state.trucks = await db.getAll('trucks');
   state.ledger = (await db.getAll('ledger')).sort((a, b) => b.at - a.at);
+  state.matches = await db.getAll('matches');
+  state.autoRescues = await db.getAll('autorescues');
   state.carrierRev++;
 }
 
@@ -131,6 +137,47 @@ async function learnFromEmail(res, mail, now) {
   return notes;
 }
 
+
+/** Run one Auto Rescue stage: plan it (pure), then apply it: drafts, contact ledger, rate change, team request. Returns 1 when something happened. */
+async function runRescueStage(r, head, stage, ctx, reason) {
+  const now = ctx.now; const planStageId = stage === 'rematch' ? 'wave1' : stage;
+  const plan = planStage(planStageId, r, head, ctx);
+  const label = { match: 'Instant match', wave1: 'First wave', expand: 'Widened search', commercial: 'Rate check', team: 'Team rescue', rematch: 'New activity' }[stage] || stage;
+  let text = plan.note; let acted = false;
+  if (plan.raise && plan.raise.raise) {
+    const ids = groupMembers(state.postings, head.groupId || '__none__').map(m => m.id); const members = ids.length ? ids : [head.id];
+    r.offerRate = plan.raise.rate; r.raised = (r.raised || 0) + 1;
+    for (const m of state.postings.filter(x => members.includes(x.id))) { m.targetRate = String(plan.raise.rate); m.targetSource = 'user'; }
+    head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'rescue-rate', at: new Date(now).toISOString(), detail: 'Auto Rescue raised the target to $' + plan.raise.rate }].slice(-40);
+    await savePostings(); text += ' Target raised to $' + plan.raise.rate + ' (re-upload the DAT CSV to repost at the new rate).'; acted = true;
+  }
+  if (plan.drafts.length) {
+    const stamped = plan.drafts.map(d => ({ id: uid(), createdAt: new Date(now).toISOString(), postingId: head.id, rescueId: r.id, kind: 'Auto Rescue', to: d.to, subject: d.subject, body: d.body, carrierId: d.carrierId, tier: d.tier, score: d.score, why: d.why }));
+    state.drafts.unshift(...stamped);
+    const logs = stamped.map(d => ({ key: (String(head.loadNumber || head.id) + '|' + d.to + '|rescue|' + now).toLowerCase(), dateTime: new Date(now).toISOString(), loadNumber: head.loadNumber || '', postingId: head.id, postingRow: 0, email: d.to, carrier: '', result: 'Auto Rescue' }));
+    state.outreach.push(...logs); head.outreachCount = state.outreach.filter(o => o.postingId === head.id).length;
+    const touched = [];
+    for (let i = 0; i < plan.drafts.length; i++) {
+      const k = plan.drafts[i].key; (r.contacts[k] = r.contacts[k] || []).push({ at: now, rate: r.offerRate || safeNumeric(head.targetRate) });
+      const c = state.carriers.find(x => x.id === plan.drafts[i].carrierId) || state.carriers.find(x => keyOfEmail(x.email) === k); if (c) { c.lastContacted = new Date(now).toISOString(); touched.push(c); }
+      const mt = state.matches.find(m => m.loadId === head.id && m.email && keyOfEmail(m.email) === k); if (mt) { mt.status = 'contacted'; await guard(() => db.put('matches', mt)); }
+    }
+    r.drafts = (r.drafts || 0) + stamped.length;
+    await guard(async () => { await db.putMany('drafts', stamped); await db.putMany('outreach', logs); if (touched.length) await db.putMany('carriers', touched); }); if (touched.length) state.carrierRev++;
+    await savePostings();
+    if (state.settings.draftsToOutlook && state.hooks.sendToOutlook) await actions.sendDraftsToOutlook(stamped.map(d => d.id));
+    acted = true;
+  }
+  if (plan.calls.length) { const known = new Set((r.calls || []).map(c => c.key)); for (const c of plan.calls) if (!known.has(c.key)) { (r.calls = r.calls || []).push({ ...c, at: now }); acted = true; } text += ' To call: ' + plan.calls.slice(0, 3).map(c => (c.name || 'carrier') + ' ' + c.phone).join('; ') + '.'; }
+  if (plan.askTeam && state.hooks.askTeam && !r.askedTeam) {
+    try { const res = await state.hooks.askTeam(groupMembers(state.postings, head.groupId || '__none__').length ? groupMembers(state.postings, head.groupId) : [head], { note: 'Auto Rescue: no cover yet after ' + Math.round(minutesIn(r, now) / 60 * 10) / 10 + ' h.' }); r.askedTeam = true; text += res && res.ok === false ? ' (Team request failed: ' + res.error + ')' : ' Team request sent.'; acted = true; } catch (e) { text += ' (Team request failed.)'; }
+  }
+  if (stage === 'rematch' && !plan.drafts.length && !plan.calls.length) return 0;
+  if (stage === 'rematch') text = 'Something new appeared (a truck, a quote or a reply). ' + text;
+  r.log.push({ at: now, stage, label, text: text || 'Nothing to do yet.' }); r.log = r.log.slice(-60);
+  return acted || stage !== 'rematch' ? 1 : 0;
+}
+
 export const actions = {
   async saveSettings(patch) {
     state.settings = { ...state.settings, ...patch };
@@ -157,6 +204,7 @@ export const actions = {
       if (sg.rate > 0 && sg.confidence !== 'none') { p.targetRate = String(sg.rate); p.targetSource = 'suggested'; p.targetNote = sg.confidence + ' confidence: ' + sg.basis[0]; }
     } else if (safeNumeric(p.targetRate) > 0) p.targetSource = 'user';
     await savePostings(); emit();
+    actions.runMatching({ newLoadIds: new Set([p.id]) }).catch(() => {});
     return p;
   },
   async updatePosting(id, patch) {
@@ -296,6 +344,7 @@ export const actions = {
     const outcome = opts.outcome || 'Covered';
     const head = members.find(m => m.variant === 'Original') || members[0];
     const lane = classifyLane(head, state.zip, state.settings);
+    { const rs = state.autoRescues.find(x => x.id === head.id); if (rs && rs.status === 'active') await actions.stopAutoRescue(head.id, outcome === 'Covered' ? 'covered' : 'stopped'); }
     let carrier = { ...(opts.carrier || {}) };
     let dbCarrier = null;
     if (outcome === 'Covered') {
@@ -706,11 +755,86 @@ export const actions = {
   },
   async clearLedger() { state.ledger = []; await guard(() => db.clear('ledger')); emit(); },
 
+
+  // ---------- Two-way matching (v17) ----------
+  /** Every open load against every available truck (yours and the team's). Cheap; runs when a load or a truck arrives and on every tick. */
+  async runMatching({ newLoadIds = new Set(), newTruckKeys = new Set(), now = Date.now() } = {}) {
+    const team = (() => { try { return state.hooks.teamTrucks ? state.hooks.teamTrucks() : []; } catch { return []; } })();
+    const mine = activeTrucks(state.trucks, now); const trucks = [...mine, ...activeTrucks(team, now).filter(t => !mine.some(m => m.key && m.key === t.key))];
+    const r = reconcileMatches({ existing: state.matches, loads: headsOf(state.postings), trucks, zipMap: state.zip, now, coverLog: state.coverLog, newLoadIds, newTruckKeys, radius: Number(state.settings.carrierRadiusMiles) > 0 ? Math.max(100, Number(state.settings.carrierRadiusMiles)) : 125 });
+    const changed = r.added.length || r.dropped.length;
+    if (!changed) return r;
+    state.matches = r.matches;
+    await guard(async () => { for (const d of r.dropped) await db.del('matches', d.id); await db.putMany('matches', r.added); });
+    emit();
+    if (r.added.length && state.hooks.onMatches) { try { state.hooks.onMatches(r); } catch (e) { console.error(e); } }
+    return r;
+  },
+  async setMatchStatus(id, status) { const m = state.matches.find(x => x.id === id); if (!m) return; m.status = status; await guard(() => db.put('matches', m)); emit(); },
+
+  // ---------- Auto Rescue (v17) ----------
+  autoRescueFor(id) { return state.autoRescues.find(r => r.id === id) || null; },
+  async startAutoRescue(headId, opts = {}) {
+    const head = state.postings.find(p => p.id === headId); if (!head) return null;
+    const ex = actions.autoRescueFor(headId); if (ex && ex.status === 'active') return ex;
+    const r = newRescue(head, { now: Date.now(), maxRate: opts.maxRate, includeTeam: opts.includeTeam, auto: !!opts.auto });
+    state.autoRescues = state.autoRescues.filter(x => x.id !== headId); state.autoRescues.push(r);
+    await guard(() => db.put('autorescues', r)); emit();
+    await actions.tickAutoRescue({ reason: 'start' });
+    return r;
+  },
+  async updateAutoRescue(id, patch) {
+    const r = actions.autoRescueFor(id); if (!r) return null; Object.assign(r, patch);
+    await guard(() => db.put('autorescues', r)); emit(); return r;
+  },
+  async stopAutoRescue(id, status = 'stopped', text = '') {
+    const r = actions.autoRescueFor(id); if (!r || r.status === status) return;
+    r.status = status; r.endedAt = Date.now(); r.log.push({ at: Date.now(), stage: 'end', text: text || (status === 'covered' ? 'The load was covered.' : status === 'paused' ? 'Paused.' : 'Stopped.') });
+    await guard(() => db.put('autorescues', r)); emit();
+  },
+  async resumeAutoRescue(id) { const r = actions.autoRescueFor(id); if (!r) return; r.status = 'active'; delete r.endedAt; r.log.push({ at: Date.now(), stage: 'start', text: 'Resumed.' }); await guard(() => db.put('autorescues', r)); emit(); await actions.tickAutoRescue({ reason: 'resume' }); },
+  async deleteAutoRescue(id) { state.autoRescues = state.autoRescues.filter(r => r.id !== id); await guard(() => db.del('autorescues', id)); emit(); },
+  /** Do whatever is due: start hard lanes that have gone quiet, run each rescue's due stages, and re-run a cycle when something new appears. */
+  async tickAutoRescue({ now = Date.now(), reason = 'tick', force = null } = {}) {
+    if (actions._rescueBusy) return 0; actions._rescueBusy = true; let did = 0;
+    try {
+      const heads = headsOf(state.postings);
+      // 1. hard lanes that nobody has answered start by themselves
+      for (const head of heads) {
+        const ex = actions.autoRescueFor(head.id); if (ex && ex.status !== 'stopped' && ex.status !== 'covered') continue; if (ex && ex.autoDeclined) continue;
+        const a = shouldAutoStart(head, { zipMap: state.zip, settings: state.settings, now });
+        if (a.start) { const r = newRescue(head, { now, includeTeam: false, auto: true }); r.log[0].text = 'Started automatically: ' + (a.why || 'hard lane') + ', posted and no replies yet.'; state.autoRescues = state.autoRescues.filter(x => x.id !== head.id); state.autoRescues.push(r); await guard(() => db.put('autorescues', r)); did++; }
+      }
+      // 2. run the active rescues
+      for (const r of state.autoRescues.filter(x => x.status === 'active')) {
+        const head = heads.find(p => p.id === r.headId);
+        if (!head || head.status === 'Covered') { await actions.stopAutoRescue(r.id, head ? 'covered' : 'stopped', head ? 'The load was covered.' : 'The load left the board.'); continue; }
+        if (minutesIn(r, now) > (Number(state.settings.rescueMaxHours) > 0 ? Number(state.settings.rescueMaxHours) : 72) * 60) { await actions.stopAutoRescue(r.id, 'stopped', 'Stopped after 72 hours. Restart it if the load is still open.'); continue; }
+        const team = (() => { try { return state.hooks.teamTrucks ? state.hooks.teamTrucks() : []; } catch { return []; } })();
+        const mine = activeTrucks(state.trucks, now); const trucks = [...mine, ...activeTrucks(team, now).filter(t => !mine.some(m => m.key && m.key === t.key))];
+        const ctx = { carriers: state.carriers, trucks, coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, rescues: state.autoRescues, drafts: state.drafts, settings: state.settings, zipMap: state.zip, now };
+        let due = force ? [force] : dueStages(r, now);
+        // catching up after the app was closed: run the first stage and the latest one, not every wave in between
+        if (due.length > 2) due = [due[0], due[due.length - 1]];
+        for (const stage of due) { did += await runRescueStage(r, head, stage, ctx, reason); r.fired[stage] = now; }
+        // 3. something new (a truck, a quote, a reply) triggers another matching cycle straight away
+        const sig = signatureOf(head, ctx);
+        if (r.sig && sig !== r.sig && !due.length) did += await runRescueStage(r, head, 'rematch', ctx, reason);
+        r.sig = sig; r.lastEvalAt = now;
+        await guard(() => db.put('autorescues', r));
+      }
+      if (did) emit();
+    } finally { actions._rescueBusy = false; }
+    return did;
+  },
+
   // ---------- Truck Book ----------
   /** Add trucks (already parsed). Newer reports replace older ones from the same carrier at the same place. Returns { added, updated }. */
   async addTrucks(list) {
     const m = mergeTrucks(state.trucks, list); state.trucks = m.trucks;
-    await guard(() => db.putMany('trucks', state.trucks)); emit(); return { added: m.added, updated: m.updated };
+    await guard(() => db.putMany('trucks', state.trucks)); emit();
+    actions.runMatching({ newTruckKeys: new Set((list || []).map(t => t.key).filter(Boolean)) }).then(() => actions.tickAutoRescue({ reason: 'new truck' })).catch(() => {});
+    return { added: m.added, updated: m.updated };
   },
   /** Paste a list, a CSV or an e-mail: Freight Signal finds the trucks in it. */
   async importTruckText(text, source = 'paste') {

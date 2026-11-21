@@ -1,5 +1,6 @@
 import { h, toast, modal, confirmDialog, copyText, openExternal, field, inputEl, selectEl, download } from '../dom.js';
 import { coverageStrip } from '../board/coverage.js';
+import { rescueButton, rescueStrip } from '../board/autorescue.js';
 import { state, actions } from '../../store/state.js';
 import { rateViewUrl, ventuskyUrl, findTruckInfo } from '../../core/links.js';
 import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
@@ -386,6 +387,7 @@ function groupBox(r, collapsed, toggle) {
     h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy details'),
     single ? h('button', { class: 'btn', type: 'button', 'data-act': 'build-matrix', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3\u00d73 matrix') : null,
     coverTools(b, head),
+    rescueButton(b, head),
     menu('More actions for this load', [
       { label: 'View / edit load details and reply note', act: 'edit-lane-details', run: () => editDetails(b) },
       !single ? { label: 'Reshuffle postings (new nearby cities)', act: 'reshuffle', run: async () => {
@@ -399,6 +401,7 @@ function groupBox(r, collapsed, toggle) {
   return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), ...attrs },
     header,
     h('div', { class: 'lanebasics' }, details, suggestStrip(b, r, rate)),
+    rescueStrip(head),
     coverageStrip(b, head),
     teamStrip(b, head),
     guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
@@ -548,9 +551,15 @@ export function render() {
     rowsAll.length ? null : startGuide(),
     pastePanel({ compact: rowsAll.length > 0 }),
     rowsAll.length ? overviewStrip(rowsAll, ctx, quick, (k) => { quick = k; rerender(); }) : null,
-    rowsAll.length > 1 ? worklistPanel(rowsAll, wlOpen, openBox, wlOpen, (v) => { saveUi({ worklist: v }); rerender(); }) : null,
+    (() => {
+      const wl = rowsAll.length > 1 ? worklistPanel(rowsAll, wlOpen, openBox, wlOpen, (v) => { saveUi({ worklist: v }); rerender(); }) : null;
+      const sb = scoreboard(brokerTab);
+      if (!wl && !sb) return null;
+      const d = h('details', { class: 'boardextras', 'data-act': 'board-extras' }, h('summary', null, icon('chevright', 14), h('b', null, 'Worklist and scoreboard'), h('span', { class: 'muted' }, 'Which load to work next, and how you are doing this week')), wl, sb);
+      d.open = ui().extrasOpen !== false; d.addEventListener('toggle', () => { if (d.open !== (ui().extrasOpen !== false)) saveUi({ extrasOpen: d.open }); });
+      return d;
+    })(),
     rowsAll.length ? brokerTabs(rowsAll) : null,
-    scoreboard(brokerTab),
     rowsAll.length ? h('div', { class: 'toolbar sticky boardbar' }, search, quickSel, sortSel, agingBtn, csvAll, boardMenu,
       h('span', { class: 'muted count' }, `${rows.length} load${rows.length === 1 ? '' : 's'} \u00b7 ${shown} postings`)) : null,
     nSel ? h('div', { class: 'toolbar selbar' }, h('b', null, `${nSel} selected`),
