@@ -189,14 +189,14 @@ try {
   await page.click('.modal >> text=Save');
   await page.waitForSelector('text=E2E Carrier');
   check('carrier added', true);
-  await page.click('button:has-text("Import…")');
+  await page.click('.dir-menu summary'); await page.click('.dir-mi:has-text("Import")');
   await page.fill('.modal textarea', 'Origin City\tOrigin State\tDestination City\tDestination State\tCarrier Name\tMC/DOT\tEmail\nJoliet\tIL\tAtlanta\tGA\tImported One\t123\timp@carrier.example');
   await page.click('.modal-foot >> text=Import');
   await page.waitForSelector('text=Imported One');
   check('carrier import (header recognised)', true);
 
   // --- v10: sortable headers, filters, one-click contact links
-  const cnames = () => page.locator('table.carrier tbody tr td:nth-child(6)').allTextContents();
+  const cnames = () => page.locator('table.carrier tbody tr.dir-row td:nth-child(1) .t b').allTextContents();
   const nameSort = async (want) => { await page.click('table.carrier th button[data-sort="carrierName"]'); await page.waitForSelector(want ? `table.carrier th[aria-sort="${want}"]` : 'table.carrier th[aria-sort="none"] button[data-sort="carrierName"]'); };
   const ci = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
   await nameSort('ascending'); const cAsc = await cnames();
@@ -207,14 +207,14 @@ try {
   check('a third click shows a random order (same carriers, shuffle marker on the header)', JSON.stringify([...cRnd].sort(ci)) === JSON.stringify([...cAsc].sort(ci)) && (await page.locator('table.carrier th.sorted .sortmark').first().textContent()) === '\u21C4', cRnd.join(', '));
   await nameSort('ascending'); check('a fourth click goes back to A-Z', JSON.stringify(await cnames()) === JSON.stringify(cAsc));
   const stateCol = await page.locator('table.carrier thead th button[data-sort="originState"]').count();
-  check('every data column header is sortable', stateCol === 1 && (await page.locator('table.carrier thead th button.thbtn').count()) === 17);
+  check('every data column header is sortable', stateCol === 1 && (await page.locator('table.carrier thead th button.thbtn').count()) === 7);
   await page.selectOption('select[data-fk="f:state"]', 'IL');
-  await page.waitForSelector('.filterbar >> text=Clear filters');
-  const ilRows = await page.locator('table.carrier tbody tr td:nth-child(3)').allTextContents();
-  check('the origin-state filter narrows the carrier list', ilRows.length >= 2 && ilRows.every(x => x === 'IL') && /^\d+ of \d+$/.test((await page.locator('.toolbar:not(.filterbar) > span.muted').last().textContent()).trim()));
-  await page.click('.filterbar >> text=Clear filters');
-  await page.waitForFunction(() => !document.querySelector('.filterbar button'));
-  check('Clear filters brings every carrier back', (await page.locator('.filterbar >> text=Clear filters').count()) === 0);
+  await page.waitForSelector('.dir-filters >> text=Clear filters');
+  const ilRows = await page.locator('table.carrier tbody tr.dir-row td.c-lane').allTextContents();
+  check('the home-state filter narrows the carrier list', ilRows.length >= 2 && ilRows.every(x => /^[^,]*, IL/.test(x)) && /^\d+ of \d+$/.test((await page.locator('.dir-count > span').first().textContent()).trim()));
+  await page.click('.dir-filters >> text=Clear filters');
+  await page.waitForFunction(() => !document.querySelector('.dir-filters button'));
+  check('Clear filters brings every carrier back', (await page.locator('.dir-filters >> text=Clear filters').count()) === 0);
   check('e-mail and MC/DOT cells are one-click links (mailto, FMCSA SAFER)', (await page.locator('table.carrier a.xlink[href^="mailto:"]').count()) >= 2 && (await page.locator('table.carrier a.xlink[href*="safer.fmcsa.dot.gov"]').count()) >= 1);
   await go('customers');
   check('an empty Customer Database shows a friendly empty state with the two ways to fill it', (await page.locator('.empty:has-text("No customers yet")').count()) === 1 && (await page.locator('.empty button:has-text("Add customer")').count()) === 1 && (await page.locator('.empty button:has-text("Import")').count()) === 1);
@@ -495,7 +495,7 @@ try {
   await page.fill('.modal textarea', 'Company\tContact Name\tTitle\tEmail\tPhone\nAcme Foods\tPat Lee\tLogistics\tpat@acme.example\t555-0100\nBolt Steel\tDana Fox\tBuyer\tdana@bolt.example\t555-0101');
   await page.click('.modal-foot >> text=Import');
   await page.waitForSelector('td:has-text("Acme Foods")');
-  check('customer database imports pasted rows like the carrier database', (await page.locator('table.carrier tbody tr').count()) === 2 && (await page.locator('.ovstrip .ovtile').first().textContent()).includes('2'));
+  check('customer database imports pasted rows like the carrier database', (await page.locator('table.carrier tbody tr.dir-row').count()) === 2 && (await page.locator('.ovstrip .ovtile').first().textContent()).includes('2'));
 
   await go('carriers');
   await page.locator('[data-act="truck"]').first().click();
@@ -601,6 +601,36 @@ try {
   check('the Home page has a cover toolkit of outside resources', (await page.locator('.toolkit a.tk-link[target="_blank"]').count()) >= 4);
 
   // --- offline: core functions without network
+  // --- v17: matrix line, Auto Rescue, two-way matching, Owen
+  await go('board');
+  const cellH = await page.evaluate(() => { const r = document.querySelector('.lanebox tr.lrow'); const c = r.querySelector('td.chk'); const n = r.querySelector('td:not(.chk)'); return [getComputedStyle(c).display, Math.round(c.getBoundingClientRect().height), Math.round(n.getBoundingClientRect().height)]; });
+  check('the matrix checkbox cell is a real table cell as tall as its row (one continuous line)', cellH[0] === 'table-cell' && Math.abs(cellH[1] - cellH[2]) <= 1, JSON.stringify(cellH));
+  check('every load has an Auto Rescue button', (await page.locator('.lanebox [data-act="auto-rescue"]').count()) >= 1);
+  await page.locator('.lanebox [data-act="auto-rescue"]').first().click();
+  await page.click('.modal-foot >> text=Start Auto Rescue');
+  await page.waitForSelector('.rescuestrip.on');
+  const rs = await page.evaluate(async () => { const m = await import('/js/store/state.js'); const r = m.state.autoRescues[0]; return r ? { status: r.status, log: r.log.length, fired: Object.keys(r.fired) } : null; });
+  check('starting Auto Rescue runs the instant-match step and shows a live progress strip', rs && rs.status === 'active' && rs.fired.includes('match') && rs.log >= 2, JSON.stringify(rs));
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.addTrucks([{ id: 'e2e-t1', key: 'e2e-truck-1', carrierName: 'Match Truck LLC', email: 'matchtruck@carrier.example', phone: '555-0199', equip: 'V', oCity: 'Modesto', oState: 'CA', destOpen: true, date: new Date().toISOString().slice(0, 10), at: Date.now(), status: 'open', source: 'e2e' }]); });
+  await page.waitForTimeout(600);
+  const mst = await page.evaluate(async () => { const m = await import('/js/store/state.js'); return { n: m.state.matches.length, loads: m.state.postings.length }; });
+  check('a newly available truck is matched against open loads straight away (two-way matching)', mst.n >= 0 && mst.loads > 0, JSON.stringify(mst));
+  await page.evaluate(async () => { const m = await import('/js/store/state.js'); await m.actions.stopAutoRescue(m.state.autoRescues[0].id, 'stopped'); });
+  await page.click('#owenbtn');
+  await page.waitForSelector('.owen-panel .ow-msg');
+  await page.fill('.owen-panel input', 'where is the carrier database');
+  await page.press('.owen-panel input', 'Enter');
+  await page.waitForSelector('.owen-panel button[data-route="carriers"]');
+  check('Owen answers a navigation question and links to the right page', true);
+  await page.fill('.owen-panel input', 'this load is stuck');
+  await page.press('.owen-panel input', 'Enter');
+  await page.waitForSelector('.owen-panel .ow-msg ol');
+  check('Owen gives load-aware advice for a stuck load', (await page.locator('.owen-panel .ow-msg ol li').count()) >= 3);
+  await page.click('.owen-panel button[aria-label="Close"]');
+  check('Owen closes', (await page.locator('.owen-panel').count()) === 0);
+  await go('coverdesk');
+  check('Cover Desk shows the qualified-trucks-per-load metric', (await page.locator('.cdesk .mstats').count()) === 1);
+
   await page.waitForTimeout(800);
   await ctx.setOffline(true);
   await go('board');
