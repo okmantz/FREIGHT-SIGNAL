@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-z6lJsMYsBWF+tFbd8jih8Owhv9zARmMaOAYGU9KYnIk='; style-src 'sha256-rdEHYKQT4uJQamSExeszBnC9GW1qvb577du1JF/NSX8='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-TwrMsVgbiBXIuPeuCGuY3I9lslF2tHF5SZpeRG/bF70='; style-src 'sha256-rdEHYKQT4uJQamSExeszBnC9GW1qvb577du1JF/NSX8='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -2487,8 +2487,8 @@ details.boardextras > :not(summary) { margin: 12px; }
   function detectDelimiter(text2) {
     const first2 = text2.split(/\r?\n/, 1)[0] || "";
     const tabs = (first2.match(/\t/g) || []).length;
-    const commas = (first2.match(/,/g) || []).length;
-    return tabs >= commas && tabs > 0 ? "	" : ",";
+    const commas2 = (first2.match(/,/g) || []).length;
+    return tabs >= commas2 && tabs > 0 ? "	" : ",";
   }
   function escapeField(v, delimiter) {
     const s = v === null || v === void 0 ? "" : String(v);
@@ -8771,7 +8771,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           target: [".pastepanel", '#nav a[data-tab="board"]'],
           icon: "board",
           title: "2. Paste your first load",
-          body: "On the Load Board page, paste your TQL load text into this box. It is read as you paste. Fix anything highlighted, add a target rate if you know it, then press Add (or Ctrl+Enter)."
+          body: 'On the Load Board page, paste your load into this box, or type a lane like "aiken sc to fletcher ok". It is read as you paste. Fix anything highlighted, add a target rate if you know it, then press Add (or Ctrl+Enter).'
         },
         {
           id: "matrix",
@@ -8882,12 +8882,12 @@ details.boardextras > :not(summary) { margin: 12px; }
       }
       card5.classList.remove("center");
       const r = target.getBoundingClientRect();
-      const pad2 = 7;
+      const pad3 = 7;
       spot.hidden = false;
-      spot.style.left = `${Math.round(r.left - pad2)}px`;
-      spot.style.top = `${Math.round(r.top - pad2)}px`;
-      spot.style.width = `${Math.round(r.width + pad2 * 2)}px`;
-      spot.style.height = `${Math.round(r.height + pad2 * 2)}px`;
+      spot.style.left = `${Math.round(r.left - pad3)}px`;
+      spot.style.top = `${Math.round(r.top - pad3)}px`;
+      spot.style.width = `${Math.round(r.width + pad3 * 2)}px`;
+      spot.style.height = `${Math.round(r.height + pad3 * 2)}px`;
       if (small) {
         card5.style.left = "";
         card5.style.top = "";
@@ -11887,6 +11887,305 @@ details.boardextras > :not(summary) { margin: 12px; }
     }
   });
 
+  // js/core/quickload.js
+  function cityVariants(words) {
+    const out = /* @__PURE__ */ new Set([words.join(" ")]);
+    out.add(words.map((w) => SHORT[w] || w).join(" "));
+    out.add(words.map((w) => LONG[w] || w).join(" "));
+    return [...out];
+  }
+  function levenshtein(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let rowMin = i;
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (cur[j] < rowMin) rowMin = cur[j];
+      }
+      if (rowMin > max) return max + 1;
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+  function marketsByState(zipMap) {
+    if (zipMap._quickByState) return zipMap._quickByState;
+    const by = /* @__PURE__ */ new Map();
+    for (const m of zipMap.markets().values()) {
+      let l = by.get(m.state);
+      if (!l) by.set(m.state, l = /* @__PURE__ */ new Map());
+      const key = strip(normalizeText(m.city));
+      const cur = l.get(key);
+      if (!cur || m.pop > cur.pop) l.set(key, m);
+    }
+    zipMap._quickByState = by;
+    return by;
+  }
+  function lookupCity(zipMap, words, st2) {
+    const list = marketsByState(zipMap).get(st2);
+    if (!list) return null;
+    for (const v of cityVariants(words)) {
+      const m = list.get(strip(v));
+      if (m) return { city: m.city, zip: m.zip, exact: true };
+    }
+    const want = strip(words.join(" "));
+    const max = want.length <= 3 ? 0 : want.length <= 7 ? 1 : 2;
+    if (!max) return null;
+    let best = null;
+    for (const [key, m] of list) {
+      const d = levenshtein(want, key, max);
+      if (d <= max && (!best || d < best.d || d === best.d && m.pop > best.m.pop)) best = { d, m };
+    }
+    return best ? { city: best.m.city, zip: best.m.zip, exact: false } : null;
+  }
+  function parseEnd(text2, zipMap) {
+    const raw = String(text2 ?? "").toLowerCase().replace(/[,;()]/g, " ").replace(/\./g, " ").replace(/\s+/g, " ").trim();
+    const bad = { score: 0, city: "", state: "", zip: "" };
+    if (!raw) return bad;
+    let words = raw.split(" ");
+    let zip = "";
+    if (/^\d{5}(-\d{4})?$/.test(words[words.length - 1])) zip = normalizeZip(words.pop());
+    let st2 = "";
+    for (const n of [3, 2, 1]) {
+      if (words.length <= n) continue;
+      const a = NAME_TO_ABBR.get(words.slice(-n).join(" "));
+      if (a) {
+        st2 = a;
+        words = words.slice(0, -n);
+        break;
+      }
+    }
+    if (!st2 && words.length > 1) {
+      const last2 = words[words.length - 1].toUpperCase();
+      if (ABBRS.has(last2)) {
+        st2 = last2;
+        words = words.slice(0, -1);
+      }
+    }
+    if (!st2 || !words.length || words.length > 5 || !/[a-z]/.test(words.join(""))) return bad;
+    const out = { score: 1, city: titleCase(words.join(" ")), state: st2, zip, fixed: false };
+    if (zipMap && zipMap.size) {
+      const hit = lookupCity(zipMap, words, st2);
+      if (hit) {
+        out.city = hit.city;
+        out.fixed = !hit.exact;
+        out.score = hit.exact ? 3 : 2;
+        out.zip = zip && zipMap.zipMatchesCityState(zip, hit.city, st2) ? zip : hit.zip;
+      } else if (zip) {
+        const z = zipMap.findZip(zip);
+        if (z && z.state === st2) {
+          out.city = z.city;
+          out.score = 3;
+        }
+      }
+    }
+    return out;
+  }
+  function splitCandidates(line2) {
+    const cands = [];
+    for (const m of line2.matchAll(SEPARATORS)) {
+      cands.push({ left: line2.slice(0, m.index), right: line2.slice(m.index + m[0].length), bonus: 0.2 });
+    }
+    const words = line2.split(/\s+/);
+    for (let k = 1; k < words.length; k++) cands.push({ left: words.slice(0, k).join(" "), right: words.slice(k).join(" "), bonus: 0 });
+    return cands;
+  }
+  function pullExtras(line2, now) {
+    let s = " " + line2 + " ";
+    const x = {};
+    const take = (re, fn) => {
+      const m = re.exec(s);
+      if (m) {
+        s = s.replace(m[0], " ");
+        fn(m);
+      }
+    };
+    take(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/, (m) => {
+      let y = m[3] ? Number(m[3]) : now.getFullYear();
+      if (y < 100) y += 2e3;
+      const d = new Date(y, Number(m[1]) - 1, Number(m[2]));
+      if (!m[3] && startOfDay2(d) < startOfDay2(now) && now - d > 7 * 864e5) d.setFullYear(y + 1);
+      if (d.getMonth() === Number(m[1]) - 1) x.pickup = d;
+    });
+    take(/\b(today|tomorrow|tmrw)\b/i, (m) => {
+      x.pickup = addDays2(now, m[1].toLowerCase() === "today" ? 0 : 1);
+    });
+    take(/(\d{1,3}(?:,\d{3})+|\d{4,6})\s*(?:lbs?|pounds?)\b/i, (m) => {
+      x.weight = Number(m[1].replace(/,/g, ""));
+    });
+    take(/\b(\d{2})\s?k\s*(?:lbs?)?(?=\s)/i, (m) => {
+      x.weight = Number(m[1]) * 1e3;
+    });
+    take(/\b(53|48|45|40|26|24)\s?(?:ft|foot|feet|')(?=\s|$)/i, (m) => {
+      x.length = Number(m[1]);
+    });
+    take(/\b(reefer|refrigerated|flat\s?bed|step\s?deck|power\s?only|hot\s?shot|box\s?truck|straight\s?truck|sprinter|conestoga|rgn)\b/i, (m) => {
+      x.equip = equipFromText(m[1]);
+    });
+    take(/\bdry\s+van\b/i, () => {
+    });
+    return { text: s.replace(/\s+/g, " ").trim(), ...x };
+  }
+  function parseQuickLine(line2, zipMap, now = /* @__PURE__ */ new Date()) {
+    const cleaned = String(line2 ?? "").replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").replace(/^\s*from\s+/i, "").trim();
+    if (!cleaned) return null;
+    const ex = pullExtras(cleaned, now);
+    let best = null;
+    for (const c of splitCandidates(ex.text)) {
+      const o2 = parseEnd(c.left, zipMap), d2 = parseEnd(c.right, zipMap);
+      if (!o2.score || !d2.score) continue;
+      const score2 = o2.score + d2.score + c.bonus;
+      if (!best || score2 > best.score) best = { score: score2, o: o2, d: d2 };
+    }
+    if (!best) return null;
+    const { o, d } = best;
+    const warnings = [];
+    for (const [side, e] of [["Origin", o], ["Destination", d]]) {
+      if (e.fixed) warnings.push(`${side} read as ${e.city}, ${e.state}: check the spelling.`);
+      else if (e.score === 1 && zipMap && zipMap.size) warnings.push(`${side} "${e.city}, ${e.state}" is not in the ZIP Map.`);
+    }
+    const pickup = ex.pickup || startOfDay2(now);
+    const weight = ex.weight || QUICK_DEFAULTS.weight;
+    const equip = ex.equip || QUICK_DEFAULTS.equip;
+    const length = ex.length || QUICK_DEFAULTS.length;
+    const f = {
+      originCity: o.city,
+      originState: o.state,
+      originZip: o.zip,
+      destCity: d.city,
+      destState: d.state,
+      destZip: d.zip,
+      pickupEarliest: fmtDateShort(pickup),
+      pickupLatest: fmtDateShort(pickup),
+      weight: String(weight),
+      equip,
+      length
+    };
+    return { fields: f, warnings, confident: o.score + d.score >= 5 };
+  }
+  function parseQuickLoads(text2, zipMap, now = /* @__PURE__ */ new Date()) {
+    const loads = [], skipped = [];
+    for (const raw of String(text2 ?? "").replace(/\r\n?/g, "\n").split("\n")) {
+      if (!raw.trim()) continue;
+      const r = parseQuickLine(raw, zipMap, now);
+      if (r) loads.push({ raw, ...r });
+      else skipped.push(raw.trim());
+    }
+    return { loads, skipped };
+  }
+  function buildStandardLoadDetails(f, zipMap, now = /* @__PURE__ */ new Date()) {
+    const zipOf = (city, st2, zip) => normalizeZip(zip) || (zipMap && zipMap.size && city && st2 ? zipMap.bestZipForCityState(city, st2) : "");
+    const oz = zipOf(f.originCity, f.originState, f.originZip), dz = zipOf(f.destCity, f.destState, f.destZip);
+    const miles = Math.round(laneMiles({ originZip: oz, destZip: dz, originCity: f.originCity, originState: f.originState, destCity: f.destCity, destState: f.destState }, zipMap) || 0);
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(f.pickupEarliest ?? "").trim());
+    const pick2 = m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2])) : startOfDay2(now);
+    const drop = addDays2(pick2, Math.max(1, Math.ceil(miles / MILES_PER_DAY)));
+    const w = Number(String(f.weight ?? "").replace(/[^0-9.]/g, "")) || QUICK_DEFAULTS.weight;
+    const place2 = (c, s, z) => `${String(c ?? "").trim()}, ${String(s ?? "").trim().toUpperCase()}${z ? " " + z : ""}`;
+    return [
+      "1 pick - 1 drop",
+      "",
+      " Pick 1",
+      ` Pickup: ${place2(f.originCity, f.originState, oz)}`,
+      ` Pickup Date/Time: ${fmtDate2(pick2)} ${WINDOW}`,
+      "",
+      " Drop 1",
+      ` Delivery: ${place2(f.destCity, f.destState, dz)}`,
+      ` Delivery Date/Time: ${fmtDate2(drop)} ${WINDOW}`,
+      "",
+      ` Weight: ${commas(w)} lbs`,
+      " Commodity:",
+      " Temp:",
+      ` Miles: ${miles || ""}`.trimEnd(),
+      ` Trailer Type: ${equipLabel(f.equip || QUICK_DEFAULTS.equip)}`,
+      ` Trailer Size: ${f.length || QUICK_DEFAULTS.length} ft`
+    ].join("\n");
+  }
+  var QUICK_DEFAULTS, WINDOW, MILES_PER_DAY, US_STATES, NAME_TO_ABBR, ABBRS, SHORT, LONG, titleCase, pad2, fmtDate2, fmtDateShort, startOfDay2, addDays2, strip, SEPARATORS, looksLikeLabelledLoad, commas;
+  var init_quickload = __esm({
+    "js/core/quickload.js"() {
+      init_util();
+      init_equipment();
+      init_lanes();
+      QUICK_DEFAULTS = { weight: 4e4, equip: "V", length: 53 };
+      WINDOW = "FCFS 08:00 to 16:00";
+      MILES_PER_DAY = 500;
+      US_STATES = {
+        AL: "alabama",
+        AK: "alaska",
+        AZ: "arizona",
+        AR: "arkansas",
+        CA: "california",
+        CO: "colorado",
+        CT: "connecticut",
+        DE: "delaware",
+        DC: "district of columbia",
+        FL: "florida",
+        GA: "georgia",
+        HI: "hawaii",
+        ID: "idaho",
+        IL: "illinois",
+        IN: "indiana",
+        IA: "iowa",
+        KS: "kansas",
+        KY: "kentucky",
+        LA: "louisiana",
+        ME: "maine",
+        MD: "maryland",
+        MA: "massachusetts",
+        MI: "michigan",
+        MN: "minnesota",
+        MS: "mississippi",
+        MO: "missouri",
+        MT: "montana",
+        NE: "nebraska",
+        NV: "nevada",
+        NH: "new hampshire",
+        NJ: "new jersey",
+        NM: "new mexico",
+        NY: "new york",
+        NC: "north carolina",
+        ND: "north dakota",
+        OH: "ohio",
+        OK: "oklahoma",
+        OR: "oregon",
+        PA: "pennsylvania",
+        RI: "rhode island",
+        SC: "south carolina",
+        SD: "south dakota",
+        TN: "tennessee",
+        TX: "texas",
+        UT: "utah",
+        VT: "vermont",
+        VA: "virginia",
+        WA: "washington",
+        WV: "west virginia",
+        WI: "wisconsin",
+        WY: "wyoming",
+        PR: "puerto rico"
+      };
+      NAME_TO_ABBR = new Map(Object.entries(US_STATES).map(([a, n]) => [n, a]));
+      ABBRS = new Set(Object.keys(US_STATES));
+      SHORT = { st: "saint", ft: "fort", mt: "mount", ste: "sainte" };
+      LONG = { saint: "st", fort: "ft", mount: "mt", sainte: "ste" };
+      titleCase = (s) => s.split(" ").filter(Boolean).map((w) => w.replace(/^([a-z])/, (c) => c.toUpperCase())).join(" ");
+      pad2 = (n) => String(n).padStart(2, "0");
+      fmtDate2 = (d) => `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${d.getFullYear()}`;
+      fmtDateShort = (d) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+      startOfDay2 = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      addDays2 = (d, n) => {
+        const x = startOfDay2(d);
+        x.setDate(x.getDate() + n);
+        return x;
+      };
+      strip = (s) => s.replace(/[^a-z0-9]/g, "");
+      SEPARATORS = /\s*(?:->|=>|→|➔|»|>|–|—|-|\/|\||\bto\b|\bthru\b)\s*/gi;
+      looksLikeLabelledLoad = (text2) => /^\s*(pickup|delivery)\s*(date\/time)?\s*:/im.test(String(text2 ?? ""));
+      commas = (n) => Number(n).toLocaleString("en-US");
+    }
+  });
+
   // js/ui/board/util.js
   function pageSelectEq(value, onChange) {
     const cur = String(value || "V").toUpperCase();
@@ -11905,20 +12204,33 @@ details.boardextras > :not(summary) { margin: 12px; }
 
   // js/ui/board/flow.js
   function reparse(previewHost, summaryEl, addBtn) {
-    const blocks = splitLoads(paste.text, state.settings.loadSeparatorRegex);
     const old = paste.items;
-    paste.items = blocks.map((raw, i) => {
-      const prev = old.find((o) => o.raw === raw);
-      if (prev) return prev;
-      const parsed = parseTqlLoad(raw);
-      return { raw, parsed, take: true, f: { equip: "V", ...parsed.fields } };
-    });
+    const keep = (raw) => old.find((o) => o.raw === raw);
+    paste.skipped = 0;
+    const quick2 = looksLikeLabelledLoad(paste.text) ? null : parseQuickLoads(paste.text, state.zip);
+    if (quick2 && quick2.loads.length) {
+      paste.skipped = quick2.skipped.length;
+      paste.items = quick2.loads.map((q4) => {
+        const prev = keep(q4.raw);
+        if (prev && prev.quick) return prev;
+        const parsed = parseTqlLoad(buildStandardLoadDetails(q4.fields, state.zip));
+        parsed.warnings = [...q4.warnings, ...parsed.warnings];
+        return { raw: q4.raw, quick: true, parsed, take: true, f: { equip: "V", ...parsed.fields } };
+      });
+    } else {
+      paste.items = splitLoads(paste.text, state.settings.loadSeparatorRegex).map((raw) => {
+        const prev = keep(raw);
+        if (prev && !prev.quick) return prev;
+        const parsed = parseTqlLoad(raw);
+        return { raw, parsed, take: true, f: { equip: "V", ...parsed.fields } };
+      });
+    }
     drawPreview(previewHost, summaryEl, addBtn);
   }
   function drawPreview(host, summaryEl, addBtn) {
     host.replaceChildren();
     const n = paste.items.filter((i) => i.take).length;
-    summaryEl.textContent = paste.items.length ? `${paste.items.length} load${paste.items.length === 1 ? "" : "s"} found - fix anything highlighted, then press Enter (or the button).` : paste.text.trim() ? "No load found yet - keep pasting, or add one by hand." : "";
+    summaryEl.textContent = paste.items.length ? `${paste.items.length} load${paste.items.length === 1 ? "" : "s"} found - fix anything highlighted, then press Enter (or the button).` + (paste.skipped ? ` ${paste.skipped} line${paste.skipped === 1 ? " was" : "s were"} not understood and will be skipped.` : "") : paste.text.trim() ? "No load found yet - keep pasting, or add one by hand." : HINT;
     addBtn.textContent = n > 1 ? `Add ${n} loads` : "Add load";
     addBtn.disabled = !n;
     if (!paste.items.length) return;
@@ -11971,7 +12283,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     host.append(h("div", { class: "tablewrap" }, h("table", { class: "lanetable pastetable" }, h("thead", null, head), h("tbody", null, rows))));
   }
   function pastePanel({ compact = false } = {}) {
-    const ta = h("textarea", { class: "pastebox", placeholder: "Paste TQL load data here to add to board", "aria-label": "Paste TQL load data", value: paste.text, "data-rerender": "", "data-fk": "paste", rows: compact ? 2 : 3 });
+    const ta = h("textarea", { class: "pastebox", placeholder: "Paste load data here to add to board", "aria-label": "Paste load data", value: paste.text, "data-rerender": "", "data-fk": "paste", rows: compact ? 2 : 3 });
     const fit = () => {
       ta.style.height = "auto";
       ta.style.height = Math.min(ta.scrollHeight + 2, 260) + "px";
@@ -12003,6 +12315,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           f.originState = String(f.originState || "").toUpperCase();
           f.destState = String(f.destState || "").toUpperCase();
           f.pickupLatest = f.pickupLatest || f.pickupEarliest;
+          if (it.quick) f.details = buildStandardLoadDetails(f, state.zip);
           const targetRate = String(f.targetRate || "").replace(/[^0-9.]/g, "");
           delete f.targetRate;
           added.push(await actions.addParsedLoad(f, { broker: paste.broker, targetRate }));
@@ -12162,17 +12475,19 @@ details.boardextras > :not(summary) { margin: 12px; }
       });
     });
   }
-  var paste, EDIT_FIELDS, addAll;
+  var paste, HINT, EDIT_FIELDS, addAll;
   var init_flow = __esm({
     "js/ui/board/flow.js"() {
       init_dom();
       init_state();
       init_parser();
+      init_quickload();
       init_matrix();
       init_lanes();
       init_coverlog();
       init_util2();
-      paste = { text: "", items: [], broker: "", timer: 0, busy: false };
+      paste = { text: "", items: [], skipped: 0, broker: "", timer: 0, busy: false };
+      HINT = 'Or type a lane, one load per line: "aiken sc to fletcher ok". Anything left out is a 53 ft dry van, 40,000 lbs, picking up today.';
       EDIT_FIELDS = [["originCity", "Origin city", 14], ["originState", "St", 3], ["originZip", "ZIP", 6], ["pickupEarliest", "Pickup", 9], ["destCity", "Dest city", 14], ["destState", "St", 3], ["weight", "Weight", 6]];
       addAll = async () => {
       };
@@ -13944,7 +14259,7 @@ ${d.body}`, "E-mail text copied. Attach the CSV you downloaded.");
         DAT_COLUMNS.map((c) => mk3(c.key, `${c.letter} ${c.header}`)),
         mk3("targetRate", "Target rate (whole load)")
       ),
-      mk3("details", "Auto-reply details (source TQL text)", true),
+      mk3("details", "Auto-reply details (source load text)", true),
       h("div", { class: "toolbar" }, h("button", { class: "btn small", type: "button", onclick: (e) => {
         const v = inputs.details.value.trim();
         if (!v) return toast("There are no details to copy.", "warn");
@@ -14216,7 +14531,7 @@ Download anyway?`, "Download anyway");
           "div",
           { class: "lanestatus" },
           // collapsed cards have no action bar, so the copy button lives in the header (it is in the action bar when the card is open)
-          collapsed ? h("button", { class: "btn small", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted TQL text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 14), "Copy details") : null,
+          collapsed ? h("button", { class: "btn small", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted load text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 14), "Copy details") : null,
           h("span", { class: "badge st-" + st2.tone }, icon(st2.icon, 14), st2.label),
           h("span", { class: "score " + r.label.toLowerCase(), title: `Cover-probability score ${r.score}/100 (${r.label}): ${r.reasons.join("; ")}` }, r.score)
         )
@@ -14329,7 +14644,7 @@ Download anyway?`, "Download anyway");
         if (x) summaryOutreach(x);
       } }, icon("send", 15), "Carrier outreach"),
       h("button", { class: "btn", type: "button", "data-act": "mark-covered", title: "Log which posting and carrier covered it, then remove the load", onclick: () => coverModal(b) }, icon("check", 15), "Mark covered"),
-      h("button", { class: "btn", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted TQL text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 15), "Copy details"),
+      h("button", { class: "btn", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted load text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 15), "Copy details"),
       single ? h("button", { class: "btn", type: "button", "data-act": "build-matrix", title: "Build the 9-posting matrix", onclick: () => matrixFlow(head) }, "Build 3\xD73 matrix") : null,
       coverTools(b, head),
       rescueButton(b, head),
@@ -14492,7 +14807,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     return h(
       "ol",
       { class: "getstarted", "data-test": "start-guide" },
-      step2(1, "Paste your TQL load", "Copy the load from TQL and paste it in the box below. It is read as you paste; fix anything highlighted."),
+      step2(1, "Paste your load", 'Paste the load in the box below, or just type a lane like "aiken sc to fletcher ok". It is read as you paste; fix anything highlighted.'),
       step2(2, "Set one target rate", "The load becomes 9 nearby postings on its own. Type one rate for all of them and press Add."),
       step2(3, "Download the DAT CSV", "Upload it in DAT\u2019s bulk posting tool, then use Carrier outreach to draft e-mails to your best carriers.")
     );
@@ -14579,9 +14894,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     return h(
       "div",
       null,
-      pageHead({ icon: "board", title: "Load board", sub: rowsAll.length ? "Add loads, set one target rate per load, then download the DAT CSV. Nothing is ever sent automatically." : "Three steps from a TQL load to a DAT posting. Nothing is ever sent automatically." }),
-      rowsAll.length ? null : startGuide(),
-      pastePanel({ compact: rowsAll.length > 0 }),
+      pageHead({ icon: "board", title: "Load board", sub: rowsAll.length ? "Add loads, set one target rate per load, then download the DAT CSV. Nothing is ever sent automatically." : "Three steps from a load to a DAT posting. Nothing is ever sent automatically." }),
+      // v19: the overview cards, worklist and scoreboard sit right under the page header, above the paste box
       rowsAll.length ? overviewStrip(rowsAll, ctx2, quick, (k) => {
         quick = k;
         rerender2();
@@ -14600,6 +14914,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         });
         return d;
       })(),
+      rowsAll.length ? null : startGuide(),
+      pastePanel({ compact: rowsAll.length > 0 }),
       rowsAll.length ? brokerTabs(rowsAll) : null,
       rowsAll.length ? h(
         "div",
@@ -18873,7 +19189,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     track({ refresh: () => {
       customIn.value = A().accentHex;
     } });
-    const strip = h(
+    const strip2 = h(
       "div",
       { class: "preview-strip" },
       h("button", { class: "btn primary", type: "button" }, "Primary"),
@@ -18897,7 +19213,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       h("div", { class: "tile-grid" }, skinTiles),
       sub("Accent colour"),
       swatches,
-      strip
+      strip2
     );
     const groups = [...new Set(BACKGROUNDS.map((b) => b.group))];
     const imgInfo = h("small", { class: "muted" }, "");
@@ -19263,7 +19579,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
   }
   function rangeOf(sq, now = Date.now()) {
     const n = new Date(now);
-    const sod = startOfDay2(n);
+    const sod = startOfDay3(n);
     const day = (k) => {
       const a = new Date(sod);
       a.setDate(a.getDate() + k);
@@ -19349,7 +19665,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       return null;
     }
   }
-  var norm3, ns, STOP, tok, stem, money4, money22, plural, pct2, ago2, startOfDay2, weekStartMon;
+  var norm3, ns, STOP, tok, stem, money4, money22, plural, pct2, ago2, startOfDay3, weekStartMon;
   var init_owentext = __esm({
     "js/core/owentext.js"() {
       norm3 = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9$ ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -19365,13 +19681,13 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         const x = typeof t2 === "number" ? t2 : Date.parse(t2);
         return Number.isFinite(x) ? span(Math.max(0, now - x)) + " ago" : "";
       };
-      startOfDay2 = (d) => {
+      startOfDay3 = (d) => {
         const x = new Date(d);
         x.setHours(0, 0, 0, 0);
         return x;
       };
       weekStartMon = (d) => {
-        const x = startOfDay2(d);
+        const x = startOfDay3(d);
         x.setDate(x.getDate() - (x.getDay() + 6) % 7);
         return x;
       };
@@ -19463,8 +19779,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     }
     if (/\b(how long|how many days|how many hours|transit|drive time|driving time|take to drive|days to)\b/.test(sq) && (m = /([\d,]{2,6})\s*(?:miles|mi)\b/.exec(sq))) {
       const mi = numOf(m[1]);
-      const days2 = mi / MILES_PER_DAY;
-      return A2("calc", `${mi.toLocaleString("en-US")} miles is about ${days2 < 1 ? "one day" : Math.round(days2 * 10) / 10 + " days"} of driving for one driver (roughly ${MILES_PER_DAY} miles a day inside the 11-hour driving limit). A team can cover it faster; add time for loading, unloading and any appointment.`, { mood: "think", facts: [["Miles", mi.toLocaleString("en-US")], ["One driver", `${Math.round(days2 * 10) / 10} days`], ["Team (about double)", `${Math.round(days2 * 5) / 10} days`]] });
+      const days2 = mi / MILES_PER_DAY2;
+      return A2("calc", `${mi.toLocaleString("en-US")} miles is about ${days2 < 1 ? "one day" : Math.round(days2 * 10) / 10 + " days"} of driving for one driver (roughly ${MILES_PER_DAY2} miles a day inside the 11-hour driving limit). A team can cover it faster; add time for loading, unloading and any appointment.`, { mood: "think", facts: [["Miles", mi.toLocaleString("en-US")], ["One driver", `${Math.round(days2 * 10) / 10} days`], ["Team (about double)", `${Math.round(days2 * 5) / 10} days`]] });
     }
     const sell = /\b(?:sell|sold|selling|charge|charged|bill|billed|customer pays|shipper pays|revenue)\b\D{0,22}\$?\s*([\d,]{3,7})/.exec(sq);
     const buy = /\b(?:buy|bought|buying|pay|paid|paying|carrier|cost|costs)\b\D{0,22}\$?\s*([\d,]{3,7})/.exec(sq);
@@ -19546,7 +19862,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     }
     return null;
   }
-  var A2, pick, has2, first, JOKES, FACTS, PEP, numOf, MILES_PER_DAY, GLOSSARY, DEFINE;
+  var A2, pick, has2, first, JOKES, FACTS, PEP, numOf, MILES_PER_DAY2, GLOSSARY, DEFINE;
   var init_owenbrain = __esm({
     "js/core/owenbrain.js"() {
       init_owentext();
@@ -19575,7 +19891,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         "Hard loads are where brokers earn their margin. Turn on Auto Rescue so it keeps working while you take a breath."
       ];
       numOf = (s) => Number(String(s).replace(/[$,]/g, ""));
-      MILES_PER_DAY = 550;
+      MILES_PER_DAY2 = 550;
       GLOSSARY = [
         { id: "deadhead", k: ["deadhead", "dead head", "dh"], term: "Deadhead", def: "Miles a truck drives empty: from where it dropped its last load to the next pickup, or home again afterwards.", tip: "Carriers price deadhead into their rate. A load that picks up right where a truck just emptied usually needs a lower rate to cover." },
         { id: "tonu", k: ["tonu", "truck order not used"], term: "TONU (Truck Order Not Used)", def: "A fee paid to a carrier when a load is cancelled after the truck was already dispatched or arrived.", tip: "It is an accessorial, so agree it in writing before the carrier moves. Freight Signal never auto-answers an e-mail that mentions it." },

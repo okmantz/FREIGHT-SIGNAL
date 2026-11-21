@@ -5,6 +5,7 @@ Legend: **Tested** = automated unit and/or browser test passes · **Partial** = 
 | Feature | Status | Evidence |
 |---|---|---|
 | TQL parse, multi-load split, manual correction, source preserved | Tested (synthetic fixtures) | unit + e2e |
+| Typed lanes ("aiken sc to fletcher ok") with ZIP Map check, defaults (53 ft van, 40,000 lbs, today) and standard load details | Tested | unit + e2e (v19) |
 | 9 postings (original + Nearby 1–8, 3×3, A-A…C-C order) | Tested | unit + e2e |
 | ZIP Map load (33,782 rows), header validation, city→ZIP, distance, radius search | Tested | unit + e2e |
 | Distance tiers configurable | Tested | unit |

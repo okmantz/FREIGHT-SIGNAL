@@ -11,7 +11,7 @@ export const TOUR_STEPS = [
   { id: 'outlook', route: '#/system', target: ['details[data-sect="outlook"]', '#nav a[data-tab="system"]'], icon: 'mail', title: '1. Connect Outlook (one time)',
     body: 'Open System, then Connect to Outlook. Choose your Documents\\FreightSignal folder and paste the macro into Outlook once. After that, carrier replies land in the app and drafts save straight to your Outlook Drafts. It takes about two minutes.' },
   { id: 'paste', route: '#/board', target: ['.pastepanel', '#nav a[data-tab="board"]'], icon: 'board', title: '2. Paste your first load',
-    body: 'On the Load Board page, paste your TQL load text into this box. It is read as you paste. Fix anything highlighted, add a target rate if you know it, then press Add (or Ctrl+Enter).' },
+    body: 'On the Load Board page, paste your load into this box, or type a lane like \"aiken sc to fletcher ok\". It is read as you paste. Fix anything highlighted, add a target rate if you know it, then press Add (or Ctrl+Enter).' },
   { id: 'matrix', route: '#/board', target: ['.lanebox', '.pastepanel'], icon: 'grid', title: '3. One load becomes nine postings',
     body: 'Your original (A-A) plus 8 nearby origin and destination pairings are built for you. Type one Target rate for the whole load. To post only some of them with a rate, say 2 of the 9, type a DAT rate on those rows and leave the others blank.' },
   { id: 'post', route: '#/board', target: ['[data-act="csv-all"]', '.boardbar', '.pastepanel'], icon: 'download', title: '4. Post it on DAT',

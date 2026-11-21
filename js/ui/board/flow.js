@@ -2,33 +2,49 @@
 import { h, toast, modal, field } from '../dom.js';
 import { state, actions } from '../../store/state.js';
 import { parseTqlLoad, splitLoads } from '../../core/parser.js';
+import { parseQuickLoads, looksLikeLabelledLoad, buildStandardLoadDetails } from '../../core/quickload.js';
 import { buildPreviewMessage, rankCandidates, pinKey } from '../../core/matrix.js';
 import { classifyLane } from '../../core/lanes.js';
 import { attributionFromLog } from '../../core/coverlog.js';
 import { pageSelectEq } from './util.js';
 
 // ------------------------------------------------------------------ paste panel state (module level so a re-render never loses it)
-const paste = { text: '', items: [], broker: '', timer: 0, busy: false };
+const paste = { text: '', items: [], skipped: 0, broker: '', timer: 0, busy: false };
+const HINT = 'Or type a lane, one load per line: "aiken sc to fletcher ok". Anything left out is a 53 ft dry van, 40,000 lbs, picking up today.';
 const rerender = () => import('../../main.js').then(m => m.render());
 
 const EDIT_FIELDS = [['originCity', 'Origin city', 14], ['originState', 'St', 3], ['originZip', 'ZIP', 6], ['pickupEarliest', 'Pickup', 9], ['destCity', 'Dest city', 14], ['destState', 'St', 3], ['weight', 'Weight', 6]];
 
 function reparse(previewHost, summaryEl, addBtn) {
-  const blocks = splitLoads(paste.text, state.settings.loadSeparatorRegex);
   const old = paste.items;
-  paste.items = blocks.map((raw, i) => {
-    const prev = old.find(o => o.raw === raw);
-    if (prev) return prev;       // keep the user's edits for blocks that did not change
-    const parsed = parseTqlLoad(raw);
-    return { raw, parsed, take: true, f: { equip: 'V', ...parsed.fields } };
-  });
+  const keep = (raw) => old.find(o => o.raw === raw);     // keep the user's edits for blocks that did not change
+  paste.skipped = 0;
+  // A typed lane ("aiken sc to fletcher ok", one per line) when the paste has no "Pickup:" / "Delivery:" labels; otherwise a labelled load.
+  const quick = looksLikeLabelledLoad(paste.text) ? null : parseQuickLoads(paste.text, state.zip);
+  if (quick && quick.loads.length) {
+    paste.skipped = quick.skipped.length;
+    paste.items = quick.loads.map((q) => {
+      const prev = keep(q.raw); if (prev && prev.quick) return prev;
+      const parsed = parseTqlLoad(buildStandardLoadDetails(q.fields, state.zip));
+      parsed.warnings = [...q.warnings, ...parsed.warnings];
+      return { raw: q.raw, quick: true, parsed, take: true, f: { equip: 'V', ...parsed.fields } };
+    });
+  } else {
+    paste.items = splitLoads(paste.text, state.settings.loadSeparatorRegex).map((raw) => {
+      const prev = keep(raw); if (prev && !prev.quick) return prev;
+      const parsed = parseTqlLoad(raw);
+      return { raw, parsed, take: true, f: { equip: 'V', ...parsed.fields } };
+    });
+  }
   drawPreview(previewHost, summaryEl, addBtn);
 }
 
 function drawPreview(host, summaryEl, addBtn) {
   host.replaceChildren();
   const n = paste.items.filter(i => i.take).length;
-  summaryEl.textContent = paste.items.length ? `${paste.items.length} load${paste.items.length === 1 ? '' : 's'} found - fix anything highlighted, then press Enter (or the button).` : (paste.text.trim() ? 'No load found yet - keep pasting, or add one by hand.' : '');
+  summaryEl.textContent = paste.items.length
+    ? `${paste.items.length} load${paste.items.length === 1 ? '' : 's'} found - fix anything highlighted, then press Enter (or the button).` + (paste.skipped ? ` ${paste.skipped} line${paste.skipped === 1 ? ' was' : 's were'} not understood and will be skipped.` : '')
+    : (paste.text.trim() ? 'No load found yet - keep pasting, or add one by hand.' : HINT);
   addBtn.textContent = n > 1 ? `Add ${n} loads` : 'Add load';
   addBtn.disabled = !n;
   if (!paste.items.length) return;
@@ -58,8 +74,8 @@ let addAll = async () => {};
 
 /** The paste panel: textarea on top, editable parsed rows underneath, one button / Enter to add them all. */
 export function pastePanel({ compact = false } = {}) {
-  const ta = h('textarea', { class: 'pastebox', placeholder: 'Paste TQL load data here to add to board', 'aria-label': 'Paste TQL load data', value: paste.text, 'data-rerender': '', 'data-fk': 'paste', rows: compact ? 2 : 3 });
-  // the box grows with what is pasted (up to a limit) so a long TQL load is readable, then scrolls
+  const ta = h('textarea', { class: 'pastebox', placeholder: 'Paste load data here to add to board', 'aria-label': 'Paste load data', value: paste.text, 'data-rerender': '', 'data-fk': 'paste', rows: compact ? 2 : 3 });
+  // the box grows with what is pasted (up to a limit) so a long load is readable, then scrolls
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 2, 260) + 'px'; };
   const summary = h('p', { class: 'muted pastesum', 'aria-live': 'polite' });
   const previewHost = h('div', { class: 'pastepreview' });
@@ -79,6 +95,7 @@ export function pastePanel({ compact = false } = {}) {
         for (const k of Object.keys(f)) if (typeof f[k] === 'string') f[k] = f[k].trim();
         f.originState = String(f.originState || '').toUpperCase(); f.destState = String(f.destState || '').toUpperCase();
         f.pickupLatest = f.pickupLatest || f.pickupEarliest;
+        if (it.quick) f.details = buildStandardLoadDetails(f, state.zip);   // typed lane: the load details are always built in the standard layout from the final fields
         const targetRate = String(f.targetRate || '').replace(/[^0-9.]/g, ''); delete f.targetRate;
         added.push(await actions.addParsedLoad(f, { broker: paste.broker, targetRate }));
       }

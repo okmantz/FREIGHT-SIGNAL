@@ -44,7 +44,7 @@ const collapsedSet = () => new Set(ui().collapsed || []);
 const saveUi = (patch) => actions.savePrefs({ ui: { ...ui(), ...patch } });
 const setCollapsed = (keys) => { saveUi({ collapsed: [...keys] }); rerender(); };
 
-/** Copy the ORIGINAL load details (the pasted TQL text) for a lane, falling back to a lane summary when none was pasted. */
+/** Copy the ORIGINAL load details (the pasted load text) for a lane, falling back to a lane summary when none was pasted. */
 async function copyLoadDetails(members, btn) {
   const d = originalLoadDetails(members);
   if (d.source === 'none') return toast('This load has no details to copy yet. Fill in the origin and destination first.', 'warn');
@@ -101,7 +101,7 @@ function detailModal(p) {
   const body = h('div', null,
     h('div', { class: 'grid4' }, DAT_COLUMNS.map(c => mk(c.key, `${c.letter} ${c.header}`)),
       mk('targetRate', 'Target rate (whole load)')),
-    mk('details', 'Auto-reply details (source TQL text)', true),
+    mk('details', 'Auto-reply details (source load text)', true),
     h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: (e) => { const v = inputs.details.value.trim(); if (!v) return toast('There are no details to copy.', 'warn'); copyText(v, 'Load details copied.'); flash(e.currentTarget); } }, icon('copy', 15), 'Copy details')),
     mk('notes', 'Reply note (added under the details in the first reply)'));
   if (inputs.notes) inputs.notes.value = cleanNote(p.notes);
@@ -328,7 +328,7 @@ function groupBox(r, collapsed, toggle) {
           r.stats.inquiries.total ? h('span', { class: 'meta ok' }, `${r.stats.inquiries.total} replies`) : null)),
       h('div', { class: 'lanestatus' },
         // collapsed cards have no action bar, so the copy button lives in the header (it is in the action bar when the card is open)
-        collapsed ? h('button', { class: 'btn small', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 14), 'Copy details') : null,
+        collapsed ? h('button', { class: 'btn small', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted load text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 14), 'Copy details') : null,
         h('span', { class: 'badge st-' + st.tone }, icon(st.icon, 14), st.label),
         h('span', { class: 'score ' + r.label.toLowerCase(), title: `Cover-probability score ${r.score}/100 (${r.label}): ${r.reasons.join('; ')}` }, r.score))),
     collapsed ? null : issuesStrip(r));
@@ -384,7 +384,7 @@ function groupBox(r, collapsed, toggle) {
     h('button', { class: 'btn primary', type: 'button', 'data-act': 'csv-group', title: 'Download every posting of this load as a DAT CSV, then upload it in DAT\'s bulk posting tool', onclick: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }, icon('download', 15), 'Download DAT CSV'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'outreach', title: 'Draft carrier outreach for this load, best-matched carriers first (nothing is sent)', onclick: async () => { const x = await actions.runOutreach(head.id); if (x) summaryOutreach(x); } }, icon('send', 15), 'Carrier outreach'),
     h('button', { class: 'btn', type: 'button', 'data-act': 'mark-covered', title: 'Log which posting and carrier covered it, then remove the load', onclick: () => coverModal(b) }, icon('check', 15), 'Mark covered'),
-    h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted TQL text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy details'),
+    h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted load text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy details'),
     single ? h('button', { class: 'btn', type: 'button', 'data-act': 'build-matrix', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3\u00d73 matrix') : null,
     coverTools(b, head),
     rescueButton(b, head),
@@ -496,7 +496,7 @@ function brokerTabs(boxesAll) {
 function startGuide() {
   const step = (n, t, d) => h('li', { class: 'gs-step' }, h('span', { class: 'gs-n' }, n), h('div', null, h('b', null, t), h('p', null, d)));
   return h('ol', { class: 'getstarted', 'data-test': 'start-guide' },
-    step(1, 'Paste your TQL load', 'Copy the load from TQL and paste it in the box below. It is read as you paste; fix anything highlighted.'),
+    step(1, 'Paste your load', 'Paste the load in the box below, or just type a lane like "aiken sc to fletcher ok". It is read as you paste; fix anything highlighted.'),
     step(2, 'Set one target rate', 'The load becomes 9 nearby postings on its own. Type one rate for all of them and press Add.'),
     step(3, 'Download the DAT CSV', 'Upload it in DAT\u2019s bulk posting tool, then use Carrier outreach to draft e-mails to your best carriers.'));
 }
@@ -547,9 +547,8 @@ export function render() {
     { label: 'Expand all loads', act: 'expand-all', run: () => setCollapsed(new Set()) }],
   { text: 'More', cls: 'boardmore', title: 'Copy for DAT, aging loads, lane scan, collapse and expand, and the DAT rate switch', act: 'board-more' });
   return h('div', null,
-    pageHead({ icon: 'board', title: 'Load board', sub: rowsAll.length ? 'Add loads, set one target rate per load, then download the DAT CSV. Nothing is ever sent automatically.' : 'Three steps from a TQL load to a DAT posting. Nothing is ever sent automatically.' }),
-    rowsAll.length ? null : startGuide(),
-    pastePanel({ compact: rowsAll.length > 0 }),
+    pageHead({ icon: 'board', title: 'Load board', sub: rowsAll.length ? 'Add loads, set one target rate per load, then download the DAT CSV. Nothing is ever sent automatically.' : 'Three steps from a load to a DAT posting. Nothing is ever sent automatically.' }),
+    // v19: the overview cards, worklist and scoreboard sit right under the page header, above the paste box
     rowsAll.length ? overviewStrip(rowsAll, ctx, quick, (k) => { quick = k; rerender(); }) : null,
     (() => {
       const wl = rowsAll.length > 1 ? worklistPanel(rowsAll, wlOpen, openBox, wlOpen, (v) => { saveUi({ worklist: v }); rerender(); }) : null;
@@ -559,6 +558,8 @@ export function render() {
       d.open = ui().extrasOpen !== false; d.addEventListener('toggle', () => { if (d.open !== (ui().extrasOpen !== false)) saveUi({ extrasOpen: d.open }); });
       return d;
     })(),
+    rowsAll.length ? null : startGuide(),
+    pastePanel({ compact: rowsAll.length > 0 }),
     rowsAll.length ? brokerTabs(rowsAll) : null,
     rowsAll.length ? h('div', { class: 'toolbar sticky boardbar' }, search, quickSel, sortSel, agingBtn, csvAll, boardMenu,
       h('span', { class: 'muted count' }, `${rows.length} load${rows.length === 1 ? '' : 's'} \u00b7 ${shown} postings`)) : null,
