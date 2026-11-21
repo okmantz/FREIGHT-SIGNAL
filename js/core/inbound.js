@@ -10,6 +10,7 @@ import { buildOutlookLoadDetails } from './outreach.js';
 import { detailsWithNote, cleanNote } from './loaddetails.js';
 import { ladderReply, ladderAction, templatesOf, fillTemplate } from './ladder.js';
 import { freshText, extractRate, analyseCarrierEmail, planCarrierReply, REPLY_FLAGS } from './carrierreply.js';
+import { applyLessons } from './replylearn.js';
 
 /**
  * The rate a carrier typed. v8: looks ONLY at the carrier's own words (quoted history, signatures and our own wording are removed first),
@@ -114,14 +115,14 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
   if (!log) {
     const m = findMatchingLoad(mail.subject, mail.body, postings);
     if (!m || !m.details) return { action: 'no-match', reason: 'No posting lane was found in the subject or body, so no inquiry draft was created.' };
-    const a = analyseCarrierEmail(mail.body, ownTextOf(m.posting), settings);
+    const a = applyLessons(analyseCarrierEmail(mail.body, ownTextOf(m.posting), settings), settings.replyLessons);
     if (a.echo) return { action: 'ignored', reason: 'This message only contains our own wording (for example a test sent to yourself), so nothing was drafted.' };
     if (['stop', 'decline', 'ack', 'ooo'].includes(a.intent)) return { action: 'ignored', reason: 'The carrier is not interested, so no reply was drafted.', intent: a.intent };
     const target = safeNumeric(m.posting.targetRate);
     // A carrier whose FIRST message is "rate?" gets the details and your target, not a request for their rate.
     const askRate = a.intent === 'asks_rate' && target > 0;
     const ask = askRate ? fillTemplate(tpl.askRate, { target: formatCurrency0(target) }) + CRLF + 'What is your ETA to pickup?' : 'What is your best all-in rate? ETA to pickup?';
-    const draft = mkDraft(m.details + CRLF + CRLF + ask, { display: true, kind: 'Inquiry reply', autoSendSafe: (m.score % 1000) >= 220 && !FIRST_NEEDS_PERSON.includes(a.intent) && !a.tags.extras && !(a.rate && a.rate.weak && a.rate.found && false) });
+    const draft = mkDraft(m.details + CRLF + CRLF + ask, { display: true, kind: 'Inquiry reply', autoSendSafe: (m.score % 1000) >= 220 && !FIRST_NEEDS_PERSON.includes(a.intent) && !a.tags.extras && !(a.learned && a.learned.count < 3) && !(a.rate && a.rate.weak && a.rate.found && false) });
     const count = safeNumeric(m.posting.inquiryCount) + 1;
     return {
       action: 'inquiry-reply', intent: a.intent, autoSendSafe: draft.autoSendSafe, laneScore: m.score % 1000, planKind: 'inquiry', analysis: a, replyText: ask,
@@ -147,7 +148,7 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
   if (!posting) return { action: 'no-posting', reason: 'The posting this inquiry was logged against no longer exists (it was covered/removed), so nothing was drafted.' };
 
   const targetRate = safeNumeric(posting.targetRate);
-  const analysis = analyseCarrierEmail(mail.body, ownTextOf(posting), settings);
+  const analysis = applyLessons(analyseCarrierEmail(mail.body, ownTextOf(posting), settings), settings.replyLessons);
   const plan = planCarrierReply({ analysis, target: targetRate, settings, state: { stage, ladderStage: String(log.ladderStage || ''), ourRate: safeNumeric(log.ourRate), carrierRate: safeNumeric(log.lastCarrierRate), events: safeNumeric(log.eventCount) } });
   if (plan.ignore) return { action: 'ignored', intent: plan.intent, reason: plan.reason };
 

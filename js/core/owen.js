@@ -3,10 +3,10 @@
 //   loadAdvice(load)       ->  { headline, steps:[], act:[] }   what Owen would do next on a stuck load
 // Pure: no DOM, no storage. ctx = { loads: [load facts], page }.
 
-export const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9$ ]+/g, ' ').replace(/\s+/g, ' ').trim();
-const STOP = new Set('a an the to of in on for is are do does did how can i me my we you it this that what where when why with and or at be get want need find make use'.split(' '));
-const tok = (s) => norm(s).split(' ').filter(w => w && !STOP.has(w));
-const stem = (w) => w.replace(/(ing|ed|es|s)$/, '');
+import { norm, ns, tok, stem, STOP } from './owentext.js';
+import { smalltalk, calculator, glossary, playbook } from './owenbrain.js';
+import { dataAnswer } from './owendata.js';
+export { norm };
 
 /** Each topic: keywords (any hit scores), a plain answer, optional steps, and where to go. */
 export const TOPICS = [
@@ -54,23 +54,40 @@ function score(q, qt, k) {
 
 const GENERIC_STUCK = ['stuck', 'cant cover', "can't cover", 'cannot cover', 'not covering', 'wont cover', 'sitting', 'no replies', 'no calls', 'nobody called', 'dead load', 'how do i cover', 'help me cover', 'hard to cover', 'what would owen do', 'what would you do'];
 
+function stuckAnswer(q, loads) {
+  const named = loads.find(l => l.keys && l.keys.some(x => x && q.includes(norm(x))));
+  const pick = named || [...loads].sort((a, b) => (b.stuckScore || 0) - (a.stuckScore || 0))[0];
+  if (pick) { const a = loadAdvice(pick); return { topic: 'stuck', mood: 'think', text: `Here is what I would do on ${pick.title}. ${a.headline}`, steps: a.steps, act: a.act, loadId: pick.id }; }
+  return { topic: 'stuck', mood: 'think', text: 'When a load will not cover: check the rate against what has covered on that lane, post more of the matrix, ask carriers who have run it, and turn on Auto Rescue so it keeps working while you handle other loads. Add a load and I can get specific.', links: [{ label: 'Open Load Board', route: 'board' }] };
+}
+
+/** answer(question, ctx): ctx = { loads, page, data?, mem?, rand? }.  data = workspace snapshot (see owendata.js); mem = conversation memory object kept by the UI. */
 export function answer(question, ctx = {}) {
   const q = norm(question); const qt = tok(question);
-  if (!q) return { topic: 'empty', text: 'Ask me anything about Freight Signal, or tell me which load is stuck.' };
+  if (!q) return { topic: 'empty', mood: 'relax', text: 'Ask me anything about Freight Signal, or tell me which load is stuck.' };
   const loads = ctx.loads || [];
-  // a stuck-load question gets load-aware advice
-  if (GENERIC_STUCK.some(w => q.includes(norm(w))) || /\b(stuck|cover|covering)\b/.test(q) && /\b(load|lane|it)\b/.test(q) && !/\b(log|database)\b/.test(q)) {
-    const named = loads.find(l => l.keys && l.keys.some(x => x && q.includes(norm(x))));
-    const pick = named || [...loads].sort((a, b) => (b.stuckScore || 0) - (a.stuckScore || 0))[0];
-    if (pick) { const a = loadAdvice(pick); return { topic: 'stuck', text: `Here is what I would do on ${pick.title}. ${a.headline}`, steps: a.steps, act: a.act, loadId: pick.id }; }
-    return { topic: 'stuck', text: 'When a load will not cover: check the rate against what has covered on that lane, post more of the matrix, ask carriers who have run it, and turn on Auto Rescue so it keeps working while you handle other loads. Add a load and I can get specific.', links: [{ label: 'Open Load Board', route: 'board' }] };
-  }
-  for (const s of SOCIAL) if (s.k.some(k => q === norm(k) || q.startsWith(norm(k) + ' ') || (norm(k).includes(' ') && q.includes(norm(k))))) return { topic: 'social', text: s.text };
+  const data = { ...(ctx.data || {}), loads: (ctx.data && ctx.data.loads) || loads };
+  const mem = ctx.mem || {}; const sq = ns(question);
+  // 1. chit-chat and "how are you" (grounded in the real board)
+  const small = smalltalk(sq, data, ctx.rand); if (small) return small;
+  // 2. an explicit "this load is stuck" always gets load-aware advice
+  if (GENERIC_STUCK.some(w => q.includes(norm(w)))) return stuckAnswer(q, loads);
+  // 3. maths and unit helpers
+  const calc = calculator(question); if (calc) return calc;
+  // 4. questions about the user's own data
+  const dd = dataAnswer(sq, data, mem); if (dd) return dd;
+  // 5. looser stuck phrasing
+  if (/\b(stuck|cover|covering)\b/.test(q) && /\b(load|lane|it)\b/.test(q) && !/\b(log|database)\b/.test(q)) return stuckAnswer(q, loads);
+  // 6. freight terms and the broker playbook
+  const play = playbook(sq, data); if (play) return play;
+  const gl = glossary(sq); if (gl) return gl;
+  // 7. where things are in the app
   let best = null, bs = 0;
   for (const t of TOPICS) { let sc = 0; for (const k of t.k) sc = Math.max(sc, score(q, qt, k)); if (sc > bs) { bs = sc; best = t; } }
-  if (best && bs >= 2) return { topic: best.id, text: best.text, steps: best.steps, links: best.links };
-  if (/\b(weather|stock|news|score|recipe|politic|election)\b/.test(q)) return { topic: 'offtopic', text: 'That is outside my lane. I can help with Freight Signal and with covering freight. Try asking where something is, or tell me which load is stuck.' };
-  return { topic: 'unknown', text: 'I am not sure what you mean yet. Try something like "where do I add a carrier", "how do I post on DAT", or "this load is stuck". I know every page in the app.', links: [{ label: 'User Manual', route: 'manual' }] };
+  if (best && bs >= 2) return { topic: best.id, mood: 'smart', text: best.text, steps: best.steps, links: best.links };
+  for (const s of SOCIAL) if (s.k.some(k => q === norm(k) || q.startsWith(norm(k) + ' '))) return { topic: 'social', text: s.text };
+  if (/\b(weather|stock|news|score|recipe|politic|election|sports|movie|bitcoin|crypto)\b/.test(q)) return { topic: 'offtopic', mood: 'relax', text: 'That one is outside my lane. I can help with Freight Signal, your loads, carriers, rates and covering freight, and I am happy to chat. Try "give me a summary" or "what should I work on first?".', follow: ['Give me a summary', 'What should I work on first?'] };
+  return { topic: 'unknown', mood: 'think', text: 'I am not sure what you mean yet. I can look up a load, a carrier, a lane or a rate, analyse your week, explain a freight term, or point you to any page. Try one of these:', follow: ['Give me a summary', 'What did my last cover pay?', 'Any trucks available?', 'What is deadhead?'], links: [{ label: 'User Manual', route: 'manual' }] };
 }
 
 /** What Owen would do next on one load. load = { title, ageMin, inquiries, quotes, matches, hot, hard, targetRate, datRate, memRate, rescue ('active'|'stopped'|'' ), postings, posted, contacted } */

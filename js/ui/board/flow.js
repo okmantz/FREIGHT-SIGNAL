@@ -29,7 +29,7 @@ function drawPreview(host, summaryEl, addBtn) {
   host.replaceChildren();
   const n = paste.items.filter(i => i.take).length;
   summaryEl.textContent = paste.items.length ? `${paste.items.length} load${paste.items.length === 1 ? '' : 's'} found - fix anything highlighted, then press Enter (or the button).` : (paste.text.trim() ? 'No load found yet - keep pasting, or add one by hand.' : '');
-  addBtn.textContent = n ? `Add ${n} load${n === 1 ? '' : 's'}` : 'Add loads';
+  addBtn.textContent = n > 1 ? `Add ${n} loads` : 'Add load';
   addBtn.disabled = !n;
   if (!paste.items.length) return;
   const head = h('tr', null, h('th', null, ''), EDIT_FIELDS.map(([, l]) => h('th', null, l)), h('th', null, 'Equip'), h('th', { title: 'Target rate for the whole load (optional)' }, 'Target $'), h('th', null, ''));
@@ -58,10 +58,12 @@ let addAll = async () => {};
 
 /** The paste panel: textarea on top, editable parsed rows underneath, one button / Enter to add them all. */
 export function pastePanel({ compact = false } = {}) {
-  const ta = h('textarea', { class: 'pastebox', placeholder: compact ? 'Paste another TQL load here to add it to the board' : 'Paste TQL loads here. They are read as you paste - no Parse button.', value: paste.text, 'data-rerender': '', 'data-fk': 'paste', rows: compact ? 2 : 5 });
+  const ta = h('textarea', { class: 'pastebox', placeholder: 'Paste TQL load data here to add to board', 'aria-label': 'Paste TQL load data', value: paste.text, 'data-rerender': '', 'data-fk': 'paste', rows: compact ? 2 : 3 });
+  // the box grows with what is pasted (up to a limit) so a long TQL load is readable, then scrolls
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 2, 260) + 'px'; };
   const summary = h('p', { class: 'muted pastesum', 'aria-live': 'polite' });
   const previewHost = h('div', { class: 'pastepreview' });
-  const addBtn = h('button', { class: 'btn primary', type: 'button', disabled: true }, 'Add loads');
+  const addBtn = h('button', { class: 'btn primary', type: 'button', disabled: true }, 'Add load');
   const brokers = state.settings.brokers || [];
   const brokerSel = brokers.length ? h('select', { class: 'cell', 'aria-label': 'Broker for these loads', 'data-live': '' },
     h('option', { value: '' }, 'Broker: unassigned'), brokers.map(b => h('option', { value: b, selected: b === paste.broker }, b))) : null;
@@ -80,7 +82,7 @@ export function pastePanel({ compact = false } = {}) {
         const targetRate = String(f.targetRate || '').replace(/[^0-9.]/g, ''); delete f.targetRate;
         added.push(await actions.addParsedLoad(f, { broker: paste.broker, targetRate }));
       }
-      paste.text = ''; paste.items = []; ta.value = '';
+      paste.text = ''; paste.items = []; ta.value = ''; fit();
       drawPreview(previewHost, summary, addBtn);
       toast(`${added.length} load${added.length === 1 ? '' : 's'} added.`, 'ok');
       await autoBuild(added.map(p => p.id));
@@ -88,14 +90,15 @@ export function pastePanel({ compact = false } = {}) {
   };
   addBtn.addEventListener('click', addAll);
   ta.addEventListener('input', () => {
-    paste.text = ta.value; clearTimeout(paste.timer);
+    paste.text = ta.value; fit(); clearTimeout(paste.timer);
     paste.timer = setTimeout(() => reparse(previewHost, summary, addBtn), 120);
   });
-  ta.addEventListener('paste', () => { setTimeout(() => { paste.text = ta.value; reparse(previewHost, summary, addBtn); }, 0); });
+  ta.addEventListener('paste', () => { setTimeout(() => { paste.text = ta.value; fit(); reparse(previewHost, summary, addBtn); }, 0); });
   ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addAll(); } });
   drawPreview(previewHost, summary, addBtn);
+  if (paste.text) setTimeout(fit, 0);
   return h('div', { class: 'panel pastepanel' },
-    ta, summary, previewHost,
+    ta, h('div', { class: 'pastedash', 'aria-hidden': 'true' }), summary, previewHost,
     h('div', { class: 'toolbar' }, addBtn, brokerSel,
       h('button', { class: 'btn ghost', type: 'button', onclick: async () => { const p = await actions.addParsedLoad({ originCity: '', originState: '', destCity: '', destState: '', pickupEarliest: '', pickupLatest: '', weight: '', equip: 'V', details: '' }, { broker: paste.broker }); toast('Blank row added.', 'ok'); return p; } }, 'Add blank row'),
       h('span', { class: 'muted small', title: 'Change this in System > Matrix' }, state.settings.matrixMode === 'ask' ? 'You will be asked before the 9 postings are built.' : 'Each load becomes 9 nearby postings automatically.')));

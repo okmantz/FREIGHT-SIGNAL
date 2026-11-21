@@ -18,7 +18,7 @@ try {
   check('single file boots from file://', true);
   check('the first-login tour opens on a fresh install', await pg.waitForSelector('.tour-card', { timeout: 5000 }).then(() => true).catch(() => false));
   await pg.click('.tour-skip'); await pg.waitForSelector('.tour-layer', { state: 'detached' });
-  check('embedded ZIP Map decompressed (33,782 rows)', (await pg.textContent('#zipstat')).includes('33,782'), await pg.textContent('#zipstat'));
+  check('single file boots; no ZIP row-count pill (v18)', (await pg.$('#zipstat')) === null);
   await pg.goto('file://' + file + '#/board');
   await pg.fill('textarea.pastebox', fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'), 'utf8').replace(/11\/16\/2026/g, '11/16/' + (new Date().getFullYear() + 2)));
   await pg.waitForSelector('.pastetable'); await pg.locator('.pastetable input[aria-label="originCity"]').press('Enter');

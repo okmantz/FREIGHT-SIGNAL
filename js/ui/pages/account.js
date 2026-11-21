@@ -3,7 +3,9 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, field, copyText } from '../dom.js';
 import { actions, state } from '../../store/state.js';
 import { icon } from '../icons.js';
-import { pageHead, paint } from '../chrome.js';
+import { pageHead, paint, initials } from '../chrome.js';
+import { fillAvatar, profilePicker } from '../avatar.js';
+import { cleanPic } from '../../core/profilepics.js';
 import {
   SKINS, ACCENTS, BACKGROUNDS, DENSITIES, RADII, SIZES, FONTS, DEFAULTS,
   getAppearance, setAppearance, resetAppearance, exportAppearance, importAppearance, imageFileToDataUrl, resolvedMode,
@@ -83,16 +85,21 @@ export function render() {
   const txt = (key, ph) => { const i = h('input', { value: pf[key], placeholder: ph, maxlength: 60, autocomplete: 'off' }); i.addEventListener('input', () => saveProfile({ [key]: i.value.trim() })); return i; };
   const startSel = h('select', null, TABS.map(x => h('option', { value: x.id, selected: x.id === pf.startPage }, x.label)));
   startSel.addEventListener('change', () => saveProfile({ startPage: startSel.value }));
+  // the default picture is still the first letter(s) of the name (or the e-mail); v18 lets you pick a chess piece instead
+  const acctUser = cloud.enabled() ? cloud.user() : local.user();
+  const initialText = () => initials(pf.name) || (acctUser && acctUser.email ? acctUser.email[0].toUpperCase() : '');
   const avatar = h('div', { class: 'avatar lg' });
-  const paintAvatar = () => { avatar.textContent = ''; const p = String(pf.name || '').trim().split(/\s+/).filter(Boolean); avatar.append(p.length ? (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() : icon('user', 34)); };
+  const paintAvatar = () => fillAvatar(avatar, { pic: cleanPic(pf.pic), text: initialText() });
   paintAvatar();
-  const nameIn = txt('name', 'Your name'); nameIn.addEventListener('input', paintAvatar);
+  const picker = profilePicker({ get: () => cleanPic(pf.pic), set: (id) => { saveProfile({ pic: id }); paintAvatar(); }, text: initialText() });
+  const nameIn = txt('name', 'Your name'); nameIn.addEventListener('input', () => { paintAvatar(); picker.repaintInitial(initialText()); });
   const profile = card('profile', 'user', 'Profile', 'Who is using this workspace.',
     h('div', { class: 'profile-grid' }, avatar,
       h('div', { class: 'fields' },
         field('Name', nameIn), field('Role / title', txt('title', 'e.g. Freight Broker')),
         field('Company', txt('company', 'Optional')), field('Open the app on', startSel),
-        h('div', { class: 'wide' }, savedHint))));
+        h('div', { class: 'wide' }, savedHint))),
+    picker);
 
   /* ----------------------------------------------------------------------------------------- sign-in */
   const signinBody = h('div', null);

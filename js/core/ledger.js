@@ -60,6 +60,7 @@ export function buildLedgerEntry(res, mail, decision, now = Date.now()) {
     resolved: status === 'ignored' || status === 'auto' || status === 'drafted' || status === 'shadow',
     truckLead: !!res.truckLead,
     mc: res.mc || '',
+    learned: a.learned ? { sig: a.learned.sig, count: a.learned.count } : null,   // v18: this message was read through a lesson you taught
   };
 }
 

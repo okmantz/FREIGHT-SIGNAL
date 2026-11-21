@@ -14,7 +14,8 @@ const sha = (s) => "'sha256-" + crypto.createHash('sha256').update(s, 'utf8').di
 const datauri = (p, mime) => `data:${mime};base64,${rd(p).toString('base64')}`;
 
 const out = await build({ entryPoints: [path.join(root, 'js/main.js')], bundle: true, format: 'iife', write: false, minify: false, target: 'chrome110', legalComments: 'none' });
-const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+// v18: the Owen portraits and chess profile pictures are separate .webp files; inline them as data URIs so the single file shows them too.
+const js = out.outputFiles[0].text.replace(/assets\/(?:owen\/owen-\d|chess\/[a-z]+)\.webp/g, (m) => datauri(m, 'image/webp')).replace(/<\/script/gi, '<\\/script');
 // The photo backgrounds are separate .webp files, which this strict-CSP single file cannot load (img-src data: blob:).
 // Drop those rules so the file has no CSP violations; scenes fall back to the theme colours (the hosted app has the photos).
 const css = rd('css/app.css').toString('utf8').replace(/^[^\n{}]*\{[^{}]*url\("\.\.\/assets\/backgrounds\/[^)]*\)[^{}]*\}\s*$/gm, '');

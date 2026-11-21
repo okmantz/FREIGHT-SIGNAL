@@ -1,5 +1,6 @@
 // In-memory application state with write-through persistence. UI reads `state`, mutations go through `actions`.
 
+import { teach as teachLesson, confirm as confirmLesson, forget as forgetLesson, teachableLabel } from '../core/replylearn.js';
 import * as db from './db.js';
 import { DEFAULT_SETTINGS, CARRIER_KEYS, INQUIRY_KEYS, CUSTOMER_KEYS } from '../core/defaults.js';
 import { ZipMap } from '../core/zipmap.js';
@@ -744,8 +745,22 @@ export const actions = {
   },
   async markVerdict(id, verdict) {
     const e = state.ledger.find(x => x.id === id); if (!e) return;
-    e.verdict = verdict === 'ok' || verdict === 'bad' ? verdict : ''; await guard(() => db.put('ledger', e)); emit();
+    const was = e.verdict;
+    e.verdict = verdict === 'ok' || verdict === 'bad' ? verdict : ''; await guard(() => db.put('ledger', e));
+    if (e.learned && verdict === 'ok' && was !== 'ok') { await actions.saveSettings({ replyLessons: confirmLesson(state.settings.replyLessons, e.learned.sig) }); return; }   // your OK on a taught reply counts toward letting it send itself
+    emit();
   },
+  /** Teach Freight Signal what a message it did not understand means. Uses your standard reply for that meaning; never invents wording. */
+  async teachReply(id, intent) {
+    const e = state.ledger.find(x => x.id === id); if (!e) return { ok: false, reason: 'That message is no longer in the list.' };
+    const r = teachLesson(state.settings.replyLessons, e.fresh, intent);
+    if (!r.ok) return r;
+    await actions.saveSettings({ replyLessons: r.lessons });
+    const lesson = r.lessons.find(l => l.sig === r.sig);
+    e.verdict = 'ok'; e.taught = intent; await guard(() => db.put('ledger', e)); emit();
+    return { ok: true, count: lesson ? lesson.count : 1, label: teachableLabel(intent) };
+  },
+  async forgetLesson(sig) { await actions.saveSettings({ replyLessons: forgetLesson(state.settings.replyLessons, sig) }); },
   /** Entries that Outlook wrote while the app was closed (never overwrites one already known: your verdicts and Done marks stay). */
   async addLedgerEntries(list) {
     const have = new Set(state.ledger.map(e => e.id)); const fresh = list.filter(e => !have.has(e.id));

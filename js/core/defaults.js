@@ -22,6 +22,8 @@ export const DEFAULT_SETTINGS = {
   autoSendInbound: false,
   // v16 safe-send policy (see js/core/sendpolicy.js). sendMode: off | shadow | routine | full. '' = follow the old autoSendInbound switch.
   sendMode: '',
+  // v18: wording you taught Freight Signal (see js/core/replylearn.js). Only ever upgrades a message the rules could not understand.
+  replyLessons: [],
   sendMaxPerConversation: 3,
   sendMaxPerDay: 60,
   sendDelayMinutes: 3,

@@ -9,6 +9,8 @@ import { icon } from '../icons.js';
 import { ago } from '../../core/netcommon.js';
 import { TTL_OPTIONS } from '../../core/trucks.js';
 import { boardSettings, BOARD_LINKS } from '../../core/boards.js';
+import { fillAvatar } from '../avatar.js';
+import { cleanPic } from '../../core/profilepics.js';
 
 const STATUS_TEXT = { ok: 'Connected', loading: 'Connecting…', error: 'Problem', reconnect: 'Needs reconnecting', signin: 'Sign in to connect', off: '' };
 
@@ -45,7 +47,7 @@ function setupPanel() {
 function membersPanel() {
   const rows = net.net.members.slice().sort((a, b) => a.name.localeCompare(b.name));
   return h('div', { class: 'panel' }, h('h3', null, `People (${rows.length})`),
-    rows.length ? h('div', { class: 'members' }, rows.map(m => h('div', { class: 'member' }, h('span', { class: 'avatar' }, (m.name || '?')[0].toUpperCase()), h('b', null, m.name + (m.uid === net.myUid() ? ' (you)' : '')), h('span', { class: 'muted small' }, m.email), h('span', { class: 'muted small' }, m.seen ? 'active ' + ago(m.seen) : '')))) : h('p', { class: 'muted' }, 'Nobody else yet.'));
+    rows.length ? h('div', { class: 'members' }, rows.map(m => h('div', { class: 'member' }, fillAvatar(h('span', { class: 'avatar' }), { pic: m.uid === net.myUid() ? cleanPic((state.settings.profile || {}).pic) : '', text: (m.name || '?')[0].toUpperCase() }), h('b', null, m.name + (m.uid === net.myUid() ? ' (you)' : '')), h('span', { class: 'muted small' }, m.email), h('span', { class: 'muted small' }, m.seen ? 'active ' + ago(m.seen) : '')))) : h('p', { class: 'muted' }, 'Nobody else yet.'));
 }
 
 function settingsPanel() {

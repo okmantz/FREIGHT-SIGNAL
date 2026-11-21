@@ -66,7 +66,7 @@ export const RULES = {
   perMile: String.raw`\$?\s*\d(?:\.\d{1,2})?\s*(?:/|per|a|x)\s*(?:mi|mile)\b|\brpm\b|\bper mile\b|\ba mile\b|\bcpm\b`,
   // ---- what the carrier meant (a message can hit several)
   stop: String.raw`\b(?:unsubscribe|remove me|take me off|stop (?:emailing|e-mailing|sending|contacting)|do not (?:contact|email|e-mail)|don'?t (?:contact|email|e-mail)|opt out|spam|wrong (?:e-?mail|address|person|number))\b`,
-  decline: String.raw`\b(?:not interested|no,? thanks?|no thank you|i'?ll pass|we'?ll pass|will pass|pass on (?:this|it)|can'?t (?:do|make|cover|haul|help|take|run|get)|cannot (?:do|make|cover|haul|help|take|run)|can not (?:do|make|cover|haul|help|take|run)|unable to|won'?t be able to|(?:don'?t|do not) (?:have|run|haul|go|service|cover)|no (?:trucks?|capacity|power|drivers?)|not (?:available|going|running|able)|already (?:covered|booked|loaded|have a load)|got (?:covered|booked)|no longer)\b`,
+  decline: String.raw`\b(?:not interested|no,? thanks?|no thank you|i'?ll pass|we'?ll pass|will pass|pass on (?:this|it)|can'?t (?:do|make|cover|haul|help|take|run|get)|cannot (?:do|make|cover|haul|help|take|run)|can not (?:do|make|cover|haul|help|take|run)|unable to|won'?t be able to|(?:don'?t|do not) (?:have|run|haul|go|service|cover)|no (?:trucks?|capacity|power|drivers?)|not (?:available|going|running|able)|already (?:covered|booked|loaded|have a load)|got (?:covered|booked)|(?:booked|covered|taken) already|we(?:'?re| are) (?:full|booked up|all booked|loaded up)|no longer)\b`,
   pushback: String.raw`\b(?:too (?:low|cheap)|not enough|won'?t work|doesn'?t work|does not work|no way|way too|lowball|can'?t do that|need more|needs? to be higher|higher than that)\b`,
   asksRate: [
     String.raw`\bhow much\b`,
@@ -79,6 +79,8 @@ export const RULES = {
     String.raw`^\s*(?:the |your |ur |any )?(?:rate|rates|price|pay)\b[^.\n]{0,30}\??\s*$`,
     String.raw`\brate on (?:this|that|it)\b`,
     String.raw`\b(?:send|give|let me know|need|share|what about)\b[^.?\n]{0,20}\b(?:rate|price|pay)\b`,
+    String.raw`\b(?:waiting|awaiting|still waiting)\b[^.?\n]{0,20}\b(?:your|ur|the) (?:rate|price|offer)\b`,
+    String.raw`\b(?:lowest|best|most) (?:you|u) can (?:go|do|pay|offer)\b|\bhow (?:low|high) can (?:you|u) go\b`,
   ],
   asksAvail: [
     String.raw`\bavail\s*\?`,
@@ -86,6 +88,8 @@ export const RULES = {
     String.raw`\bis (?:this|it|that|the load) (?:still )?(?:available|open)\b`,
     String.raw`\bavailable\s*\?`,
     String.raw`^\s*(?:available|open)\s*\?\s*$`,
+    String.raw`\bstill avail\b`,
+    String.raw`\b(?:is|are|was) (?:this|it|that|the load)(?: load)?(?: still)? (?:covered|open|available)\s*\?`,
   ],
   acceptWord: String.raw`^\s*(?:ok(?:ay)?|yes|yep|yeah|yup|sure|deal|agreed|done|perfect|works|sounds good|sounds great|that works|works for me|that'?s fine|i'?ll take it|we'?ll take it|let'?s do it|let'?s go|book it|accepted|confirmed?)\b`,
   accepts: String.raw`^\s*(?:ok(?:ay)?|yes|yep|yeah|yup|sure|deal|agreed|done|perfect|works|sounds good|sounds great|that works|works for me|that'?s fine|i'?ll take it|we'?ll take it|let'?s do it|let'?s go|book it|accepted|confirmed?)\b(?:[\s,.!-]+(?:thanks?|thank you|thx|ty|great|perfect|please|pls|sounds good|that works|works|deal|book it|let'?s do it|let'?s go|i will take it|we are good|all good|confirmed?|booked|ok(?:ay)?))*[\s,.!]*$`,
@@ -93,7 +97,7 @@ export const RULES = {
   givesEta: String.raw`\b(?:eta|can (?:be|get|pick|load)|could be|i'?ll be|i can be|will be|be there|available (?:today|tomorrow|now|asap)|ready (?:now|today|tomorrow)|empty (?:now|today|tomorrow|at)|loaded? (?:today|tomorrow)|pick ?up (?:today|tomorrow)|today|tomorrow|tonight|this (?:morning|afternoon|evening)|asap|within \d+|in \d+\s*(?:hrs?|hours?|mins?|minutes?)|\d{1,2}(?::\d{2})?\s*(?:am|pm))\b`,
   givesTruck: String.raw`\b(?:(?:i have|i got|we have|we got|have|got)\s+(?:a |an |one |two |\d+ )?(?:\d{2}'? ?)?(?:dry van|van|reefer|flatbed|step ?deck|truck|trucks|trailer|trailers|power only|box truck|sprinter|hot ?shot|unit|units|driver|drivers)|my truck|our truck|truck (?:is|in|at|available|open)|power only|empty in|deadhead|(?:dh|d/h)\s*\d+)\b`,
   // Questions / requests only a person should answer (liberal on purpose: a false hit means "look at it yourself", never a wrong reply).
-  needsInfo: [String.raw`\b(?:live load|live unload|drop (?:and|&|n) hook|dedicated|place to park|parking|(?:needs?|has) to be (?:a )?(?:reefer|dry|van|flatbed))\b`, String.raw`\bwhat(?:'?s| is) (?:it|the freight|being hauled|the load)\s*\?*\s*$`, String.raw`\b(?:weights?|how heavy|lbs?|pounds|commodity|dims?|dimensions|pallets?|piece count|pieces|how many|stops?|appointments?|appt|pick ?up (?:time|window|date)|deliver(?:y|ies) (?:time|window|date)|when (?:is|does|do|can|will)|what time|hours of operation|tarps?|team|hazmat|temperature|temp|detention|layover|lumper|tonu|payment|pay terms|quick ?pay|factoring|net ?\d+|rate ?con|ratecon|mc ?#?|dot|insurance|coi|packet|onboard|set ?up|load number|reference|po ?#?|address|shipper|receiver|consignee|how (?:far|long)|miles|photos?|pictures?|questions?)\b`],
+  needsInfo: [String.raw`\b(?:live load|live unload|drop (?:and|&|n) hook|dedicated|place to park|parking|(?:needs?|has) to be (?:a )?(?:reefer|dry|van|flatbed))\b`, String.raw`\bwhat(?:'?s| is) (?:it|the freight|being hauled|the load)\s*\?*\s*$`, String.raw`\b(?:weights?|how heavy|lbs?|pounds|commodity|dims?|dimensions|pallets?|piece count|pieces|how many|stops?|appointments?|appt|pick ?up (?:time|window|date)|deliver(?:y|ies) (?:time|window|date)|when (?:is|does|do|can|will)|what time|hours of operation|tarps?|team|hazmat|temperature|temp|detention|layover|lumper|tonu|payment|pay terms|quick ?pay|factoring|net ?\d+|rate ?con|ratecon|invoice|invoices|remit|remittance|w-?9|pod|bol|mc ?#?|dot|insurance|coi|packet|onboard|set ?up|load number|reference|po ?#?|address|shipper|receiver|consignee|how (?:far|long)|miles|photos?|pictures?|questions?)\b`],
   wantsCall: String.raw`\b(?:call me|give me a call|call (?:us|you)|can you call|please call|text me|txt me|my (?:cell|number|phone)|reach me|best number|phone number)\b`,
   // ---- v16 additions (all VBScript-RegExp safe: no lookbehind, no named groups, no \p{})
   rateUsdAfter: String.raw`${LEAD}${NUM}[ \t]*(?:\$|usd\b|dlls?\b|dollars?\b|bucks\b)`,
@@ -126,6 +130,7 @@ export const RULES = {
   ],
   asksOtherLoads: String.raw`\bwhat else (?:you|u|do you) (?:got|have)\b|\b(?:(?:do|did) (?:you|u) (?:have|got)|have (?:you|u) got|any(?:thing)?|got any|what else|other) (?:else |other |more )?(?:loads?|freight|backhauls?|back ?hauls?|shipments?|lanes?|out of|from|coming out|going (?:back|to|home)|headed|heading|return|work)\b|\bbackhaul\b|\bload(?:s)? (?:out of|from|going)\b|\bany(?:thing)? (?:out of|from|going|headed|heading|coming)\b|\bwhat do you have (?:out of|from|going)\b|\banything else\b`,
   givesInfo: String.raw`\b(?:my |our |the )?(?:mc|dot|usdot|mc#|dot#)\s*(?:#|number|no\.?|is|:)*\s*\d{5,8}\b`,
+  checking: String.raw`^\s*(?:hello|hi|hey)?[\s,.!?]*(?:any (?:update|updates|news|word|luck|progress)|checking (?:in|back)|just checking(?: in| back)?|following up|follow(?:ing)? up|touching base|circling back|bump|ping|status\??|update\??|(?:are )?you there)\b[^.\n]{0,40}$`,
   askQuestion: String.raw`\?`,
 };
 
@@ -233,7 +238,7 @@ export function tagsOf(fresh) {
   const t = String(fresh ?? '');
   const tags = {};
   for (const k of ['stop', 'decline', 'pushback', 'asksRate', 'asksAvail', 'givesEta', 'givesTruck', 'needsInfo', 'wantsCall', 'condition',
-    'wantsDetails', 'asksOtherLoads', 'givesInfo', 'redirect', 'ooo', 'extras']) tags[k] = anyOf(RULES[k], t);
+    'wantsDetails', 'asksOtherLoads', 'givesInfo', 'redirect', 'ooo', 'extras', 'checking']) tags[k] = anyOf(RULES[k], t);
   const one = t.trim();
   tags.bareDecline = new RegExp(RULES.bareDecline, 'i').test(one);
   tags.bareCall = new RegExp(RULES.bareCall, 'i').test(one);
@@ -279,6 +284,7 @@ export function classify(fresh, settings = {}) {
   else if (tags.asksOtherLoads) intent = 'asks_other_loads';
   else if (tags.asksRate) intent = 'asks_rate';
   else if (tags.asksAvail) intent = 'asks_available';
+  else if (tags.checking) intent = 'checking';
   else if (tags.givesEta) intent = 'gives_eta';
   else if (tags.givesTruck) intent = 'gives_truck';
   else intent = 'unclear';
@@ -323,6 +329,8 @@ const FLAGS = {
   lead: 'TRUCK LEAD - CARRIER ASKED FOR OTHER LOADS',
   redirect: 'MANUAL REVIEW - CARRIER SENT YOU TO SOMEONE ELSE',
   info: 'CARRIER SENT MC / DOT',
+  checking: 'CARRIER IS CHECKING IN',
+  taught: 'LEARNED REPLY - CHECK IT',
 };
 export const REPLY_FLAGS = FLAGS;
 
@@ -346,7 +354,8 @@ export function planCarrierReply({ analysis, target, settings = {}, state = {} }
   const events = Number(state.events) || 0;
   const tpl = templatesOf(settings);
   const our = Number(state.ourRate) || 0, lastCarrier = Number(state.carrierRate) || 0;
-  const done = (r) => ({ intent: a.intent, ...r });
+  // a reply that came from a taught lesson is always for you to review until you have confirmed it enough times (see replylearn.js)
+  const done = (r) => ({ intent: a.intent, ...r, ...(a.learned ? { learned: a.learned, ...(a.learned.count < 3 ? { autoSendSafe: false, ...(r.kind !== 'none' ? { flag: r.flag || FLAGS.taught } : {}) } : {}) } : {}) });
   const questions = a.tags.needsInfo || a.tags.wantsCall || a.tags.pushback;
   const sug = (kind, text) => ({ suggest: { kind, text, review: true } });
   const extras = !!a.tags.extras;
@@ -378,6 +387,7 @@ export function planCarrierReply({ analysis, target, settings = {}, state = {} }
     case 'wants_details': return done({ kind: 'details', text: tpl.details, flag: FLAGS.details, reason: 'The carrier asked for the load details: resend them and ask for rate and ETA.', stageNext: 'FOLLOWUP_RECEIVED', autoSendSafe: !questions });
     case 'asks_other_loads': return done(manual(FLAGS.lead, 'The carrier asked for other loads: a truck lead. Capture the truck and offer a match.', { stageNext: 'FOLLOWUP_FLAGGED', truckLead: true, ...sug('otherLoads', tpl.otherLoads) }));
     case 'gives_info': return done(manual(FLAGS.info, 'The carrier sent an MC/DOT number' + (a.mc ? ' (' + a.mc + ')' : '') + '. Saved to the carrier.', { stageNext: 'FOLLOWUP_RECEIVED', mc: a.mc, ...sug('generic', GENERIC_ASK(tpl)) }));
+    case 'checking': return done(manual(FLAGS.checking, 'The carrier is checking in on this load: answer them yourself.', { stageNext: 'FOLLOWUP_FLAGGED', ...sug('generic', GENERIC_ASK(tpl)) }));
     case 'unclear': return done(manual(FLAGS.unclear, 'The reply was not clearly a rate, a question about the rate, an ETA or an answer.', { stageNext: 'FOLLOWUP_FLAGGED', ...sug('generic', GENERIC_ASK(tpl)) }));
     case 'accepts': {
       if (our > 0 && stage === 'RATE_RESPONSE_SENT' && state.ladderStage !== 'book' && a.tags.givesEta) return done(manual(FLAGS.agreed + ' (ETA GIVEN)', 'The carrier agreed to ' + formatCurrency0(our) + ' and gave an ETA: book it.', { stageNext: 'ETA_RECEIVED' }));
@@ -421,7 +431,7 @@ export function planCarrierReply({ analysis, target, settings = {}, state = {} }
     case 'asks_available':
       return done({ kind: 'available', text: tpl.available, flag: '', reason: 'The carrier asked whether the load is still available.', stageNext: 'FOLLOWUP_RECEIVED', autoSendSafe: true });
     case 'gives_eta':
-      return done({ kind: 'need_rate', text: tpl.needRate, flag: '', reason: 'The carrier gave timing but no rate.', stageNext: 'FOLLOWUP_RECEIVED', autoSendSafe: true });
+      return done({ kind: 'need_rate', text: tpl.needRate, flag: '', reason: 'The carrier gave timing but no rate.', stageNext: 'FOLLOWUP_RECEIVED', autoSendSafe: true, ...(a.tags.givesTruck ? { truckLead: true } : {}) });
     case 'gives_truck':
       return done({ kind: 'need_rate_eta', text: tpl.needRateEta, flag: '', reason: 'The carrier described a truck but gave no rate or ETA.', stageNext: 'FOLLOWUP_RECEIVED', autoSendSafe: true, truckLead: true });
     default: return done(manual(FLAGS.unclear, 'Not understood.', { stageNext: 'FOLLOWUP_FLAGGED', ...sug('generic', GENERIC_ASK(tpl)) }));

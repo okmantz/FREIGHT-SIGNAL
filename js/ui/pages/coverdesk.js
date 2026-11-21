@@ -8,6 +8,7 @@ import { pageHead, emptyState, statTiles } from '../chrome.js';
 import { state, actions, subscribe } from '../../store/state.js';
 import * as net from '../../store/net.js';
 import { exceptionQueue, ledgerSummary, shadowStats } from '../../core/ledger.js';
+import { TEACHABLE, LEARN_AUTO, teachableLabel, cleanLessons } from '../../core/replylearn.js';
 import { callSheet } from '../../core/prospects.js';
 import { activeTrucks, matchLoadsToTruck, carrierHistoryFromLog, freshness, freshLabel } from '../../core/truckbook.js';
 import { headsOf, bundleOpportunities } from '../../core/corridor.js';
@@ -27,6 +28,20 @@ function replyOf(e) {
   return { to: e.draftTo || e.from, subject: e.draftSubject || ('RE: ' + e.subject), body: text };
 }
 
+/** "Teach it": for a message the rules could not read, pick what it meant. Next time the same words get your standard reply for that meaning. */
+function teachRow(e) {
+  if (!(e.intent === 'unclear' || e.learned) || !e.fresh) return null;
+  const pick = h('select', { class: 'cell', 'aria-label': 'What this message means', 'data-act': 'teach-pick' },
+    h('option', { value: '' }, 'This message means…'), TEACHABLE.map(t => h('option', { value: t.intent, selected: e.learned && e.learned.intent === t.intent }, t.label)));
+  const btn = h('button', { class: 'btn small', type: 'button', 'data-act': 'teach-go', onclick: async () => {
+    if (!pick.value) { toast('Pick what the carrier meant first.', 'warn'); return; }
+    const r = await actions.teachReply(e.id, pick.value);
+    if (!r.ok) { toast(r.reason || 'Could not learn that.', 'warn', 5000); return; }
+    toast(`Learned: next time this reads as "${r.label}"` + (r.count >= LEARN_AUTO ? ' and it may send itself.' : `. It needs ${LEARN_AUTO - r.count} more confirmation${LEARN_AUTO - r.count === 1 ? '' : 's'} before it can send itself.`), 'ok', 6000); rerender();
+  } }, 'Teach');
+  return h('div', { class: 'cdesk-teach' }, e.learned ? h('span', { class: 'pill alt' }, `Learned (${Math.min(e.learned.count, LEARN_AUTO)} of ${LEARN_AUTO})`) : null, pick, btn);
+}
+
 function queueItem(e) {
   const rp = replyOf(e);
   return h('div', { class: 'cdesk-item', 'data-test': 'cdesk-item' },
@@ -34,6 +49,7 @@ function queueItem(e) {
     h('div', { class: 'muted small' }, e.subject),
     e.fresh ? h('div', { class: 'said' }, e.fresh) : null,
     h('div', { class: 'muted small' }, (e.reason || '') + (e.holdReasons && e.holdReasons.length ? ' Held because: ' + e.holdReasons.join(' ') : '')),
+    teachRow(e),
     rp.body ? h('details', null, h('summary', null, 'Suggested reply'), h('pre', { class: 'mono' }, rp.body.slice(0, 900))) : null,
     h('div', { class: 'toolbar' },
       rp.body && rp.to ? h('button', { class: 'btn small primary', type: 'button', onclick: () => { window.location.href = mailtoUrl({ to: rp.to, subject: rp.subject, body: rp.body }); } }, 'Reply with this') : null,
@@ -67,6 +83,12 @@ export function render() {
   // 1. exception queue
   root.append(sect('Needs your eyes', queue.length ? 'Everything here is a message Freight Signal chose not to answer by itself. Each has a suggested reply when one makes sense.' : null,
     ...(queue.length ? queue.slice(0, 30).map(queueItem) : [emptyState({ icon: 'check', title: 'Nothing is waiting for you', text: 'Carrier e-mails that need a person will show up here with the carrier\'s words and a ready reply.' })])));
+
+  // 1a. what you taught it (only when something was taught)
+  const lessons = cleanLessons(state.settings.replyLessons);
+  if (lessons.length) root.append(sect('Wording you taught it', 'Messages like these are read the way you said. A lesson drafts a reply for you until you have confirmed it ' + LEARN_AUTO + ' times, and it can never override a rate, a decline or a stop.',
+    ...lessons.slice(0, 12).map(l => h('div', { class: 'cdesk-item compact' }, h('span', { class: 'said' }, l.text), ' ', h('span', { class: 'pill' }, teachableLabel(l.intent)), ' ', h('span', { class: 'muted small' }, `confirmed ${l.count}×`),
+      h('button', { class: 'btn small', type: 'button', 'data-act': 'forget-lesson', onclick: async () => { await actions.forgetLesson(l.sig); rerender(); } }, 'Forget')))));
 
   // 1b. two-way matching: every open load against every available truck (yours and the team's)
   const ms = matchStats(state.matches, heads);

@@ -27,6 +27,8 @@ import { startWeather } from './store/weather.js';
 import { paceStats, nextWeekStart, weekRangeText } from './core/coverlog.js';
 import { icon } from './ui/icons.js';
 import { initials } from './ui/chrome.js';
+import { fillAvatar } from './ui/avatar.js';
+import { cleanPic } from './core/profilepics.js';
 import * as cloud from './store/cloud.js';
 import * as local from './store/localacct.js';
 import './ui/install.js';
@@ -105,11 +107,8 @@ function renderNav() {
   renderChrome();
 }
 
-/** Header pieces that depend on state: ZIP status, theme button, profile chip. */
+/** Header pieces that depend on state: cover pace, theme button, profile chip. (v18: the "ZIP Map: N rows" pill is gone; Home and System still warn when the ZIP Map is missing.) */
 export function renderChrome() {
-  const zs = document.getElementById('zipstat');
-  zs.textContent = state.zip ? `ZIP Map: ${state.zip.size.toLocaleString()} rows` : 'ZIP Map: not loaded';
-  zs.className = 'pill' + (state.zip ? '' : ' warn');
   renderPace();
   const light = resolvedMode() === 'light';
   const tb = document.getElementById('themebtn');
@@ -120,7 +119,7 @@ export function renderChrome() {
   const acct = cloud.enabled() ? cloud.user() : local.user();
   const chip = document.getElementById('profilechip'); clear(chip);
   const ini = initials(pf.name) || (acct ? acct.email[0].toUpperCase() : '');
-  chip.append(h('span', { class: 'avatar' }, ini || icon('user', 16)),
+  chip.append(fillAvatar(h('span', { class: 'avatar' }), { pic: cleanPic(pf.pic), text: ini }),
     h('span', { class: 'who' }, h('b', null, pf.name || (acct ? acct.email.split('@')[0] : 'Account')), h('small', null, pf.title || (acct ? acct.email : 'Settings and themes'))));
   const so = document.getElementById('signoutbtn');
   if (so) { so.hidden = !(cloud.enabled() ? cloud.user() : local.user()); if (!so.firstChild) so.appendChild(icon('logout', 17)); }

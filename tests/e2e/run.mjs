@@ -72,7 +72,7 @@ const tql = fs.readFileSync(path.join(root, 'tests/fixtures/tql-synthetic-1.txt'
 try {
   await go('home');
   await page.waitForSelector('.metrics');
-  check('app boots; bundled ZIP Map loaded (33,782 rows)', (await page.textContent('#zipstat')).includes('33,782'));
+  check('app boots; the top-bar ZIP row-count pill is gone (v18)', (await page.$('#zipstat')) === null);
   check('branding present', (await page.textContent('header.top')).includes('By O.K. Mantz'));
   check('tagline in header and on HOME', (await page.textContent('header.top')).includes('Intelligent Carrier Sourcing Optimization System') && (await page.textContent('.hero')).includes('Intelligent Carrier Sourcing Optimization System'));
   // Sidebar: every section is a fold button and starts folded (even the one holding the current page); clicking opens / folds it.

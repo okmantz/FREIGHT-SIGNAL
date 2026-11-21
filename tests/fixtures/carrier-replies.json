@@ -290,7 +290,7 @@
   {
    "name": "any update",
    "body": "any update?",
-   "intent": "unclear"
+   "intent": "checking"
   },
   {
    "name": "empty with history",

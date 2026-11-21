@@ -28,7 +28,7 @@ export function render() {
 
     sec('start', 1, 'Quick start',
       steps(
-        h('span', null, h('b', null, 'Paste the load. '), 'On the Load Board paste the TQL text. It is read as you paste. Check the origin, destination, date, weight and equipment, then press ', h('b', null, 'Add loads'), ' (or Enter).'),
+        h('span', null, h('b', null, 'Paste the load. '), 'On the Load Board paste the TQL text. It is read as you paste. Check the origin, destination, date, weight and equipment, then press ', h('b', null, 'Add load'), ' (or Enter).'),
         h('span', null, h('b', null, 'Nine postings appear. '), 'The 3×3 matrix builds itself, and you only get asked when the nearby cities look odd. You get one load card holding all 9 postings.'),
         h('span', null, h('b', null, 'Set one target rate. '), 'Type it at the top of the load. It is the rate posted on DAT and the price used to judge carrier replies. Priority (Low / Medium / High) is under ', h('b', null, 'More options'), '.'),
         h('span', null, h('b', null, 'Download the DAT file. '), 'Press ', h('b', null, 'Download DAT CSV'), ' on the load, or ', h('b', null, 'Download all'), ' at the top, and upload it in DAT’s bulk posting tool.'),

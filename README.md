@@ -21,7 +21,7 @@ A local-first browser application that replaces the Excel (ThisWorkbook VBA) + O
 
 ## Workflow
 
-1. **Load Board** → paste one or many TQL loads (they are read as you paste) → fix anything highlighted → *Add loads*. The 3 × 3 matrix (original + 8 postings, A-A … C-C) builds itself; you are only asked when the nearby cities look odd.
+1. **Load Board** → paste one or many TQL loads (they are read as you paste) → fix anything highlighted → *Add load*. The 3 × 3 matrix (original + 8 postings, A-A … C-C) builds itself; you are only asked when the nearby cities look odd.
 2. On the load card: type one **Target rate** (it is posted on DAT and judges carrier replies). **Check market rate (RateView)** opens the lane in DAT RateView; type the average it shows into *DAT avg*.
 3. Press **Download DAT CSV** (or **Download all** at the top) and upload the file in DAT's bulk posting tool. The file is DAT's bulk-upload template exactly (24 columns, LF, no BOM).
 4. **Carrier outreach** drafts e-mails to the best-matched carriers. *Find trucks*, *More* and *More options* hold everything else (call list, truck check, reshuffle, priority, broker, reply note, lane scan).

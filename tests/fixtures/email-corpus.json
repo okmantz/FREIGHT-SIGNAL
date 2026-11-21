@@ -784,6 +784,68 @@
    "intent": "rate",
    "rate": 1500,
    "confidence": "weak"
+  },
+  {
+   "name": "v18 #1: Is this still covered?",
+   "body": "Is this still covered?",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v18 #2: is it covered?",
+   "body": "is it covered?",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v18 #3: still avail",
+   "body": "still avail",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v18 #4: Load booked already",
+   "body": "Load booked already",
+   "intent": "decline"
+  },
+  {
+   "name": "v18 #5: we are full",
+   "body": "we are full",
+   "intent": "decline"
+  },
+  {
+   "name": "v18 #6: still waiting on your rate",
+   "body": "still waiting on your rate",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "v18 #7: whats the lowest you can go",
+   "body": "whats the lowest you can go",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "v18 #8: Where do I send the invoice?",
+   "body": "Where do I send the invoice?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v18 #9: Checking in on this one",
+   "body": "Checking in on this one",
+   "intent": "checking"
+  },
+  {
+   "name": "v18 #10: Any update?",
+   "body": "Any update?",
+   "intent": "checking"
+  },
+  {
+   "name": "v18 #11: Is this one covered? We can do 1800",
+   "body": "Is this one covered? We can do 1800",
+   "intent": "rate",
+   "rate": 1800,
+   "confidence": "strong"
+  },
+  {
+   "name": "v18 #12: I have a truck in Joliet tomorrow",
+   "body": "I have a truck in Joliet tomorrow",
+   "intent": "gives_eta"
   }
  ]
 }
