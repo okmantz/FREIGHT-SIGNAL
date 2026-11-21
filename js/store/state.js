@@ -15,6 +15,11 @@ import { todayKey, uid, safeNumeric, normalizeText, applyOrder } from '../core/u
 import { parseTqlLoad } from '../core/parser.js';
 import { toast } from '../ui/dom.js';
 import { applyLoadText } from '../core/loaddetails.js';
+import { decideSend } from '../core/sendpolicy.js';
+import { ledgerKey, buildLedgerEntry, sendCounts } from '../core/ledger.js';
+import { parseTruckText, parseTruckList, makeTruck, mergeTrucks, isActive } from '../core/truckbook.js';
+import { suggestRate } from '../core/raterec.js';
+import { duplicateRows, mergePatches } from '../core/prospects.js';
 
 /** DAT rates are whole dollars: "$1,650.00" -> "1650"; blank/invalid -> "". */
 export function cleanRate(v) {
@@ -27,7 +32,7 @@ export function cleanRate(v) {
 export const state = {
   ready: false,
   settings: { ...DEFAULT_SETTINGS },
-  postings: [], carriers: [], inquiries: [], outreach: [], spares: [], drafts: [], customers: [], coverLog: [],
+  postings: [], carriers: [], inquiries: [], outreach: [], spares: [], drafts: [], customers: [], coverLog: [], trucks: [], ledger: [],
   weather: new Map(),          // "city|st" -> alerts[] (filled by store/weather.js)
   carrierRev: 0,               // bumped whenever the carrier list changes (invalidates cached lane depth)
   hooks: { sendToOutlook: null, onWeeklyGoal: null }, // sendToOutlook: set by store/bridge.js when an Outlook folder is connected. onWeeklyGoal: set by main.js (confetti)
@@ -55,6 +60,8 @@ async function loadStores() {
   state.drafts = (await db.getAll('drafts')).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   state.customers = await db.getAll('customers');
   state.coverLog = (await db.getAll('coverLog')).sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt)));
+  state.trucks = await db.getAll('trucks');
+  state.ledger = (await db.getAll('ledger')).sort((a, b) => b.at - a.at);
   state.carrierRev++;
 }
 
@@ -100,6 +107,30 @@ const saveCounters = () => guard(() => db.kvSet('counters', state.counters));
 /** Tell the UI the weekly cover floor was just reached (it plays the confetti). A moment later, so the cover dialog has closed first. */
 const announceGoal = (goal) => { if (goal && state.hooks.onWeeklyGoal) setTimeout(() => { try { state.hooks.onWeeklyGoal(goal); } catch (e) { console.error(e); } }, 450); };
 
+/** Things a carrier's e-mail teaches us beyond the reply: a truck, an MC number, a stop request. Returns short notes for the UI. */
+async function learnFromEmail(res, mail, now) {
+  const notes = [];
+  const email = String(mail.from || '').trim().toLowerCase();
+  const fresh = (res.analysis && res.analysis.fresh) || '';
+  if (res.truckLead && fresh) {
+    const t = parseTruckText(fresh + '\n' + (res.analysis && res.analysis.tags && res.analysis.tags.asksOtherLoads ? '' : ''), { now, zipMap: state.zip });
+    const known = state.carriers.find(c => String(c.email || '').toLowerCase() === email);
+    const tr = t && makeTruck({ ...t, email: t.email || email, carrierName: (known && known.carrierName) || '', mc: t.mc || (known && known.mc) || res.mc || '', phone: t.phone || (known && known.phone) || '' }, { now, zipMap: state.zip, source: 'email', by: 'inbox' });
+    if (tr) { await actions.addTrucks([tr]); notes.push('Truck saved: ' + tr.oCity + ', ' + tr.oState); res.truck = tr; }
+  }
+  if (res.mc && email) {
+    const rows = state.carriers.filter(c => String(c.email || '').toLowerCase() === email && !String(c.mc || '').trim());
+    for (const c of rows) { c.mc = 'MC ' + res.mc; await guard(() => db.put('carriers', c)); }
+    if (rows.length) { state.carrierRev++; notes.push('MC ' + res.mc + ' added to ' + rows.length + ' carrier row' + (rows.length === 1 ? '' : 's')); }
+  }
+  if (res.markInactive && email) {
+    const rows = state.carriers.filter(c => String(c.email || '').toLowerCase() === email && String(c.status || '').toLowerCase() !== 'inactive');
+    for (const c of rows) { c.status = 'Inactive'; await guard(() => db.put('carriers', c)); }
+    if (rows.length) { state.carrierRev++; notes.push('Marked inactive: ' + email); }
+  }
+  return notes;
+}
+
 export const actions = {
   async saveSettings(patch) {
     state.settings = { ...state.settings, ...patch };
@@ -120,6 +151,11 @@ export const actions = {
     initializeLoadControls(p, state.settings);
     p.groupId = p.groupId || '';
     state.postings.push(p);
+    // v16: a load with no target gets a suggested one from your own covers, quotes and the DAT average you typed (never a number you already entered)
+    if (state.settings.autoSuggestTarget !== false && !(safeNumeric(p.targetRate) > 0)) {
+      const sg = suggestRate(p, { zipMap: state.zip, coverLog: state.coverLog, inquiries: state.inquiries, settings: state.settings, now: Date.now() });
+      if (sg.rate > 0 && sg.confidence !== 'none') { p.targetRate = String(sg.rate); p.targetSource = 'suggested'; p.targetNote = sg.confidence + ' confidence: ' + sg.basis[0]; }
+    } else if (safeNumeric(p.targetRate) > 0) p.targetSource = 'user';
     await savePostings(); emit();
     return p;
   },
@@ -133,6 +169,7 @@ export const actions = {
       if (r.warning) { state.lastWarning = r.warning; try { toast(r.warning, 'warn', 7000); } catch { /* no DOM (unit tests) */ } }
     }
     if ('datRate' in patch) p.datRate = cleanRate(p.datRate);
+    if ('targetRate' in patch && !('targetSource' in patch)) p.targetSource = String(p.targetRate ?? '').trim() ? 'user' : '';
     await savePostings(); emit();
   },
   /** Set (or clear, with '') the DAT-posted rate on specific postings: a per-posting override (Edit dialog). The normal way to price a load is setTargetRate. */
@@ -150,8 +187,20 @@ export const actions = {
   async setTargetRate(ids, rate) {
     const r = cleanRate(rate); const set = new Set(ids);
     let n = 0;
-    for (const p of state.postings) if (set.has(p.id)) { p.targetRate = r; n++; }
+    for (const p of state.postings) if (set.has(p.id)) { p.targetRate = r; p.targetSource = r ? 'user' : ''; n++; }
     await savePostings(); emit(); return n;
+  },
+  /** Put a SUGGESTED target on a load (from your own results). It stays "suggested" until you confirm it, and a suggested target never lets auto-send answer a rate. */
+  async applySuggestedRate(ids, rate, note = '') {
+    const r = cleanRate(rate); const set = new Set(ids); let n = 0;
+    for (const p of state.postings) if (set.has(p.id)) { p.targetRate = r; p.targetSource = r ? 'suggested' : ''; p.targetNote = note; n++; }
+    await savePostings(); emit(); return n;
+  },
+  /** One click: "yes, that is my target". */
+  async confirmTarget(ids) {
+    const set = new Set(ids); let n = 0;
+    for (const p of state.postings) if (set.has(p.id) && p.targetSource === 'suggested') { p.targetSource = 'user'; n++; }
+    if (n) { await savePostings(); emit(); } return n;
   },
   /** The average DAT RateView rate for this load's lane, typed once and kept on every posting of the load ('' clears it). */
   async setDatAvg(id, rate) {
@@ -564,7 +613,7 @@ export const actions = {
     if (!list.length) return 0;
     // DANGER ZONE switches (default off): the macro SENDS instead of saving a draft. Inbound replies additionally need autoSendSafe.
     const inboundKinds = ['Inquiry reply', 'Rate response', 'Carrier reply'];
-    for (const d of list) d.send = inboundKinds.includes(d.kind) ? !!(state.settings.autoSendInbound && d.autoSendSafe) : !!state.settings.autoSendOutbound;
+    for (const d of list) d.send = inboundKinds.includes(d.kind) ? (typeof d.send === 'boolean' && d.sendDecided ? d.send : !!(state.settings.autoSendInbound && d.autoSendSafe)) : !!state.settings.autoSendOutbound;
     const n = await state.hooks.sendToOutlook(list);
     for (const d of list) d.outlook = 'queued';
     await guard(() => db.putMany('drafts', list)); emit(); return n;
@@ -581,10 +630,15 @@ export const actions = {
   async addDraft(d) { const s = { id: uid(), createdAt: new Date().toISOString(), ...d }; state.drafts.unshift(s); await guard(() => db.put('drafts', s)); emit(); return s; },
 
   // ---------- inbound e-mail ----------
-  async processEmail(mail) {
+  async processEmail(mail, { force = false } = {}) {
+    const now = Date.now();
+    // 1. idempotency: the same message is never judged (and never answered) twice, even after a restart or a re-paste
+    const key = ledgerKey(mail);
+    if (!force && state.ledger.some(e => e.id === key)) return { action: 'duplicate', reason: 'This message was already handled (it is in the processing ledger).', ledgerKey: key };
     const res = processIncomingEmail({ mail, postings: state.postings, inquiries: state.inquiries, settings: state.settings });
     if (res.newInquiry) {
       const q = { id: uid(), ...res.newInquiry }; state.inquiries.push(q); await guard(() => db.put('inquiries', q));
+      if (res.inquiryPatch === undefined) res.convId = q.conversationId;
     }
     if (res.inquiryPatch) {
       const q = state.inquiries.find(x => x.id === res.inquiryPatch.id);
@@ -594,9 +648,95 @@ export const actions = {
       const p = state.postings.find(x => x.id === res.postingPatch.id);
       if (p) { Object.assign(p, res.postingPatch.patch); await savePostings(); }
     }
-    if (res.draft) res.draft = await actions.addDraft({ postingId: res.postingPatch?.id, ...res.draft });
+    // 2. the safe-send decision for the drafted reply (the macro applies the same gates)
+    let decision = null;
+    const posting = state.postings.find(x => x.id === (res.postingPatch && res.postingPatch.id)) ||
+      state.postings.find(x => x.id === (res.inquiryPatch && (state.inquiries.find(q => q.id === res.inquiryPatch.id) || {}).postingId));
+    if (res.draft) {
+      const conv = (res.newInquiry && res.newInquiry.conversationId) || (state.inquiries.find(q => res.inquiryPatch && q.id === res.inquiryPatch.id) || {}).conversationId || '';
+      const counts = sendCounts(state.ledger, conv, now);
+      const q = state.inquiries.find(x => res.inquiryPatch && x.id === res.inquiryPatch.id);
+      decision = decideSend({
+        plan: { kind: res.planKind || (res.plan && res.plan.kind), text: res.replyText || (res.plan && res.plan.text) || '', autoSendSafe: res.autoSendSafe, ladderNext: res.plan && res.plan.ladderNext, ignore: res.plan && res.plan.ignore },
+        analysis: res.analysis || {}, settings: state.settings, now, laneScore: res.laneScore, targetRate: posting && posting.targetRate,
+        targetConfirmed: !posting || posting.targetSource !== 'suggested', events: q ? Number(q.eventCount) || 0 : 1, ...counts,
+        fromSelf: /@freightsignal\.local$/i.test(String(mail.from || '')), noReply: /(?:^|[^a-z])(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster)@/i.test(String(mail.from || '')),
+        attachments: Number(mail.attachments) || 0,
+      });
+      res.decision = decision;
+      res.draft.autoSendSafe = !!(res.autoSendSafe && decision.would);
+      res.draft.send = decision.send; res.draft.sendDecided = true; res.draft.sendDelayMinutes = decision.delayMinutes;
+    }
+    // 3. what the carrier's words taught us: a truck, an MC number, a "do not contact"
+    const learned = await learnFromEmail(res, mail, now);
+    if (learned.length) res.learned = learned;
+    // 4. the ledger and the exception queue
+    const entry = buildLedgerEntry({ ...res, convId: res.convId }, mail, decision, now);
+    if (res.suggest) {
+      const sd = await actions.addDraft({ postingId: posting && posting.id, ...res.suggest }); res.suggest = sd;
+    }
+    state.ledger.unshift(entry); if (state.ledger.length > 3000) state.ledger.length = 3000;
+    await guard(() => db.put('ledger', entry));
+    if (res.draft) {
+      res.draft = await actions.addDraft({ postingId: res.postingPatch?.id || (posting && posting.id), ...res.draft });
+      if (decision && decision.send && state.hooks.sendToOutlook) await actions.sendDraftsToOutlook([res.draft.id]);   // routine/full mode: the macro sends it (after the delay)
+    }
+    res.ledgerEntry = entry;
     emit();
     return res;
+  },
+
+  // ---------- processing ledger / exception queue ----------
+  /** Mark a held message as dealt with (and, optionally, whether the engine's reply was right: feeds the readiness meter). */
+  async resolveLedger(id, verdict = '') {
+    const e = state.ledger.find(x => x.id === id); if (!e) return;
+    e.resolved = true; if (verdict === 'ok' || verdict === 'bad') e.verdict = verdict;
+    await guard(() => db.put('ledger', e)); emit();
+  },
+  async markVerdict(id, verdict) {
+    const e = state.ledger.find(x => x.id === id); if (!e) return;
+    e.verdict = verdict === 'ok' || verdict === 'bad' ? verdict : ''; await guard(() => db.put('ledger', e)); emit();
+  },
+  /** Entries that Outlook wrote while the app was closed (never overwrites one already known: your verdicts and Done marks stay). */
+  async addLedgerEntries(list) {
+    const have = new Set(state.ledger.map(e => e.id)); const fresh = list.filter(e => !have.has(e.id));
+    if (!fresh.length) return 0;
+    state.ledger.unshift(...fresh); state.ledger.sort((a, b) => b.at - a.at); if (state.ledger.length > 3000) state.ledger.length = 3000;
+    await guard(() => db.putMany('ledger', fresh)); emit(); return fresh.length;
+  },
+  async clearLedger() { state.ledger = []; await guard(() => db.clear('ledger')); emit(); },
+
+  // ---------- Truck Book ----------
+  /** Add trucks (already parsed). Newer reports replace older ones from the same carrier at the same place. Returns { added, updated }. */
+  async addTrucks(list) {
+    const m = mergeTrucks(state.trucks, list); state.trucks = m.trucks;
+    await guard(() => db.putMany('trucks', state.trucks)); emit(); return { added: m.added, updated: m.updated };
+  },
+  /** Paste a list, a CSV or an e-mail: Freight Signal finds the trucks in it. */
+  async importTruckText(text, source = 'paste') {
+    const r = parseTruckList(text, { now: Date.now(), zipMap: state.zip, source, by: state.settings.brokerName || '' });
+    const res = await actions.addTrucks(r.trucks); return { ...res, found: r.trucks.length, skipped: r.skipped };
+  },
+  async setTruckStatus(id, status) {
+    const t = state.trucks.find(x => x.id === id); if (!t) return; t.status = status; await guard(() => db.put('trucks', t)); emit();
+  },
+  async removeTruck(id) { state.trucks = state.trucks.filter(t => t.id !== id); await guard(() => db.del('trucks', id)); emit(); },
+  /** Drop trucks that expired more than a week ago. */
+  async pruneTrucks(now = Date.now()) {
+    const gone = state.trucks.filter(t => !isActive(t, now) && now - Math.max(Number(t.exp) || 0, Number(t.at) || 0) > 7 * 86400000);
+    if (!gone.length) return 0; const ids = new Set(gone.map(t => t.id)); state.trucks = state.trucks.filter(t => !ids.has(t.id));
+    for (const t of gone) await guard(() => db.del('trucks', t.id)); emit(); return gone.length;
+  },
+
+  // ---------- carrier clean-up ----------
+  /** Remove exact duplicate carrier rows (same carrier AND same lane), keeping the fullest one and filling its blanks from the others. */
+  async cleanupCarrierDuplicates() {
+    const dup = duplicateRows(state.carriers); const patches = mergePatches(state.carriers);
+    for (const pt of patches) { const c = state.carriers.find(x => x.id === pt.id); if (c) Object.assign(c, pt.patch); }
+    const drop = new Set(dup.drop); if (!drop.size && !patches.length) return { removed: 0, merged: 0 };
+    state.carriers = state.carriers.filter(c => !drop.has(c.id)); state.carrierRev++;
+    await guard(() => db.replaceAll('carriers', state.carriers)); emit();
+    return { removed: drop.size, merged: patches.length };
   },
 
   // ---------- carriers ----------

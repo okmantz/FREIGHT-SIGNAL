@@ -6,7 +6,7 @@ A local-first browser application that replaces the Excel (ThisWorkbook VBA) + O
 * **Accounts (v9).** Everyone signs in with an e-mail and password. By default (no setup) accounts live on the computer: several people can each have their own account in the same browser, each with private data, and they can install it as a desktop app. Optionally:
 * **Cloud accounts:** with a free Firebase project connected ([docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md), 5 minutes), anyone with the link can create their own account; everything they enter is saved to it and follows them to any computer. Each person sees only their own data.
 * Without the cloud setup, data lives in **this browser's IndexedDB** (one database per account) and nothing is uploaded. No telemetry, analytics, CDN or fonts. The only outside calls are the optional weather lookup and, when cloud accounts are on, Firebase (a CSP enforces it and a test checks it).
-* **Never sends e-mail.** Every message is a draft you review: `.eml` file (opens in Outlook as an unsent draft), `mailto:` link, Outlook-on-the-web compose link, or clipboard.
+* **Sends nothing by default.** Every message is a draft you review. (v16: the Outlook bridge can optionally auto-send *routine* replies under a strict safe-send policy; it is off until you switch it on, and shadow mode lets you measure it first.) Drafts come as: `.eml` file (opens in Outlook as an unsent draft), `mailto:` link, Outlook-on-the-web compose link, or clipboard.
 * Chrome / Edge. Works offline after first load.
 
 ## Run it
@@ -25,13 +25,17 @@ A local-first browser application that replaces the Excel (ThisWorkbook VBA) + O
 2. On the load card: type one **Target rate** (it is posted on DAT and judges carrier replies). **Check market rate (RateView)** opens the lane in DAT RateView; type the average it shows into *DAT avg*.
 3. Press **Download DAT CSV** (or **Download all** at the top) and upload the file in DAT's bulk posting tool. The file is DAT's bulk-upload template exactly (24 columns, LF, no BOM).
 4. **Carrier outreach** drafts e-mails to the best-matched carriers. *Find trucks*, *More* and *More options* hold everything else (call list, truck check, reshuffle, priority, broker, reply note, lane scan).
-5. **Outlook:** System → *Outlook connection* → choose your `Documents\FreightSignal` folder, then paste `outlook/Outlook_v6_ThisOutlookSession.txt` into Outlook. See `docs/OUTLOOK-BRIDGE.md`.
+5. **Outlook:** System → *Outlook connection* → choose your `Documents\FreightSignal` folder, then paste `outlook/Outlook_v7_ThisOutlookSession.txt` into Outlook, then run `FS_SelfTest`. See `docs/OUTLOOK-BRIDGE.md`.
 5. **Inquiry Log** → *Process carrier e-mail* (paste a carrier reply → logged + draft reply), approve carriers into the **Carrier Database**.
 6. Status = **Covered** removes the whole load group and bumps the covers counters.
 
+## Cover Desk & e-mail (v16)
+
+**Cover Desk** (Workspace) is the one place for covering trucks: *Needs you* (replies the engine held back, with a ready draft and the reason), *Call first*, the truck book and load bundles. Load cards show a coverage strip with the best trucks. Target rates are *suggested* from your own covers, quotes and the DAT average you type; **the app cannot read live DAT RateView data**, so confirm the number. See [CHANGELOG-v16](docs/CHANGELOG-v16.md).
+
 ## Documentation
 
-`docs/` — [NETWORK](docs/NETWORK.md) (Team Network, v14) · [CLOUD-SETUP](docs/CLOUD-SETUP.md) · [AUDIT](docs/AUDIT.md) · [OPEN-QUESTIONS](docs/OPEN-QUESTIONS.md) · [FEATURES](docs/FEATURES.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA-STORAGE](docs/DATA-STORAGE.md) · [SECURITY-IT-REVIEW](docs/SECURITY-IT-REVIEW.md) · [PARITY-CHECKLIST](docs/PARITY-CHECKLIST.md) · [TEST-RESULTS](docs/TEST-RESULTS.md) · [LIMITATIONS](docs/LIMITATIONS.md) · [TROUBLESHOOTING](docs/TROUBLESHOOTING.md)
+`docs/` — [CHANGELOG-v16](docs/CHANGELOG-v16.md) · [NETWORK](docs/NETWORK.md) (Team Network, v14) · [CLOUD-SETUP](docs/CLOUD-SETUP.md) · [AUDIT](docs/AUDIT.md) · [OPEN-QUESTIONS](docs/OPEN-QUESTIONS.md) · [FEATURES](docs/FEATURES.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA-STORAGE](docs/DATA-STORAGE.md) · [SECURITY-IT-REVIEW](docs/SECURITY-IT-REVIEW.md) · [PARITY-CHECKLIST](docs/PARITY-CHECKLIST.md) · [TEST-RESULTS](docs/TEST-RESULTS.md) · [LIMITATIONS](docs/LIMITATIONS.md) · [TROUBLESHOOTING](docs/TROUBLESHOOTING.md)
 
 ## Tests
 

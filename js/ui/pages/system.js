@@ -1,4 +1,6 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, field, copyText, fmtDate } from '../dom.js';
+import { sendModeOf, SEND_MODES, MODE_LABEL } from '../../core/sendpolicy.js';
+import { shadowStats } from '../../core/ledger.js';
 import { pageHead } from '../chrome.js';
 import { icon } from '../icons.js';
 import { state, actions, importZipCsv } from '../../store/state.js';
@@ -173,6 +175,31 @@ function ladderSection(s) {
     h('div', { class: 'toolbar' }, h('button', { class: 'btn small', type: 'button', onclick: async () => { const t = { ...(s.templates || {}) }; for (const k of ['book', 'split', 'target', 'askRate', 'available', 'availableLead', 'needRate', 'needRateEta', 'agreed']) delete t[k]; await actions.saveSettings({ templates: t }); toast('Reply wording reset to the defaults.', 'ok'); } }, 'Reset reply wording')));
 }
 
+/** v16: how much of the carrier-reply work Freight Signal may do without you, with a plain-English reason for every held reply. */
+function modeBox(s) {
+  const mode = sendModeOf(s);
+  const ready = shadowStats(state.ledger);
+  const sel = h('select', { class: 'cell', 'data-act': 'send-mode', 'aria-label': 'Reply mode' }, SEND_MODES.map(m => h('option', { value: m, selected: m === mode }, MODE_LABEL[m])));
+  sel.addEventListener('change', async () => {
+    const v = sel.value;
+    if ((v === 'routine' || v === 'full') && !(await confirmDialog('Auto-send replies', v === 'full'
+      ? 'The Outlook macro will SEND routine replies AND replies that confirm a rate ("agreed, book it") without showing them to you. Only messages the engine fully understood, on an exact lane match, with a target rate YOU confirmed, are sent. Everything else lands on the Cover Desk. Shadow mode first is strongly recommended.'
+      : 'The Outlook macro will SEND routine replies (is it available, what is the rate, here are the details, what is your ETA, the first counter) without showing them to you. Replies that confirm a rate and anything unclear stay on the Cover Desk.', 'Turn on'))) { sel.value = mode; return; }
+    await actions.saveSettings({ sendMode: v, autoSendInbound: v === 'full' }); toast('Reply mode: ' + MODE_LABEL[v], 'ok', 5000);
+  });
+  const num = (key, label, hint, min = 0) => { const i = h('input', { class: 'cell numsm', type: 'number', min, value: s[key] ?? '' }); i.addEventListener('change', () => actions.saveSettings({ [key]: Number(i.value) })); return field(label, i, hint); };
+  const chk = (key, label) => { const c = h('input', { type: 'checkbox', checked: !!s[key] }); c.addEventListener('change', () => actions.saveSettings({ [key]: c.checked })); return h('label', { class: 'tgl' }, c, h('span', null, label)); };
+  return h('div', { class: 'panel' },
+    h('h4', null, 'Replies to carriers'),
+    h('p', { class: 'muted' }, 'Drafts only is the safe default. Shadow mode drafts exactly as before, but also keeps score of what it would have sent, so you can see how often you agree before trusting it.'),
+    field('Mode', sel),
+    h('p', { class: 'muted' }, ready.ready ? 'Ready: ' + ready.pct + '% agreement over ' + ready.judged + ' judged replies.' : 'Readiness: ' + ready.judged + ' of 30 judged replies' + (ready.pct !== null ? ', ' + ready.pct + '% agree' : '') + '. Mark replies on the Cover Desk to build this up.'),
+    h('details', null, h('summary', null, 'Safety limits'),
+      num('sendMaxPerConversation', 'Max auto-replies per conversation', '', 1), num('sendMaxPerDay', 'Max auto-sends per day', '', 1), num('maxAutoSendsPerHour', 'Max auto-sends per hour', '', 1),
+      num('sendDelayMinutes', 'Wait before sending (minutes)', 'A short delay lets you catch a mistake in Outlook\'s Outbox.'), num('sendMinLaneScore', 'Minimum lane match score', '220 = exact lane.', 0),
+      chk('sendWorkHoursOnly', 'Only send during working hours'), chk('adaptiveMatrix', 'Learn the 3x3 matrix from replies that became real quotes'), chk('autoSuggestTarget', 'Suggest a target rate for new loads from my own results')));
+}
+
 /** DANGER ZONE: let the Outlook macro SEND instead of saving drafts. Inbound and outbound are separate switches; both default to off. */
 function autoSendControls(s) {
   const sw = (key, title, onText, offText, confirmText) => {
@@ -187,8 +214,7 @@ function autoSendControls(s) {
   };
   return h('div', { class: 'autosend' },
     h('p', { class: 'muted' }, 'By default every e-mail is saved as a draft for you to review. These switches let the Outlook macro (v6) send instead. Only the macro can send; this app never does. Turn a switch off at any time and the next e-mail goes back to a draft.'),
-    sw('autoSendInbound', 'Auto-send replies to carriers', 'ON: replies to carrier e-mails are SENT when the app is certain it understood them. Anything unclear stays a draft and is flagged.', 'Off: replies are saved as drafts.',
-      'With this on, the Outlook macro SENDS replies to inbound carrier e-mails (rate counters, "how close can you come", ETA requests) without showing them to you first. Only e-mails the app fully understood are sent; anything unusual (a question, a pushback, several rates, a stop request) stays a draft. A cap of ' + (s.maxAutoSendsPerHour || 20) + ' sends per hour applies. Requires the v6 macro.'),
+    modeBox(s),
     sw('autoSendOutbound', 'Auto-send outreach to carriers', 'ON: outreach drafts made here are SENT by Outlook instead of saved.', 'Off: outreach is saved as drafts.',
       'With this on, outreach and truck-check e-mails you create here are SENT by Outlook as soon as they are queued, without a draft to review. Make sure your carrier list and wording are right first. Requires the v6 macro.'));
 }

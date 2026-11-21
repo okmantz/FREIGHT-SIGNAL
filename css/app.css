@@ -1226,3 +1226,18 @@ header.top #appearbtn { display: none; }       /* the profile chip next to it op
 .sc-item.done .sc-text b { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .sc-ok { color: var(--good); font-weight: 700; font-size: .85em; }
 .tourcard { padding: 10px 14px; }
+
+/* ---- v16: coverage strip, Cover Desk ---- */
+.coverstrip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 0 18px 8px; font-size: .88em; }
+.cv-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); }
+.cv-chip.ok { border-color: rgba(var(--accent-rgb), .4); background: rgba(var(--accent-rgb), .08); }
+.cv-chip.warn { border-color: color-mix(in srgb, #d99a00 55%, var(--line)); background: color-mix(in srgb, #d99a00 12%, transparent); }
+.cv-row { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.cv-row:last-child { border-bottom: 0; }
+.covwin .panel { margin-bottom: 10px; }
+.cdesk-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; background: var(--panel); }
+.cdesk-item .said { margin: 6px 0; padding: 8px 10px; border-left: 3px solid rgba(var(--accent-rgb), .5); background: var(--panel2); border-radius: 6px; white-space: pre-wrap; }
+.cdesk-meter { height: 8px; border-radius: 999px; background: var(--panel2); overflow: hidden; margin: 6px 0; }
+.cdesk-meter > i { display: block; height: 100%; background: var(--accent); }
+.cell.wide { width: 100%; }
+.numsm { width: 90px; }

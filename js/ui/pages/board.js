@@ -1,4 +1,5 @@
 import { h, toast, modal, confirmDialog, copyText, openExternal, field, inputEl, selectEl, download } from '../dom.js';
+import { coverageStrip } from '../board/coverage.js';
 import { state, actions } from '../../store/state.js';
 import { rateViewUrl, ventuskyUrl, findTruckInfo } from '../../core/links.js';
 import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
@@ -398,6 +399,7 @@ function groupBox(r, collapsed, toggle) {
   return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), ...attrs },
     header,
     h('div', { class: 'lanebasics' }, details, suggestStrip(b, r, rate)),
+    coverageStrip(b, head),
     teamStrip(b, head),
     guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
     acts, moreOpts,

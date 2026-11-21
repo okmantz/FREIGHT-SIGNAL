@@ -2,6 +2,8 @@ import { h, clear, toast, confirmDialog } from './ui/dom.js';
 import { state, subscribe, loadAll, reloadStores, actions } from './store/state.js';
 import * as home from './ui/pages/home.js';
 import * as board from './ui/pages/board.js';
+import * as coverdesk from './ui/pages/coverdesk.js';
+import { exceptionQueue } from './core/ledger.js';
 import * as spare from './ui/pages/spare.js';
 import * as carriers from './ui/pages/carriers.js';
 import * as customers from './ui/pages/customers.js';
@@ -36,6 +38,7 @@ import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode,
 export const TABS = [
   { id: 'home', label: 'Home', icon: 'home', group: 'Workspace', page: home },
   { id: 'board', label: 'Load Board', icon: 'board', group: 'Workspace', page: board },
+  { id: 'coverdesk', label: 'Cover Desk', icon: 'sparkle', group: 'Workspace', page: coverdesk },
   { id: 'covers', label: 'Cover Log', icon: 'covers', group: 'Workspace', page: covers },
   { id: 'spare', label: 'Spare Load Details', icon: 'spare', group: 'Workspace', page: spare },
   { id: 'carriers', label: 'Carrier Database', icon: 'carriers', group: 'Network', page: carriers },
@@ -78,7 +81,7 @@ function renderNav() {
     body.hidden = !open;
     for (const t of g.tabs) {
       const nb = t.badge && net.joined() ? net.badges()[t.badge] : 0;
-      const badge = t.id === 'drafts' && state.drafts.length ? h('span', { class: 'badge' }, state.drafts.length) : nb ? h('span', { class: 'badge', 'data-badge': t.badge }, nb) : null;
+      const badge = t.id === 'drafts' && state.drafts.length ? h('span', { class: 'badge' }, state.drafts.length) : t.id === 'coverdesk' && exceptionQueue(state.ledger).length ? h('span', { class: 'badge' }, exceptionQueue(state.ledger).length) : nb ? h('span', { class: 'badge', 'data-badge': t.badge }, nb) : null;
       body.appendChild(h('a', { href: '#/' + t.id, dataset: { tab: t.id }, title: t.label, class: current && current.id === t.id ? 'active' : '', 'aria-current': current && current.id === t.id ? 'page' : null },
         icon(t.icon, 19), h('span', { class: 'lbl' }, t.label), badge));
     }

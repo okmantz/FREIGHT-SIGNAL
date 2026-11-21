@@ -20,6 +20,21 @@ export const DEFAULT_SETTINGS = {
   recogniseCommaRates: false,
   // DANGER ZONE (v8): let the Outlook macro SEND instead of saving drafts. Both default OFF. Inbound = replies to carriers; outbound = new outreach.
   autoSendInbound: false,
+  // v16 safe-send policy (see js/core/sendpolicy.js). sendMode: off | shadow | routine | full. '' = follow the old autoSendInbound switch.
+  sendMode: '',
+  sendMaxPerConversation: 3,
+  sendMaxPerDay: 60,
+  sendDelayMinutes: 3,
+  sendMinLaneScore: 220,
+  sendWorkHoursOnly: false,
+  sendWorkStart: 7,
+  sendWorkEnd: 19,
+  sendMaxChars: 600,
+  sendDuplicateMinutes: 120,
+  // v16 coverage: suggest a target rate for a new load from your own results; learn the matrix from qualified responses; hard-lane states (empty = built-in list)
+  autoSuggestTarget: true,
+  adaptiveMatrix: true,
+  thinOutboundStates: [],
   autoSendOutbound: false,
   maxAutoSendsPerHour: 20,
   minReasonableRate: 250,

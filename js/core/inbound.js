@@ -97,6 +97,9 @@ const stageAction = {
  * `inquiries` and `postings` are read-only here. A draft is NEVER sent by this function; draft.autoSendSafe says whether a
  * person could safely be left out of the loop for it (the Outlook macro only sends when the Settings switch is on AND this is true).
  */
+const FIRST_NEEDS_PERSON = ['wants_call', 'pushback', 'needs_info', 'rate_unclear', 'redirect', 'asks_other_loads', 'mixed'];
+const a2mc = (a) => (a && a.mc) || '';
+
 export function processIncomingEmail({ mail, postings, inquiries, settings = DEFAULT_SETTINGS, now = new Date() }) {
   if (isBlockedOutlook(mail.from, settings.inboundBlocklist)) return { action: 'ignored', reason: 'Sender is on the inbound blocklist.' };
   if (isAutomatedMessage(mail)) return { action: 'ignored', reason: 'Automated message (mailer-daemon / postmaster / out of office / automatic reply).' };
@@ -113,15 +116,16 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
     if (!m || !m.details) return { action: 'no-match', reason: 'No posting lane was found in the subject or body, so no inquiry draft was created.' };
     const a = analyseCarrierEmail(mail.body, ownTextOf(m.posting), settings);
     if (a.echo) return { action: 'ignored', reason: 'This message only contains our own wording (for example a test sent to yourself), so nothing was drafted.' };
-    if (a.intent === 'stop' || a.intent === 'decline') return { action: 'ignored', reason: 'The carrier is not interested, so no reply was drafted.', intent: a.intent };
+    if (['stop', 'decline', 'ack', 'ooo'].includes(a.intent)) return { action: 'ignored', reason: 'The carrier is not interested, so no reply was drafted.', intent: a.intent };
     const target = safeNumeric(m.posting.targetRate);
     // A carrier whose FIRST message is "rate?" gets the details and your target, not a request for their rate.
     const askRate = a.intent === 'asks_rate' && target > 0;
     const ask = askRate ? fillTemplate(tpl.askRate, { target: formatCurrency0(target) }) + CRLF + 'What is your ETA to pickup?' : 'What is your best all-in rate? ETA to pickup?';
-    const draft = mkDraft(m.details + CRLF + CRLF + ask, { display: true, kind: 'Inquiry reply', autoSendSafe: (m.score % 1000) >= 220 && a.intent !== 'wants_call' && a.intent !== 'pushback' });
+    const draft = mkDraft(m.details + CRLF + CRLF + ask, { display: true, kind: 'Inquiry reply', autoSendSafe: (m.score % 1000) >= 220 && !FIRST_NEEDS_PERSON.includes(a.intent) && !a.tags.extras && !(a.rate && a.rate.weak && a.rate.found && false) });
     const count = safeNumeric(m.posting.inquiryCount) + 1;
     return {
-      action: 'inquiry-reply', intent: a.intent, autoSendSafe: draft.autoSendSafe,
+      action: 'inquiry-reply', intent: a.intent, autoSendSafe: draft.autoSendSafe, laneScore: m.score % 1000, planKind: 'inquiry', analysis: a, replyText: ask,
+      truckLead: a.intent === 'gives_truck' || a.intent === 'asks_other_loads', mc: a.mc || '',
       reason: 'Matched posting row ' + (m.index + 2) + ' (' + m.posting.originCity + ', ' + m.posting.originState + ' -> ' + m.posting.destCity + ', ' + m.posting.destState + ').',
       draft,
       postingPatch: { id: m.posting.id, patch: { inquiryCount: count } },
@@ -144,7 +148,7 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
 
   const targetRate = safeNumeric(posting.targetRate);
   const analysis = analyseCarrierEmail(mail.body, ownTextOf(posting), settings);
-  const plan = planCarrierReply({ analysis, target: targetRate, settings, state: { stage, ladderStage: String(log.ladderStage || ''), ourRate: safeNumeric(log.ourRate), events: safeNumeric(log.eventCount) } });
+  const plan = planCarrierReply({ analysis, target: targetRate, settings, state: { stage, ladderStage: String(log.ladderStage || ''), ourRate: safeNumeric(log.ourRate), carrierRate: safeNumeric(log.lastCarrierRate), events: safeNumeric(log.eventCount) } });
   if (plan.ignore) return { action: 'ignored', intent: plan.intent, reason: plan.reason };
 
   const patch = { eventCount: evt, intent: plan.intent };
@@ -158,7 +162,9 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
     if (plan.rate) patch.lastCarrierRate = plan.rate;
     patch.flag = flag; patch.lastAction = plan.reason;
     const actionName = plan.stageNext === 'DECLINED' ? 'declined' : plan.stageNext === 'ETA_RECEIVED' ? 'eta-received' : plan.flag === REPLY_FLAGS.noTarget ? 'flag-no-target' : plan.flag === REPLY_FLAGS.noRate ? 'flag-no-rate' : plan.flag === REPLY_FLAGS.closed ? 'flag-repeat' : 'flag-manual';
-    return { action: actionName, intent: plan.intent, reason: plan.reason, flag, inquiryPatch: { id: log.id, patch } };
+    const suggest = plan.suggest && plan.suggest.text ? mkDraft(plan.suggest.kind === 'details' ? detailsWithNote(safeString(posting.details) || buildOutlookLoadDetails(posting), posting.notes, CRLF) + CRLF + CRLF + plan.suggest.text : plan.suggest.text, { kind: 'Suggested reply', autoSendSafe: false, review: true }) : null;
+    return { action: actionName, intent: plan.intent, reason: plan.reason, flag, inquiryPatch: { id: log.id, patch }, suggest, truckLead: !!plan.truckLead, mc: plan.mc || '', markInactive: !!plan.markInactive,
+      analysis, plan, laneScore: 1000, planKind: 'none', carrierRate: plan.rate || 0 };
   }
 
   // a reply is drafted
@@ -166,12 +172,15 @@ export function processIncomingEmail({ mail, postings, inquiries, settings = DEF
   else if (plan.kind === 'asks_rate') { patch.rateResponseSent = 'YES'; patch.lastAction = 'Carrier asked for the rate - answered with your target (' + formatCurrency0(targetRate) + ')'; }
   else if (plan.kind === 'agreed') { patch.rateResponseSent = 'YES'; patch.lastAction = 'Carrier agreed to ' + formatCurrency0(plan.ourRateNext) + ' - ETA requested'; }
   else if (plan.kind === 'available') patch.lastAction = 'Carrier asked if the load is available - confirmed and asked for a rate';
+  else if (plan.kind === 'details') patch.lastAction = 'Carrier asked for details - load details resent';
   else patch.lastAction = 'Carrier gave no rate - asked for it';
   patch.flag = flag;
-  const action = plan.kind === 'ladder' ? stageAction[plan.ladder.stage] : plan.kind === 'asks_rate' ? 'reply-asks-rate' : plan.kind === 'agreed' ? 'reply-agreed' : plan.kind === 'available' ? 'reply-available' : 'reply-need-rate';
+  const action = plan.kind === 'ladder' ? stageAction[plan.ladder.stage] : plan.kind === 'asks_rate' ? 'reply-asks-rate' : plan.kind === 'agreed' ? 'reply-agreed' : plan.kind === 'available' ? 'reply-available' : plan.kind === 'details' ? 'reply-details' : 'reply-need-rate';
   return {
     action, intent: plan.intent, ladder: plan.ladder, flag, autoSendSafe: plan.autoSendSafe, reason: plan.reason,
-    draft: mkDraft(plan.text, { kind: plan.kind === 'ladder' ? 'Rate response' : 'Carrier reply', autoSendSafe: plan.autoSendSafe }),
+    draft: mkDraft(plan.kind === 'details' ? detailsWithNote(safeString(posting.details) || buildOutlookLoadDetails(posting), posting.notes, CRLF) + CRLF + CRLF + plan.text : plan.text,
+      { kind: plan.kind === 'ladder' ? 'Rate response' : 'Carrier reply', autoSendSafe: plan.autoSendSafe }),
     inquiryPatch: { id: log.id, patch },
+    analysis, plan, planKind: plan.kind, replyText: plan.text, laneScore: 1000, truckLead: !!plan.truckLead, carrierRate: plan.rate || 0, mc: a2mc(analysis),
   };
 }

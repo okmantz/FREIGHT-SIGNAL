@@ -4,7 +4,7 @@
 
 import * as db from './db.js';
 import { state, subscribe, actions } from './state.js';
-import { FILES, postingsFile, postingsFingerprint, configFile, inquiriesHeader, foldInquiryEvents, parseStatus, planInquirySync, outboxFile, parseDraftsDone } from '../core/bridge.js';
+import { FILES, postingsFile, postingsFingerprint, configFile, inquiriesHeader, foldInquiryEvents, ledgerFromEventLines, parseStatus, planInquirySync, outboxFile, parseDraftsDone } from '../core/bridge.js';
 
 export const bridge = {
   supported: typeof globalThis.showDirectoryPicker === 'function',
@@ -96,6 +96,7 @@ export async function pollNow() {
         bridge.eventsSeen = records.length;
         applied = await actions.applyBridgeInquiries(planInquirySync(records, state.inquiries, state.postings));
         lastInqSig = sig;
+        await actions.addLedgerEntries(ledgerFromEventLines(inq.text));
       }
     }
     // Which queued drafts has Outlook saved (or failed)? Mark them and shrink the outbox.

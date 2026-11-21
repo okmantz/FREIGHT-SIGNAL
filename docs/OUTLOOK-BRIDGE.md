@@ -8,6 +8,8 @@ Outlook VBA cannot read data stored inside a browser (IndexedDB). Freight Signal
   ├─ freight-signal-config.tsv     ───────────────▶  reads: rate proximity, plausible rate window, inbound blocklist
   ◀─ freight-signal-inquiries.tsv  ◀───────────────  appends: one line per Outlook action (inquiry draft, rate draft, flag ...)
   ◀─ freight-signal-outlook-status.txt ◀────────────  writes: heartbeat ("Outlook connected")
+  ◀─ freight-signal-processed.tsv  ◀────────────────  v7: persistent ledger (messages seen, auto-sends made)
+  ─▶ freight-signal-paused.txt     (v7) exists = all automatic sending is paused (FS_PauseSending / FS_ResumeSending)
 ```
 
 All files are ASCII, tab separated. Tabs/newlines inside a field are written as `\t` / `\n`, a backslash as `\\`.
@@ -43,3 +45,15 @@ The macro could not be executed in a real Outlook while building this. The file 
 * *Outlook shows "waiting"*: run `FS_Ping`; confirm both sides use the same folder (`FS_Diagnostics` prints the path the macro found).
 * *Folder asks for permission after restarting Chrome*: press **Reconnect folder**.
 * *Errors*: the macro appends to `freight-signal-outlook-errors.txt` in the same folder.
+
+
+## v7 macro (Freight Signal v16)
+`outlook/Outlook_v7_ThisOutlookSession.txt` replaces v6 (same install: Alt+F11 → ThisOutlookSession → paste → restart Outlook).
+
+**New files:** `freight-signal-processed.tsv` (columns `MessageKey, Timestamp, ConversationId, Kind, Mode`; `seen` rows make every e-mail process once across restarts, `sent` rows drive the per-conversation / per-day / per-hour caps) and `freight-signal-paused.txt`.
+**Inquiry log:** four more columns after `Sent`: `Mode` (`auto` | `draft` | `shadow` | `review` | `ignored`), `Why` (the reasons a reply was held, joined by ` | `), `Fresh` (what the carrier typed), `Reply` (the reply text). The app imports them into Cover Desk → Needs you.
+**Postings:** one more column, `TargetConfirmed` (`suggested` = the target was auto-suggested, never used for an automatic reply).
+**Config keys read:** `sendMode` (`off|shadow|routine|full`; old `autoSendInbound=1` means `full`), `sendMaxPerConversation`, `sendMaxPerDay`, `sendDelayMinutes`, `sendMinLaneScore`, `sendWorkHoursOnly/Start/End`, `sendMaxChars`, `sendDuplicateMinutes`, `maxAutoSendsPerHour`, and the wording keys `tplDetails, tplPushback, tplWantsCall, tplConfirmRate, tplHolding, tplOtherLoads, tplGeneric`. The reading rules (`rule` lines) now also include the v16 rules (noise stripping, weak rates, ack/ooo, details, other loads, MC/DOT, redirect); if any are missing the macro drafts nothing and flags the e-mail.
+**Commands:** `FS_SelfTest` (runs the 137-case audited corpus; regenerate with `node scripts/gen-selftest.mjs --inject outlook/Outlook_v7_ThisOutlookSession.txt`), `FS_PauseSending`, `FS_ResumeSending`, plus the v6 commands.
+**Sending:** a reply is sent only when the mode is *routine* or *full* AND every gate in `js/core/sendpolicy.js` passes (the macro mirrors them: `DecideSend`). It is delivered with `DeferredDeliveryTime` (default 3 minutes) so you can delete it from the Outbox to cancel; this needs Outlook running (or Exchange cached mode) at the delivery time. Messages that need a person never send: they are flagged, and a suggested reply is saved in Drafts.
+**Not verified:** like v6, not executed in a real Outlook. First run `FS_Ping`, then `FS_SelfTest`; keep *Drafts only* / *Shadow* until it passes and the app's readiness meter (Cover Desk) reaches ≥98% agreement over ≥30 judged replies.

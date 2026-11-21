@@ -1,4 +1,5 @@
 import { h, toast, modal, confirmDialog, download, pickFile, readFileText, inputEl, field, copyText } from '../dom.js';
+import { duplicateRows } from '../../core/prospects.js';
 import { pageHead, emptyState, statTiles } from '../chrome.js';
 import { summaryOutreach } from '../board/outreachview.js';
 import { topCarriersByCovers, weekStart } from '../../core/coverlog.js';
@@ -121,6 +122,10 @@ export function render() {
       h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add carrier'),
       h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import…'),
       h('button', { class: 'btn', type: 'button', disabled: !rows.length, title: 'Draft a truck-availability e-mail to every carrier shown (with an e-mail address). Use the filters first to ask just one group.', onclick: () => truckCheck(rows) }, icon('mail', 15), `Truck check (${rows.filter(c => String(c.email || '').trim()).length})`),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'dedupe', title: 'Remove exact duplicate rows (same carrier and same lane) from imports of several lists, keeping the fullest row.', onclick: async () => {
+        const d = duplicateRows(state.carriers); if (!d.drop.length) return toast('No duplicate rows found.', 'ok');
+        if (!(await confirmDialog('Clean up duplicates', d.drop.length + ' duplicate row' + (d.drop.length === 1 ? '' : 's') + ' (same carrier, same lane) will be removed. The fullest row of each is kept and fills its blanks from the others.', 'Clean up'))) return;
+        const r = await actions.cleanupCarrierDuplicates(); toast(r.removed + ' duplicate row' + (r.removed === 1 ? '' : 's') + ' removed.', 'ok'); } }, 'Clean up duplicates'),
       h('button', { class: 'btn', type: 'button', disabled: !state.carriers.length, onclick: () => download('carrier-database.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV'),
       h('button', { class: 'btn', type: 'button', disabled: !state.carriers.length, onclick: () => copyText(toDelimited([CARRIER_HEADERS, ...state.carriers.map(c => CARRIER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).') }, 'Copy for Excel'),
       h('span', { class: 'muted' }, `${rows.length} of ${state.carriers.length}`)),

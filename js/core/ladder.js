@@ -21,6 +21,14 @@ export const DEFAULT_TEMPLATES = {
   needRate: 'Thank you. What is your best all-in rate for this load?',
   needRateEta: 'Thank you. What is your best all-in rate and ETA to pickup?',
   agreed: 'Great, we are set at {ourRate}. Please confirm your ETA to pickup.',
+  // v16: wording for the replies that used to be left for you. These are only ever DRAFTS (never auto-sent), except `details`.
+  details: 'Here are the load details again. What is your best all-in rate and ETA to pickup?',
+  pushback: 'Understood. What rate would you need to make this work?',
+  wantsCall: 'Happy to talk. What is the best number to reach you, and when are you free?',
+  confirmRate: 'Just to confirm, what is your all-in total for the full load?',
+  holding: 'Understood. Let me check on my end and get right back to you.',
+  otherLoads: 'Thanks for reaching out. Where is your truck now, what equipment is it, and when is it empty? I will see what I have that fits.',
+  generic: 'Thank you for the reply. What is your best all-in rate and ETA to pickup?',
   truckSubject: 'Any trucks available? {lane}',
   truckBody: 'Hello {name},\n\nDo you have any trucks available {where}?\n\nIf so, please reply with the truck location, equipment and the rate you would need.\n\nThank you,',
 };
@@ -34,6 +42,7 @@ export const TEMPLATE_VARS = {
   needRate: ['{target}'],
   needRateEta: ['{target}'],
   agreed: ['{ourRate}', '{target}'],
+  details: ['{target}'], pushback: ['{target}'], wantsCall: [], confirmRate: [], holding: [], otherLoads: [], generic: [],
   truckSubject: ['{lane}', '{name}'],
   truckBody: ['{name}', '{where}', '{lane}'],
 };

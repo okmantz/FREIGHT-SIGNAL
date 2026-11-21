@@ -341,7 +341,7 @@
   {
    "name": "just thanks",
    "body": "thanks",
-   "intent": "empty"
+   "intent": "ack"
   },
   {
    "name": "comma list",
@@ -358,7 +358,7 @@
   {
    "name": "range",
    "body": "1400-1500",
-   "intent": "unclear"
+   "intent": "rate_unclear"
   },
   {
    "name": "five digit non rate",

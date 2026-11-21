@@ -1,0 +1,789 @@
+{
+ "own": "Pickup: Chicago, IL 60601\nDelivery: Atlanta, GA 30303\nPickup Date: 11/20/2026\nWeight: 42,000 lbs\nTotal miles 715",
+ "note": "Audited by hand in v16: every case lists what a careful broker would conclude. Regenerate only after reading the diff.",
+ "cases": [
+  {
+   "name": "v16 #1: Can you do 1800?",
+   "body": "Can you do 1800?",
+   "intent": "rate",
+   "rate": 1800,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #2: 1800 + fsc",
+   "body": "1800 + fsc",
+   "intent": "rate",
+   "rate": 1800,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #3: $1,800 including fuel",
+   "body": "$1,800 including fuel",
+   "intent": "rate",
+   "rate": 1800,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #4: 1.8",
+   "body": "1.8",
+   "intent": "unclear"
+  },
+  {
+   "name": "v16 #5: 1,800.00",
+   "body": "1,800.00",
+   "intent": "rate",
+   "rate": 1800,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #6: eighteen hundred",
+   "body": "eighteen hundred",
+   "intent": "rate",
+   "rate": 1800,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #7: need 1800 to move it",
+   "body": "need 1800 to move it",
+   "intent": "rate",
+   "rate": 1800,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #8: Hi, I have a truck in Joliet. What's the rate?",
+   "body": "Hi, I have a truck in Joliet. What's the rate?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "v16 #9: Rate $1650 can load tomorrow 8am",
+   "body": "Rate $1650 can load tomorrow 8am",
+   "intent": "rate",
+   "rate": 1650,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #10: 1650 can be there by 3pm",
+   "body": "1650 can be there by 3pm",
+   "intent": "rate",
+   "rate": 1650,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #11: Will do for 1700. ETA 2pm tomorrow",
+   "body": "Will do for 1700. ETA 2pm tomorrow",
+   "intent": "rate",
+   "rate": 1700,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #12: ok",
+   "body": "ok",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #13: Ok thanks",
+   "body": "Ok thanks",
+   "intent": "ack"
+  },
+  {
+   "name": "v16 #14: Yes",
+   "body": "Yes",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #15: Yes please",
+   "body": "Yes please",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #16: sure, what time?",
+   "body": "sure, what time?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #17: Book it",
+   "body": "Book it",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #18: booked",
+   "body": "booked",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #19: No problem",
+   "body": "No problem",
+   "intent": "ack"
+  },
+  {
+   "name": "v16 #20: thank you",
+   "body": "thank you",
+   "intent": "ack"
+  },
+  {
+   "name": "v16 #21: Thanks! Let me know",
+   "body": "Thanks! Let me know",
+   "intent": "unclear"
+  },
+  {
+   "name": "v16 #22: What's the pickup time?",
+   "body": "What's the pickup time?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #23: What is the delivery date",
+   "body": "What is the delivery date",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #24: is it drop and hook",
+   "body": "is it drop and hook",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #25: Is this live load?",
+   "body": "Is this live load?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #26: how many pallets",
+   "body": "how many pallets",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #27: what's the commodity",
+   "body": "what's the commodity",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #28: Do you need a team?",
+   "body": "Do you need a team?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #29: Can you pay quick pay?",
+   "body": "Can you pay quick pay?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #30: Do you pay net 30",
+   "body": "Do you pay net 30",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #31: What's the weight",
+   "body": "What's the weight",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #32: Is it a dedicated lane",
+   "body": "Is it a dedicated lane",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #33: Rate is 1500 but I need detention pay",
+   "body": "Rate is 1500 but I need detention pay",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #34: 1500, 2 hrs free detention",
+   "body": "1500, 2 hrs free detention",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #35: $1500 and I need $150 for lumper",
+   "body": "$1500 and I need $150 for lumper",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #36: 1500 plus 100 TONU",
+   "body": "1500 plus 100 TONU",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #37: I'm $2.10 a mile",
+   "body": "I'm $2.10 a mile",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "v16 #38: 2.1/mi",
+   "body": "2.1/mi",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "v16 #39: $2.10 per mile all in",
+   "body": "$2.10 per mile all in",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "v16 #40: looking for $2.50/mile",
+   "body": "looking for $2.50/mile",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "v16 #41: Pls call me at 555-123-4567",
+   "body": "Pls call me at 555-123-4567",
+   "intent": "wants_call"
+  },
+  {
+   "name": "v16 #42: txt me",
+   "body": "txt me",
+   "intent": "wants_call"
+  },
+  {
+   "name": "v16 #43: Call",
+   "body": "Call",
+   "intent": "wants_call"
+  },
+  {
+   "name": "v16 #44: can you call?",
+   "body": "can you call?",
+   "intent": "wants_call"
+  },
+  {
+   "name": "v16 #45: call me please",
+   "body": "call me please",
+   "intent": "wants_call"
+  },
+  {
+   "name": "v16 #46: Not interested",
+   "body": "Not interested",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #47: no thanks",
+   "body": "no thanks",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #48: Sorry, already covered",
+   "body": "Sorry, already covered",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #49: we don't run that lane",
+   "body": "we don't run that lane",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #50: Pass",
+   "body": "Pass",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #51: Pass.",
+   "body": "Pass.",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #52: no",
+   "body": "no",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #53: No.",
+   "body": "No.",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #54: Nope",
+   "body": "Nope",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #55: Can't do it",
+   "body": "Can't do it",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #56: i cant do that low",
+   "body": "i cant do that low",
+   "intent": "decline"
+  },
+  {
+   "name": "v16 #57: too low",
+   "body": "too low",
+   "intent": "pushback"
+  },
+  {
+   "name": "v16 #58: Can't do 1200",
+   "body": "Can't do 1200",
+   "intent": "mixed",
+   "rate": 1200,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #59: Is this load still available? What's the best rate",
+   "body": "Is this load still available? What's the best rate?",
+   "intent": "asks_rate"
+  },
+  {
+   "name": "v16 #60: Still open?",
+   "body": "Still open?",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v16 #61: Available?",
+   "body": "Available?",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v16 #62: avail?",
+   "body": "avail?",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v16 #63: Is it still there",
+   "body": "Is it still there",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v16 #64: u still got this",
+   "body": "u still got this",
+   "intent": "asks_available"
+  },
+  {
+   "name": "v16 #65: I'm in Joliet empty. 1550.",
+   "body": "I'm in Joliet empty. 1550.",
+   "intent": "rate",
+   "rate": 1550,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #66: dry van in chicago looking for 1600",
+   "body": "dry van in chicago looking for 1600",
+   "intent": "rate",
+   "rate": 1600,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #67: Have 53' van empty in Gary tomorrow",
+   "body": "Have 53' van empty in Gary tomorrow",
+   "intent": "gives_eta"
+  },
+  {
+   "name": "v16 #68: Truck available in Joliet IL going anywhere",
+   "body": "Truck available in Joliet IL going anywhere",
+   "intent": "gives_truck"
+  },
+  {
+   "name": "v16 #69: mc 123456 dot 987654 rate 1500",
+   "body": "mc 123456 dot 987654 rate 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #70: My MC is 123456",
+   "body": "My MC is 123456",
+   "intent": "gives_info"
+  },
+  {
+   "name": "v16 #71: MC# 1234567",
+   "body": "MC# 1234567",
+   "intent": "gives_info"
+  },
+  {
+   "name": "v16 #72: my cell 3125550147",
+   "body": "my cell 3125550147",
+   "intent": "wants_call"
+  },
+  {
+   "name": "v16 #73: 312-555-0147",
+   "body": "312-555-0147",
+   "intent": "wants_call"
+  },
+  {
+   "name": "v16 #74: Thanks, 1550 is my best",
+   "body": "Thanks, 1550 is my best",
+   "intent": "rate",
+   "rate": 1550,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #75: my best is 1550",
+   "body": "my best is 1550",
+   "intent": "rate",
+   "rate": 1550,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #76: bottom line 1500",
+   "body": "bottom line 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #77: $1500 firm",
+   "body": "$1500 firm",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #78: 1500 firm",
+   "body": "1500 firm",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #79: 1,500 flat",
+   "body": "1,500 flat",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #80: 1500 all in no less",
+   "body": "1500 all in no less",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #81: that works",
+   "body": "that works",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #82: works for me thanks",
+   "body": "works for me thanks",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #83: deal",
+   "body": "deal",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #84: ok let's do it, ETA 4pm",
+   "body": "ok let's do it, ETA 4pm",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #85: yes can be there 4pm",
+   "body": "yes can be there 4pm",
+   "intent": "accepts"
+  },
+  {
+   "name": "v16 #86: ok 1500",
+   "body": "ok 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #87: ok, 1500 works",
+   "body": "ok, 1500 works",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #88: 1500 works",
+   "body": "1500 works",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #89: Is it $1,500?",
+   "body": "Is it $1,500?",
+   "intent": "rate_unclear",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #90: so 1500?",
+   "body": "so 1500?",
+   "intent": "rate_unclear",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #91: can you do 1500?",
+   "body": "can you do 1500?",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #92: 1500 or 1600?",
+   "body": "1500 or 1600?",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "v16 #93: 1500-1600",
+   "body": "1500-1600",
+   "intent": "rate_unclear"
+  },
+  {
+   "name": "v16 #94: Around 1500",
+   "body": "Around 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #95: approx 1500",
+   "body": "approx 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #96: 1500ish",
+   "body": "1500ish",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #97: I need 1500 per truck",
+   "body": "I need 1500 per truck",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #98: per load 1500",
+   "body": "per load 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #99: 1500 for the load",
+   "body": "1500 for the load",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #100: $1500 total",
+   "body": "$1500 total",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #101: total 1500",
+   "body": "total 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #102: total is $1,500 including fsc",
+   "body": "total is $1,500 including fsc",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #103: Hello, interested in this load. Please send detail",
+   "body": "Hello, interested in this load. Please send details.",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #104: Please send details",
+   "body": "Please send details",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #105: details?",
+   "body": "details?",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #106: send me the load info",
+   "body": "send me the load info",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #107: What's the load info",
+   "body": "What's the load info",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #108: Interested",
+   "body": "Interested",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #109: I'm interested",
+   "body": "I'm interested",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #110: interested in this load",
+   "body": "interested in this load",
+   "intent": "wants_details"
+  },
+  {
+   "name": "v16 #111: OOO until Monday",
+   "body": "OOO until Monday",
+   "intent": "ooo"
+  },
+  {
+   "name": "v16 #112: Please reply to dispatch@x.com",
+   "body": "Please reply to dispatch@x.com",
+   "intent": "unclear"
+  },
+  {
+   "name": "v16 #113: Please contact my dispatcher",
+   "body": "Please contact my dispatcher",
+   "intent": "redirect"
+  },
+  {
+   "name": "v16 #114: I'm the owner operator",
+   "body": "I'm the owner operator",
+   "intent": "unclear"
+  },
+  {
+   "name": "v16 #115: wrong number",
+   "body": "wrong number",
+   "intent": "stop"
+  },
+  {
+   "name": "v16 #116: Do you have anything coming out of Atlanta?",
+   "body": "Do you have anything coming out of Atlanta?",
+   "intent": "asks_other_loads"
+  },
+  {
+   "name": "v16 #117: Do you have backhaul?",
+   "body": "Do you have backhaul?",
+   "intent": "asks_other_loads"
+  },
+  {
+   "name": "v16 #118: what else you got",
+   "body": "what else you got",
+   "intent": "asks_other_loads"
+  },
+  {
+   "name": "v16 #119: Any loads going to Texas?",
+   "body": "Any loads going to Texas?",
+   "intent": "asks_other_loads"
+  },
+  {
+   "name": "v16 #120: Do you have other loads?",
+   "body": "Do you have other loads?",
+   "intent": "asks_other_loads"
+  },
+  {
+   "name": "v16 #121: How far is the pickup from the nearest TA?",
+   "body": "How far is the pickup from the nearest TA?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #122: Is there a place to park",
+   "body": "Is there a place to park",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #123: Hazmat?",
+   "body": "Hazmat?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #124: Does it need tarps",
+   "body": "Does it need tarps",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #125: needs to be reefer?",
+   "body": "needs to be reefer?",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #126: what temp",
+   "body": "what temp",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #127: Is this load temp controlled",
+   "body": "Is this load temp controlled",
+   "intent": "needs_info"
+  },
+  {
+   "name": "v16 #128: 1500???",
+   "body": "1500???",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #129: $1500!!!",
+   "body": "$1500!!!",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #130: $ 1500",
+   "body": "$ 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #131: USD 1500",
+   "body": "USD 1500",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #132: 1500$",
+   "body": "1500$",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #133: 1500 dlls",
+   "body": "1500 dlls",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #134: 1500 usd all in",
+   "body": "1500 usd all in",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "strong"
+  },
+  {
+   "name": "v16 #135: i can do it for fifteen hundred",
+   "body": "i can do it for fifteen hundred",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #136: 15 hundred",
+   "body": "15 hundred",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  },
+  {
+   "name": "v16 #137: $15 hundred",
+   "body": "$15 hundred",
+   "intent": "rate",
+   "rate": 1500,
+   "confidence": "weak"
+  }
+ ]
+}

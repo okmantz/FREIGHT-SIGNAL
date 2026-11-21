@@ -81,7 +81,14 @@ try {
     check('sidebar: all sections start collapsed (no tab link visible)', (await page.locator('#nav button.grp[aria-expanded="true"]').count()) === 0 && (await page.locator('#nav a:visible').count()) === 0);
     check('sidebar: the section holding the current page is marked', (await page.locator('#nav button.grp.has-active').count()) === 1);
     await grps.first().click();
-    check('sidebar: clicking a section opens it', (await grps.first().getAttribute('aria-expanded')) === 'true' && (await page.locator('#nav a:visible').count()) === 4);
+    check('sidebar: clicking a section opens it', (await grps.first().getAttribute('aria-expanded')) === 'true' && (await page.locator('#nav a:visible').count()) === 5);
+  // v16: the Cover Desk renders, takes pasted trucks, and shows them
+  { await page.evaluate(() => { location.hash = '#/coverdesk'; }); await page.waitForSelector('.cdesk');
+    check('Cover Desk page renders with its sections', (await page.locator('.cdesk .panel').count()) >= 4);
+    await page.click('[data-act="add-trucks"]'); await page.fill('.modal textarea', 'ACME TRUCKING Van in Joliet IL going anywhere tomorrow 312-555-0147 MC 123456');
+    await page.click('.modal .btn.primary'); await page.waitForTimeout(400); await page.evaluate(() => { location.hash = '#/coverdesk'; });
+    check('a pasted truck lands in the Truck Book', (await page.locator('.cdesk').textContent()).includes('Joliet'));
+    await page.evaluate(() => { location.hash = '#/home'; }); }
     await grps.first().click();
     check('sidebar: clicking again folds it', (await grps.first().getAttribute('aria-expanded')) === 'false' && (await page.locator('#nav a:visible').count()) === 0); }
   check('DAT tab is gone (nav + home tile)', (await page.locator('#nav a[data-tab="dat"]').count()) === 0 && (await page.locator('.tile', { hasText: /^DAT/ }).count()) === 0);

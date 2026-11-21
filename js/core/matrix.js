@@ -9,9 +9,10 @@ import { DEFAULT_SETTINGS } from './defaults.js';
 import { blankPosting, initializeLoadControls, reconcileManualLane, countAlternates, groupMembers } from './model.js';
 import { classifyLane, DEFAULT_STRATEGIES, ringsFor } from './lanes.js';
 import { attributionFromLog } from './coverlog.js';
+import { buildWeightedCaches } from './effectiveness.js';
 
 /** BuildInquiryCaches: origin / destination / lane inquiry counts from the Inquiry Log. */
-export function buildInquiryCaches(inquiries) {
+export function buildInquiryCaches(inquiries, opts = {}) {
   const lane = new Map(), origin = new Map(), dest = new Map();
   const inc = (m, k) => m.set(k, (m.get(k) || 0) + 1);
   for (const q of inquiries || []) {
@@ -22,7 +23,9 @@ export function buildInquiryCaches(inquiries) {
       inc(origin, a + '|' + b); inc(dest, c + '|' + d); inc(lane, a + '|' + b + '>' + c + '|' + d);
     }
   }
-  return { lane, origin, dest };
+  const out = { lane, origin, dest };
+  if (opts.weighted) out.weighted = buildWeightedCaches(inquiries, opts.now || Date.now());      // counts stay as they were (they are shown on screen); only the SCORE uses the weights
+  return out;
 }
 
 export function laneInquiryCount(caches, oc, os, dc, ds) {
@@ -67,8 +70,10 @@ function candidateScore(c, dist, ideal, attr, caches, selectingOrigin, otherKey)
     }
   }
   if (caches) {
-    const h = (selectingOrigin ? caches.origin : caches.dest).get(cityKey) || 0;
-    const l = caches.lane.get(lane) || 0;
+    // v16: when the weighted caches exist, an inquiry that became a real quote or an ETA counts for more than a "still available?" that went nowhere
+    const w = caches.weighted;
+    const h = (w ? (selectingOrigin ? w.origin : w.dest) : (selectingOrigin ? caches.origin : caches.dest)).get(cityKey) || 0;
+    const l = (w ? w.lane : caches.lane).get(lane) || 0;
     hist += Math.min(0.6, l * 0.15) + Math.min(0.3, h * 0.03);
   }
   return popF * distF + hist;
@@ -144,7 +149,7 @@ export const pinKey = (city, state) => mktKey(city, state);
  * `quality.weird` is what decides whether the auto-build asks you first ("Auto-build 3x3" in System -> Matrix).
  */
 /** exclude: array of "city|st" market keys that must not be picked (used by "try different cities" so the rebuild moves on). */
-export function planMatrix({ source, zipMap, inquiries, coverLog = [], settings = DEFAULT_SETTINGS, exclude = [] }) {
+export function planMatrix({ source, zipMap, inquiries, coverLog = [], settings = DEFAULT_SETTINGS, exclude = [], now = new Date() }) {
   if (!zipMap || !zipMap.size) return { ok: false, error: 'ZIP Map sheet is missing.' };
   const warnings = [];
   const rec = reconcileManualLane(source, zipMap);
@@ -156,7 +161,7 @@ export function planMatrix({ source, zipMap, inquiries, coverLog = [], settings 
   if (!o0.city || !o0.state || !o0.zip || !d0.city || !d0.state || !d0.zip) {
     return { ok: false, error: 'Origin or destination could not be matched to ZIP Map.' };
   }
-  const caches = buildInquiryCaches(inquiries);
+  const caches = buildInquiryCaches(inquiries, { weighted: settings.adaptiveMatrix !== false, now: now instanceof Date ? now.getTime() : Date.now() });
   const attr = attributionFromLog(coverLog);
   const lane = classifyLane({ ...source, originZip: o0.zip, destZip: d0.zip }, zipMap, settings);
   const pins = exclude.length ? {} : (settings.matrixPins || {});

@@ -14,6 +14,7 @@
 
 import { templatesOf } from './ladder.js';
 import { RULES } from './carrierreply.js';
+import { sendModeOf } from './sendpolicy.js';
 
 export const BRIDGE_VERSION = 'v1';
 export const FILES = {
@@ -25,10 +26,10 @@ export const FILES = {
   draftsDone: 'freight-signal-drafts-done.tsv',    // Outlook -> app: which of those drafts were created (or failed)
 };
 export const POSTING_COLS = ['PostingId', 'Row', 'GroupId', 'Variant', 'OriginCity', 'OriginState', 'OriginZip', 'DestCity', 'DestState', 'DestZip',
-  'Equipment', 'PickupDate', 'Weight', 'DatRate', 'TargetRate', 'Priority', 'Status', 'Outreach', 'InquiryCount', 'Details', 'Notes', 'Broker', 'Contact'];
+  'Equipment', 'PickupDate', 'Weight', 'DatRate', 'TargetRate', 'Priority', 'Status', 'Outreach', 'InquiryCount', 'Details', 'Notes', 'Broker', 'Contact', 'TargetConfirmed'];
 export const INQUIRY_COLS = ['ConversationId', 'Timestamp', 'SenderEmail', 'Subject', 'PostingId', 'PostingRow', 'Stage', 'CarrierRate', 'TargetRate', 'Action', 'Flag', 'EventCount'];
 /** v6 macro appends these after the 12 core columns. Older (12-column) lines still parse. */
-export const INQUIRY_EXTRA_COLS = ['Intent', 'OurRate', 'LadderStage', 'Sent'];
+export const INQUIRY_EXTRA_COLS = ['Intent', 'OurRate', 'LadderStage', 'Sent', 'Mode', 'Why', 'Fresh', 'Reply'];   // v7 macro adds Mode (auto|draft|shadow|review), Why (held reasons), Fresh (carrier words), Reply (the reply text)
 
 /** ASCII-safe single field: accents folded, other non-ASCII dropped, control chars escaped. */
 export function encodeField(v) {
@@ -55,7 +56,7 @@ export function postingsFile(postings, now = new Date()) {
   const rows = postings
     .filter(p => String(p.status ?? 'Active').toLowerCase() !== 'covered')
     .map((p) => line([p.id, postings.indexOf(p) + 2, p.groupId, p.variant, p.originCity, p.originState, p.originZip, p.destCity, p.destState, p.destZip,
-      p.equip, p.pickupEarliest, p.weight, p.datRate, p.targetRate, p.priority, p.status || 'Active', p.outreach, p.inquiryCount, p.details, p.notes, p.broker || '', p.contact || '']));
+      p.equip, p.pickupEarliest, p.weight, p.datRate, p.targetRate, p.priority, p.status || 'Active', p.outreach, p.inquiryCount, p.details, p.notes, p.broker || '', p.contact || '', p.targetSource === 'suggested' ? 0 : 1]));
   return ['#FREIGHT-SIGNAL-BRIDGE', BRIDGE_VERSION, now.toISOString(), rows.length].join('\t') + '\r\n'
     + POSTING_COLS.join('\t') + '\r\n' + rows.join('\r\n') + (rows.length ? '\r\n' : '');
 }
@@ -73,6 +74,11 @@ export function configFile(settings) {
     ['tplBook', t.book], ['tplSplit', t.split], ['tplTarget', t.target],
     // v6: wording for the non-ladder replies + the two send switches (default 0 = drafts only) + the safety cap
     ['tplAskRate', t.askRate], ['tplAvailable', t.available], ['tplAvailableLead', t.availableLead], ['tplNeedRate', t.needRate], ['tplNeedRateEta', t.needRateEta], ['tplAgreed', t.agreed],
+    // v16: safe-send policy (the macro applies the same gates as js/core/sendpolicy.js) + wording for the new replies
+    ['sendMode', sendModeOf(settings)], ['sendMaxPerConversation', settings.sendMaxPerConversation ?? 3], ['sendMaxPerDay', settings.sendMaxPerDay ?? 60], ['sendDelayMinutes', settings.sendDelayMinutes ?? 3],
+    ['sendMinLaneScore', settings.sendMinLaneScore ?? 220], ['sendWorkHoursOnly', settings.sendWorkHoursOnly ? 1 : 0], ['sendWorkStart', settings.sendWorkStart ?? 7], ['sendWorkEnd', settings.sendWorkEnd ?? 19],
+    ['sendMaxChars', settings.sendMaxChars ?? 600], ['sendDuplicateMinutes', settings.sendDuplicateMinutes ?? 120],
+    ['tplDetails', t.details], ['tplPushback', t.pushback], ['tplWantsCall', t.wantsCall], ['tplConfirmRate', t.confirmRate], ['tplHolding', t.holding], ['tplOtherLoads', t.otherLoads], ['tplGeneric', t.generic],
     ['autoSendInbound', settings.autoSendInbound ? 1 : 0], ['autoSendOutbound', settings.autoSendOutbound ? 1 : 0], ['maxAutoSendsPerHour', settings.maxAutoSendsPerHour || 20],
   ];
   // the carrier-reply rules are shared with the app (js/core/carrierreply.js) so the macro reads e-mail exactly as the app does
@@ -105,8 +111,30 @@ export function foldInquiryEvents(text) {
     conversationId: r.ConversationId, dateCounted: toIso(r.firstTimestamp), lastEventAt: toIso(r.Timestamp), senderEmail: r.SenderEmail, subject: r.Subject,
     postingId: r.PostingId, postingRow: num(r.PostingRow), stage: String(r.Stage).toUpperCase(), lastCarrierRate: r.CarrierRate === '' ? '' : num(r.CarrierRate),
     targetRate: num(r.TargetRate), lastAction: r.Action, flag: r.Flag, eventCount: num(r.EventCount) || 1,
-    intent: r.Intent || '', ourRate: r.OurRate === '' || r.OurRate == null ? '' : num(r.OurRate), ladderStage: r.LadderStage || '', sent: String(r.Sent || '').toUpperCase() === 'SENT',
+    intent: r.Intent || '', ourRate: r.OurRate === '' || r.OurRate == null ? '' : num(r.OurRate), ladderStage: r.LadderStage || '', sent: String(r.Sent || '').toUpperCase() === 'SENT', mode: r.Mode || '', why: r.Why || '', fresh: r.Fresh || '', reply: r.Reply || '',
   }));
+}
+
+/**
+ * EVERY line of the event log (not folded) as processing-ledger entries, so what the Outlook macro did while the app was closed is visible
+ * in the Cover Desk: which replies it sent by itself, which it only drafted, and which it held for you (with its reasons).
+ */
+export function ledgerFromEventLines(text) {
+  const out = [];
+  for (const ln of String(text ?? '').split(/\r?\n/)) {
+    if (!ln || ln.startsWith('ConversationId') || ln.startsWith('#')) continue;
+    const c = ln.split('\t'); if (c.length < INQUIRY_COLS.length || !c[0].trim()) continue;
+    const r = Object.fromEntries([...INQUIRY_COLS, ...INQUIRY_EXTRA_COLS].map((k, i) => [k, decodeField(c[i] ?? '')]));
+    const mode = String(r.Mode || '').toLowerCase();
+    const status = mode === 'auto' ? 'auto' : mode === 'shadow' ? 'shadow' : mode === 'draft' ? 'drafted' : mode === 'ignored' ? 'ignored' : 'review';
+    out.push({
+      id: 'ev:' + r.ConversationId + '|' + r.Timestamp, at: Date.parse(toIso(r.Timestamp)) || Date.now(), from: r.SenderEmail, subject: r.Subject, convId: r.ConversationId, inquiryId: '',
+      intent: r.Intent || '', action: r.Action, kind: '', flag: r.Flag, reason: r.Action, fresh: r.Fresh || '', rate: num(r.CarrierRate) || 0, rateConfidence: '',
+      draftText: r.Reply || '', suggestText: '', draftTo: r.SenderEmail, draftSubject: 'RE: ' + r.Subject, status, would: status === 'shadow' || status === 'auto',
+      holdReasons: r.Why ? String(r.Why).split(' | ') : [], verdict: '', resolved: status !== 'review', truckLead: false, mc: '', fromOutlook: true,
+    });
+  }
+  return out;
 }
 
 /** Outlook writes "yyyy-mm-dd hh:nn:ss" local time; accept ISO as well. */
