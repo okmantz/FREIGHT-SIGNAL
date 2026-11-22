@@ -1,6 +1,9 @@
 import { h, toast, modal, confirmDialog, copyText, openExternal, field, inputEl, selectEl, download } from '../dom.js';
 import { coverageStrip } from '../board/coverage.js';
 import { rescueButton, rescueStrip } from '../board/autorescue.js';
+import { planStrip } from '../board/plan.js';
+import { reachOutDialog } from '../assign.js';
+import { matchAssignments } from '../../core/assignments.js';
 import { state, actions } from '../../store/state.js';
 import { rateViewUrl, ventuskyUrl, findTruckInfo } from '../../core/links.js';
 import { DAT_COLUMNS, EQUIPMENT } from '../../core/defaults.js';
@@ -190,6 +193,10 @@ async function downloadDat(kind, list, what) {
   const withRate = datRows(rows, o).filter(r => String(r[DAT_RATE_COL] ?? '').trim()).length;
   actions.markPosted(rows.map(p => p.id));            // starts the "live for N min" clock the guided notes use
   toast(`${what}: ${rows.length} posting(s) downloaded (${withRate} with a rate). Upload the file in DAT's bulk posting tool.`, 'ok', 7000);
+  // a primary / backup carrier is set for this lane: suggest reaching out to them first, with the draft and the call script
+  const headRow = rows.find(p => !p.variant || p.variant === 'Original') || rows[0];
+  const first = headRow && kind !== 'all' ? matchAssignments(headRow, state.assignments, state.carriers, { zipMap: state.zip })[0] : null;
+  if (first && !(headRow.ops || []).some(o => o.type === 'assign-offer')) setTimeout(() => reachOutDialog(headRow, first), 500);
 }
 
 async function deleteMany(ids, what) {
@@ -402,6 +409,7 @@ function groupBox(r, collapsed, toggle) {
     header,
     h('div', { class: 'lanebasics' }, details, suggestStrip(b, r, rate)),
     rescueStrip(head),
+    planStrip(head),
     coverageStrip(b, head),
     teamStrip(b, head),
     guidanceBlock(r, boardCtx(), { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),

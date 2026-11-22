@@ -24,7 +24,14 @@ import { duplicateRows, mergePatches } from '../core/prospects.js';
 import { reconcileMatches, openLoads } from '../core/matching.js';
 import { newRescue, dueStages, planStage, signatureOf, shouldAutoStart, keyOfEmail, minutesIn } from '../core/autorescue.js';
 import { activeTrucks } from '../core/truckbook.js';
-import { headsOf } from '../core/corridor.js';
+import { headsOf, findBackhaulLoads } from '../core/corridor.js';
+import { cleanAssignment, matchAssignments, recordOutcome } from '../core/assignments.js';
+import { rateIntel, openingPlan } from '../core/rateintel.js';
+import { scoreLoad, buildPlan, learnApproaches, makeApproachRecord, approachesFromOps } from '../core/difficulty.js';
+import { matchCarriers, suggestedKeys } from '../core/networkmatch.js';
+import { fxSnapshot } from '../core/performance.js';
+import { findExisting, coverEntryFor } from '../core/history.js';
+import { carrierKey as netCarrierKey, emailOf as netEmailOf } from '../core/netcommon.js';
 
 /** DAT rates are whole dollars: "$1,650.00" -> "1650"; blank/invalid -> "". */
 export function cleanRate(v) {
@@ -37,10 +44,10 @@ export function cleanRate(v) {
 export const state = {
   ready: false,
   settings: { ...DEFAULT_SETTINGS },
-  postings: [], carriers: [], inquiries: [], outreach: [], spares: [], drafts: [], customers: [], coverLog: [], trucks: [], ledger: [], matches: [], autoRescues: [],
+  postings: [], carriers: [], inquiries: [], outreach: [], spares: [], drafts: [], customers: [], coverLog: [], trucks: [], ledger: [], matches: [], autoRescues: [], history: [], assignments: [], approaches: [],
   weather: new Map(),          // "city|st" -> alerts[] (filled by store/weather.js)
   carrierRev: 0,               // bumped whenever the carrier list changes (invalidates cached lane depth)
-  hooks: { sendToOutlook: null, onWeeklyGoal: null, teamTrucks: null, askTeam: null, onMatches: null }, // sendToOutlook: set by store/bridge.js when an Outlook folder is connected. onWeeklyGoal: set by main.js (confetti)
+  hooks: { sendToOutlook: null, onWeeklyGoal: null, teamTrucks: null, teamLane: null, askTeam: null, onMatches: null }, // sendToOutlook: set by store/bridge.js when an Outlook folder is connected. onWeeklyGoal: set by main.js (confetti)
   counters: { lifetimeCovers: 0, coversToday: 0, coversTodayDate: todayKey(), goalWeek: '' },
   zip: null, zipInfo: { source: '', importedAt: '' },
   listeners: new Set(),
@@ -69,6 +76,9 @@ async function loadStores() {
   state.ledger = (await db.getAll('ledger')).sort((a, b) => b.at - a.at);
   state.matches = await db.getAll('matches');
   state.autoRescues = await db.getAll('autorescues');
+  state.history = await db.getAll('history');
+  state.assignments = (await db.getAll('assignments')).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  state.approaches = await db.getAll('approaches');
   state.carrierRev++;
 }
 
@@ -178,6 +188,29 @@ async function runRescueStage(r, head, stage, ctx, reason) {
   r.log.push({ at: now, stage, label, text: text || 'Nothing to do yet.' }); r.log = r.log.slice(-60);
   return acted || stage !== 'rematch' ? 1 : 0;
 }
+
+
+/* ------------------------------------------------------------------------------------------------ load plan (difficulty, rate intelligence, carrier matches, learned approaches) */
+const teamLaneFor = (load) => { try { return state.hooks.teamLane ? state.hooks.teamLane(load) : null; } catch { return null; } };
+const teamTrucksNow = () => { try { return state.hooks.teamTrucks ? state.hooks.teamTrucks() : []; } catch { return []; } };
+export function planContext(load, now = Date.now()) {
+  return { coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, history: state.history, carriers: state.carriers, trucks: activeTrucks(state.trucks, now), teamTrucks: teamTrucksNow(), postings: state.postings, zipMap: state.zip, settings: state.settings, now, teamLane: teamLaneFor(load) };
+}
+/** Everything the app knows about how to cover this load. Pure read: nothing is saved. */
+export function loadPlan(load, now = Date.now()) {
+  const ctx = planContext(load, now);
+  const intel = rateIntel(load, ctx);
+  const diff = scoreLoad(load, { ...ctx, intel });
+  const assignMatches = matchAssignments(load, state.assignments, state.carriers, { zipMap: state.zip });
+  const contacted = new Set(state.outreach.filter(o => o.postingId === load.id).map(o => netEmailOf(o.email)).filter(Boolean));
+  const matches = matchCarriers(load, { ...ctx, assignMatches, limit: 15 });
+  const fresh = matches.filter(m => !m.email || !contacted.has(m.email));
+  const learned = learnApproaches(state.approaches, diff.tags);
+  const backhaul = findBackhaulLoads(load, headsOf(state.postings), { zipMap: state.zip });
+  const plan = buildPlan(diff, { load, assignMatches, carriersTop: fresh, learned, backhaul, intel, now });
+  return { diff, intel, assignMatches, matches: fresh, contacted: matches.length - fresh.length, plan, learned, backhaul, opening: openingPlan(intel, { target: load.targetRate }) };
+}
+const sameAssigned = (a, c) => { if (!c) return false; const e = netEmailOf(c.email); return (a.carrierId && c.id && a.carrierId === c.id) || (e && netEmailOf(a.email) === e) || (a.mc && c.mc && String(a.mc).replace(/\D/g, '') === String(c.mc).replace(/\D/g, '')); };
 
 export const actions = {
   async saveSettings(patch) {
@@ -357,9 +390,28 @@ export const actions = {
       members, outcome, coveredId: opts.coveredId !== undefined ? opts.coveredId : (outcome === 'Covered' ? id : null),
       carrier, rate: opts.rate ?? '', inquiries: state.inquiries, note: opts.note || '', laneClass: lane.cls,
     });
+    // 0) the effectiveness snapshot: how the load went, measured against what the app knew when it was entered (never blocks closing the load)
+    let approach = null, assignHits = [];
+    try {
+      const snap = head.planSnap || null;
+      const bp = snap ? null : loadPlan(head);
+      const diff = snap ? { score: snap.score, level: snap.level, tags: snap.tags } : bp.diff;
+      const keyOf = (c) => netCarrierKey({ mc: c && c.mc, email: c && c.email });
+      const outs = state.outreach.filter(o => members.some(m => m.id === o.postingId));
+      const plan = snap ? { keys: new Set(snap.keys || []), assignedKeys: new Set(snap.assigned || []) } : null;
+      entry.fx = fxSnapshot({ entry, ops: head.ops || [], outreach: outs, carrier, dbCarrier, logBefore: state.coverLog, diff, plan, priorAvgRate: snap ? snap.priorAvg : (bp.intel.covers.avg || null), keyOf });
+      approach = makeApproachRecord({ id: entry.id, entry, diff, ops: head.ops || [], coveredVia: entry.fx.assistedBy || (entry.fx.historical ? 'history' : outcome === 'Covered' ? 'new' : '') });
+      const offered = (head.ops || []).some(o => o.type === 'assign-offer');
+      for (const a of matchAssignments(head, state.assignments, state.carriers, { zipMap: state.zip })) {
+        if (!offered && !sameAssigned(a, carrier)) continue;
+        const rec = state.assignments.find(x => x.id === a.id); if (rec) assignHits.push(recordOutcome(rec, { won: outcome === 'Covered' && sameAssigned(a, carrier) }));
+      }
+    } catch (e) { console.warn('Effectiveness snapshot skipped:', e); }
     // 1) log first (if this fails nothing is deleted)
     const goal = weeklyGoalHit({ logBefore: state.coverLog, entry, settings: state.settings, goalWeek: state.counters.goalWeek });
     await guard(() => db.put('coverLog', entry));
+    if (approach) { state.approaches.push(approach); await guard(() => db.put('approaches', approach)); }
+    for (const a of assignHits) { const i = state.assignments.findIndex(x => x.id === a.id); if (i >= 0) state.assignments[i] = a; await guard(() => db.put('assignments', a)); }
     state.coverLog.unshift(entry);
     // 2) the carrier's own record learns from it
     if (outcome === 'Covered' && (dbCarrier || (opts.addCarrier && carrier.email))) {
@@ -877,6 +929,59 @@ export const actions = {
     await guard(() => db.replaceAll('carriers', state.carriers)); emit();
     return { removed: drop.size, merged: patches.length };
   },
+
+  // ---------- primary carriers (assignments), load plan, e-mail history ----------
+  async saveAssignment(f) {
+    const a = cleanAssignment(f, uid); if (!a) return null;
+    const i = state.assignments.findIndex(x => x.id === a.id);
+    if (i >= 0) state.assignments[i] = { ...state.assignments[i], ...a }; else state.assignments.unshift(a);
+    await guard(() => db.put('assignments', i >= 0 ? state.assignments[i] : a)); emit(); return a;
+  },
+  async deleteAssignment(id) { state.assignments = state.assignments.filter(a => a.id !== id); await guard(() => db.del('assignments', id)); emit(); },
+  /** Remember what the plan looked like when the load was first shown (difficulty, the carriers it suggested), so the result can be judged against it later. Silent: no redraw. */
+  async snapPlan(id) {
+    const p = state.postings.find(x => x.id === id); if (!p) return null;
+    const head = (p.groupId ? groupMembers(state.postings, p.groupId) : [p]).find(m => m.variant === 'Original') || p;
+    if (head.planSnap) return head.planSnap;
+    const bp = loadPlan(head);
+    head.planSnap = { at: new Date().toISOString(), score: bp.diff.score, level: bp.diff.level, tags: bp.diff.tags, confidence: bp.diff.confidence, keys: [...suggestedKeys(bp.matches, 6)], assigned: bp.assignMatches.map(a => netCarrierKey({ mc: a.mc, email: a.email })).filter(Boolean), priorAvg: bp.intel.covers.avg || null };
+    await savePostings(); return head.planSnap;
+  },
+  /** Read a historical e-mail import plan into the carrier database, Cover Log and history. Re-checks for duplicates against what is stored RIGHT NOW. */
+  async applyHistoryImport(plan) {
+    const stats = { added: 0, updated: 0, duplicates: 0, covers: 0, threads: 0, conflicts: 0 };
+    const stamp = new Date().toISOString();
+    const fresh = [];
+    for (const raw of plan.adds || []) {
+      const { _cand, ...r } = raw;
+      const cand = { mc: String(r.mc || '').replace(/\D/g, ''), dot: '', email: r.email, emails: [r.email, ...(r.altEmails || [])].filter(Boolean), phone: r.phone, dispatchPhone: r.dispatchPhone, name: r.carrierName };
+      if (findExisting(cand, [...state.carriers, ...fresh]).length) { stats.duplicates++; continue; }
+      fresh.push({ id: uid(), ...Object.fromEntries(CARRIER_KEYS.map(k => [k, ''])), ...r });
+    }
+    const touched = [];
+    for (const pt of plan.patches || []) {
+      const row = state.carriers.find(c => c.id === pt.id); if (!row) continue;
+      const before = JSON.stringify(row); Object.assign(row, pt.patch);
+      if (JSON.stringify(row) !== before) { touched.push(row); stats.updated++; }
+      stats.conflicts += (pt.conflicts || []).length;
+    }
+    const entries = [];
+    const have = new Set(state.coverLog.map(e => e.threadId).filter(Boolean));
+    for (const c of plan.covers || []) { if (have.has(c.threadId)) continue; have.add(c.threadId); entries.push(coverEntryFor(c, { uid, zipMap: state.zip, settings: state.settings })); }
+    if (fresh.length) { state.carriers.push(...fresh); stats.added = fresh.length; }
+    if (fresh.length || touched.length) state.carrierRev++;
+    if (entries.length) { state.coverLog.unshift(...entries); state.coverLog.sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt))); stats.covers = entries.length; }
+    const th = (plan.threads || []).map(t => ({ ...t, scanned: stamp }));
+    if (th.length) { const ids = new Set(th.map(t => t.id)); state.history = [...state.history.filter(t => !ids.has(t.id)), ...th]; stats.threads = th.length; }
+    await guard(async () => {
+      if (fresh.length) await db.putMany('carriers', fresh);
+      if (touched.length) await db.putMany('carriers', touched);
+      if (entries.length) await db.putMany('coverLog', entries);
+      if (th.length) await db.putMany('history', th);
+    });
+    emit(); return stats;
+  },
+  async clearHistory() { state.history = []; await guard(() => db.clear('history')); emit(); },
 
   // ---------- carriers ----------
   async saveCarrier(c) {

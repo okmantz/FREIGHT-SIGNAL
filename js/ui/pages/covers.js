@@ -7,6 +7,7 @@ import { fmtDate } from '../dom.js';
 import { money } from '../board/util.js';
 import { safeNumeric } from '../../core/util.js';
 import { icon } from '../icons.js';
+import { summarize, compare, describe } from '../../core/performance.js';
 import { avatar, statusPill, segmented, searchBox, expandRows, groupRow, groupBy, detailCard, relDate } from './../directory.js';
 
 let outcome = 'All', cq = '';
@@ -54,6 +55,7 @@ export function render() {
       actions: [h('button', { class: 'btn primary', type: 'button', onclick: manualDialog }, 'Log a cover by hand'), h('button', { class: 'btn', type: 'button', disabled: !log.length, onclick: () => download('cover-log.csv', '﻿' + csv(), 'text/csv;charset=utf-8') }, 'Export CSV')] }),
     statTiles([[pace.today, 'Covers today'], [`${pace.week} / ${pace.floor}`, 'This week'], [pace.projection === null ? '-' : pace.projection, 'Projected for the week', pace.status === 'on' ? 'ok' : pace.status === 'short' ? 'urgent' : 'act'], [avg ? money(avg) : '-', 'Average rate']]),
     h('p', { class: 'muted pacetext' }, pace.text + (pace.status !== 'on' && pace.status !== 'early' ? ` You need about ${pace.perDay} a day for the rest of the week.` : '')),
+    perfPanel(log),
     covered.length ? h('details', { class: 'insights' }, h('summary', null, icon('activity', 15), 'Performance insights: which postings, carriers and cities cover loads'), h('div', { class: 'grid2 insightgrid' },
       h('div', { class: 'panel' }, h('h4', null, 'Which of the 9 postings covers loads'), gridTable(a), h('p', { class: 'muted small' }, 'Rows are origin A (original) to C, columns destination A to C. Each box: covers of postings in that position.')),
       h('div', { class: 'panel' }, h('h4', null, 'Top carriers'), top.length ? h('table', { class: 'lanetable' }, h('thead', null, h('tr', null, ['Carrier', 'Covers', 'Avg rate'].map(x => h('th', null, x)))),
@@ -72,7 +74,7 @@ function dayLabel(iso) { const t = new Date(iso); if (Number.isNaN(t.getTime()))
 function logRow(e) {
   const l = e.covered || e.lane || {}; const car = (e.carrier && (e.carrier.name || e.carrier.email)) || '';
   const cells = [
-    h('td', null, statusPill(e.outcome === 'Manual' ? 'Closed' : e.outcome, e.outcome === 'Covered' ? 'good' : e.outcome === 'Expired' ? 'warn' : 'muted')),
+    h('td', null, statusPill(e.outcome === 'Manual' ? 'Closed' : e.outcome, e.outcome === 'Covered' ? 'good' : e.outcome === 'Expired' ? 'warn' : 'muted'), e.imported ? h('small', { class: 'muted', title: 'Read from your old e-mails by Import historical emails' }, ' from e-mail') : null),
     h('td', { class: 'c-lane' }, h('span', { class: 'dir-lane' }, `${l.originCity || '?'}, ${l.originState || ''}`, icon('chevright', 12), `${l.destCity || '?'}, ${l.destState || ''}`)),
     h('td', null, car ? h('div', { class: 'dir-id' }, avatar(car), h('div', { class: 't' }, h('b', null, e.carrier.name || e.carrier.email), e.carrier.name && e.carrier.email ? h('small', null, e.carrier.email) : null)) : h('span', { class: 'dir-none' }, '—')),
     h('td', { class: 'c-num' }, e.rate ? h('b', null, money(e.rate)) : h('span', { class: 'dir-none' }, '—')),
@@ -83,4 +85,30 @@ function logRow(e) {
       h('button', { class: 'btn small danger', type: 'button', 'aria-label': 'Delete entry', onclick: async () => { if (await confirmDialog('Delete log entry', 'Remove this record? Lane memory and statistics forget it.', 'Delete')) actions.deleteLogEntry(e.id); } }, '✕'))),
   ];
   return { id: e.id, cells, cls: 'o-' + String(e.outcome).toLowerCase(), detail: detailCard({ fields: [['Closed', fmtDate(e.closedAt) + ' (' + relDate(e.closedAt) + ')'], ['DAT rate', e.datRate ? money(e.datRate) : ''], ['Your target', e.targetRate ? money(e.targetRate) : ''], ['Inquiries', e.inquiries || ''], ['Time on the board', e.ageHours === '' || e.ageHours === undefined ? '' : Math.round(e.ageHours * 10) / 10 + ' h']], notes: e.note }) };
+}
+
+/* ------------------------------------------------------------------------------------------------ Performance: is FREIGHT SIGNAL actually helping? */
+let perfDays = 30;
+const DELTA = { minutes: 'avgMinutes', calls: 'avgCalls', contacted: 'avgContacted', margin: 'marginVsPrior' };
+function perfPanel(log) {
+  if (!log.length) return null;
+  const now = Date.now();
+  const s = summarize(log, { now, days: perfDays }); const c = perfDays ? compare(log, { now, days: perfDays }) : null;
+  const rows = describe(s);
+  const tile = (r) => {
+    const d = c && DELTA[r.key] && c.delta[DELTA[r.key]] !== null ? c.delta[DELTA[r.key]] : null;
+    const better = d === null || d === 0 ? '' : (r.good === 'down' ? d < 0 : d > 0) ? 'better' : 'worse';
+    return h('div', { class: 'perf-tile', 'data-metric': r.key },
+      h('span', { class: 'perf-l' }, r.label), h('b', { class: 'perf-v' }, r.value || '\u2014'),
+      r.sub ? h('small', { class: 'muted' }, r.sub) : null,
+      d !== null ? h('small', { class: 'perf-d ' + better }, (d > 0 ? '+' : '') + d + ' vs the previous ' + perfDays + ' days') : null,
+      h('small', { class: 'muted perf-n' }, r.n ? 'from ' + r.n + ' load' + (r.n === 1 ? '' : 's') : 'no data yet'));
+  };
+  return h('details', { class: 'insights perf', open: true, 'data-test': 'perf-panel' },
+    h('summary', null, icon('activity', 15), 'Is Freight Signal making you faster? Your own measurements'),
+    h('div', { class: 'perf-body' },
+      h('div', { class: 'dir-bar' }, segmented([['30', 'Last 30 days'], ['90', 'Last 90 days'], ['0', 'All time']], String(perfDays), (v) => { perfDays = Number(v); rerender(); }, 'Period'),
+        h('span', { class: 'muted small' }, s.covered + ' covered, ' + s.expired + ' expired' + (s.coverRate !== null ? ' (' + s.coverRate + '% cover rate)' : ''))),
+      h('div', { class: 'perf-grid' }, rows.map(tile)),
+      h('p', { class: 'muted small' }, s.enough ? 'Each number shows how many loads it comes from. Compare periods before and after you start using a feature: if the time to cover and the calls per cover do not drop, the feature is not helping you.' : 'Still collecting: these numbers become meaningful after about 8 loads closed with the plan visible (' + s.measured + ' so far). Loads imported from e-mail history have no stopwatch and are left out of the timing numbers.')));
 }

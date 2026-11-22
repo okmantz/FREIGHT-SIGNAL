@@ -16,7 +16,8 @@
     "test:local": "node tests/e2e/local.mjs",
     "test:v12": "node tests/e2e/v12.mjs",
     "test:v14": "node tests/e2e/v14.mjs",
-    "test:v19": "node tests/e2e/v19.mjs"
+    "test:v19": "node tests/e2e/v19.mjs",
+    "test:v20": "node tests/e2e/v20.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

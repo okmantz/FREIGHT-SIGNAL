@@ -4,7 +4,7 @@
 // Stores: postings, carriers, inquiries, outreach, spares, drafts, kv (settings/counters), zipmap (raw CSV text), handles (bridge folder).
 
 export const DB_NAME = 'freight-signal';
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 export const STORES = {
   postings: { keyPath: 'id' },
   carriers: { keyPath: 'id' },
@@ -20,10 +20,13 @@ export const STORES = {
   ledger: { keyPath: 'id' },     // v4: processing ledger: every inbound carrier e-mail judged, what happened, what needs you
   matches: { keyPath: 'id' },    // v5: two-way matching: which open load fits which available truck (and the success metric)
   autorescues: { keyPath: 'id' },// v5: Auto Rescue runs (one per load that is being worked automatically)
+  history: { keyPath: 'id' },    // v6: e-mail history threads (inquiry / quote / negotiation / cover read from Outlook): the rate + response memory
+  assignments: { keyPath: 'id' },// v6: primary / preferred carrier for a lane ("Taylord always takes SC to GA")
+  approaches: { keyPath: 'id' }, // v6: what was tried on each load and whether it worked (learning which approach covers hard loads)
   handles: { keyPath: 'key' },   // v2: Outlook-bridge folder handle (never exported in backups)
 };
 
-export const BACKUP_STORES = ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv', 'customers', 'coverLog', 'trucks', 'ledger', 'matches', 'autorescues'];
+export const BACKUP_STORES = ['postings', 'carriers', 'inquiries', 'outreach', 'spares', 'drafts', 'kv', 'customers', 'coverLog', 'trucks', 'ledger', 'matches', 'autorescues', 'history', 'assignments', 'approaches'];
 
 let dbPromise = null;
 let activeName = DB_NAME;

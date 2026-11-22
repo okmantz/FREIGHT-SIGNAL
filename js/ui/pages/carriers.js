@@ -14,6 +14,9 @@ import { telHref, mailHref, fmcsaUrl } from '../../core/resources.js';
 import { avatar, chips, statusPill, whenCell, segmented, searchBox, moreMenu, filterSelect, expandRows, groupRow, groupBy, detailCard, contactStack, countLine, DAY, relDate } from '../directory.js';
 import { openPublish } from './trucks.js';
 import * as net from '../../store/net.js';
+import { openHistoryImport } from '../history.js';
+import { assignDialog, assignmentsDialog } from '../assign.js';
+import { describeAssignment } from '../../core/assignments.js';
 
 let q = '';
 let view = 'all', groupKey = '';
@@ -56,9 +59,11 @@ function toolbar(all, rows) {
       segmented([['all', 'All', count('all')], ['active', 'Active', count('active')], ['reach', 'Ready to contact', count('reach')], ['never', 'Never contacted', count('never')], ['proven', 'Has covered', count('proven')]], view, (v) => { view = v; rerender(); }, 'Quick views'),
       h('span', { class: 'grow' }),
       h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, icon('plus', 15), 'Add carrier'),
+      h('button', { class: 'btn', type: 'button', 'data-act': 'import-history', title: 'Read the last 30 or 90 days of Outlook mail and add only the carriers that really booked a load with you', onclick: openHistoryImport }, icon('mail', 15), 'IMPORT HISTORICAL EMAILS'),
       h('button', { class: 'btn', type: 'button', disabled: !rows.length, title: 'Draft a truck-availability e-mail to every carrier shown (with an e-mail address). Use the filters first to ask just one group.', onclick: () => truckCheck(rows) }, icon('mail', 15), `Truck check (${rows.filter(c => String(c.email || '').trim()).length})`),
       moreMenu('More', [
         ['Import from Excel / CSV…', 'upload', importDialog],
+        ['Primary carriers (who takes which lane first)…', 'star', assignmentsDialog, { act: 'assignments', title: 'See and edit the carriers that are suggested first for a lane' }],
         ['Export CSV', 'download', () => download('carrier-database.csv', '﻿' + csv(), 'text/csv;charset=utf-8')],
         ['Copy for Excel', 'copy', () => copyText(toDelimited([CARRIER_HEADERS, ...state.carriers.map(c => CARRIER_KEYS.map(k => c[k] ?? ''))], '\t'), 'Copied (paste into Excel).')],
         ['Clean up duplicates', 'layers', async () => {
@@ -94,10 +99,11 @@ function row(c) {
       h('button', { class: 'btn small', type: 'button', 'aria-label': 'Edit carrier', title: 'Edit', onclick: () => edit(c) }, icon('edit', 14)))),
   ];
   const detail = detailCard({
-    fields: [['Preferred pickup', c.preferredPickupDates], ['Usual rate', c.rate], ['Last covered', c.lastCovered ? relDate(c.lastCovered) + ' (' + c.lastCovered + ')' : ''], ['Response rate', c.responseRate], ['Covers', c.coverCount], ['All equipment', eqTokens(c).join(', ')]],
+    fields: [['Verified by e-mail', c.verified === 'email' ? 'Booked ' + (c.bookedCount || 1) + ' load' + (Number(c.bookedCount) === 1 ? '' : 's') + (c.lastBookedAt ? ', last ' + relDate(c.lastBookedAt) : '') + (c.lastBookedRate ? ' at $' + Number(c.lastBookedRate).toLocaleString('en-US') : '') + ' (' + c.historyConfidence + '% evidence)' : ''], ['Dispatch phone (from e-mail)', c.dispatchPhone], ['Last driver', [c.driverName, c.driverPhone].filter(Boolean).join(' ')], ['Lanes it ran', Array.isArray(c.ranLanes) ? c.ranLanes.map(l => (l.originCity + ', ' + l.originState + ' to ' + l.destCity + ', ' + l.destState) + (l.count > 1 ? ' x' + l.count : '')).join('; ') : ''], ['Also e-mails from', Array.isArray(c.altEmails) ? c.altEmails.join(', ') : ''], ['Primary for', state.assignments.filter(a => a.carrierId === c.id).map(describeAssignment).join('; ')], ['Preferred pickup', c.preferredPickupDates], ['Usual rate', c.rate], ['Last covered', c.lastCovered ? relDate(c.lastCovered) + ' (' + c.lastCovered + ')' : ''], ['Response rate', c.responseRate], ['Covers', c.coverCount], ['All equipment', eqTokens(c).join(', ')]],
     notes: c.notes,
     actions: [
       net.joined() ? h('button', { class: 'btn small', type: 'button', 'data-act': 'share-truck-row', title: "Share this carrier's truck with the team", onclick: () => openPublish({ carrierName: c.carrierName, mc: c.mc, email: c.email, phone: c.phone, oCity: c.originCity, oState: c.originState, dCity: c.destCity, dState: c.destState, destOpen: !(c.destCity || c.destState), equip: /reef/i.test(c.equipment || '') ? 'R' : /flat/i.test(c.equipment || '') ? 'F' : 'V' }) }, icon('truck', 14), 'Share with team') : null,
+      h('button', { class: 'btn small', type: 'button', 'data-act': 'set-primary', title: 'Suggest this carrier first when you post a matching load', onclick: () => assignDialog({ carrier: c, preset: { originCity: c.originCity, originState: c.originState, destCity: c.destCity, destState: c.destState } }) }, icon('star', 14), 'Set as primary…'),
       h('button', { class: 'btn small', type: 'button', onclick: () => edit(c) }, icon('edit', 14), 'Edit all fields'),
       h('button', { class: 'btn small danger', type: 'button', onclick: async () => { if (await confirmDialog('Delete carrier', `Delete ${c.carrierName || c.email}?`, 'Delete')) actions.deleteCarrier(c.id); } }, icon('trash', 14), 'Delete')],
   });
@@ -146,7 +152,7 @@ function edit(c) {
   const inputs = {};
   const body = h('div', { class: 'grid3' }, CARRIER_KEYS.map((k, i) => { inputs[k] = h('input', { value: rec[k] ?? '' }); return field(CARRIER_HEADERS[i], inputs[k]); }));
   modal({ title: c ? 'Edit carrier' : 'Add carrier', body, wide: true, actions: [{ label: 'Cancel' }, { label: 'Save', kind: 'primary', onClick: async () => {
-    for (const k of CARRIER_KEYS) rec[k] = inputs[k].value.trim();
+    for (const k of CARRIER_KEYS) { const v = inputs[k].value.trim(); if (rec.fieldMeta && rec.fieldMeta[k] && String(rec[k] ?? '') !== v) { rec.fieldMeta = { ...rec.fieldMeta }; delete rec.fieldMeta[k]; } rec[k] = v; }   // typed by a person = verified: e-mail history can never overwrite it
     if (!rec.email) { toast('Email is required (outreach is addressed to it).', 'err'); return false; }
     await actions.saveCarrier(rec);
   } }] });

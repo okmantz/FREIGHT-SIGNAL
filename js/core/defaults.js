@@ -80,6 +80,9 @@ export const DEFAULT_SETTINGS = {
   draftsToOutlook: true,
   // Brokers you post for. Each gets its own board tab; "All" shows everything.
   brokers: [],
+  // Historical e-mail import (Carrier Database)
+  historyDays: 30,                 // 30 or 90
+  historyOwnEmails: '',            // your own addresses, comma separated (blank = detected from the Sent Items)
   // Cover pace tracker
   weeklyFloor: 50,
   workDays: [1, 2, 3, 4, 5],       // 0 = Sunday ... 6 = Saturday

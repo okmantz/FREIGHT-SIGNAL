@@ -1,0 +1,328 @@
+Option Explicit
+
+' =====================================================================================================
+' Freight Signal  -  HISTORICAL E-MAIL EXPORT (for "Import historical emails" in the Carrier Database)
+'
+' WHAT IT DOES
+'   Reads the last 30 or 90 days of mail from the Outlook folders YOU choose and writes ONE file into the Freight Signal folder
+'   (Documents\FreightSignal\freight-signal-history.tsv). Freight Signal then reads that file, finds the carriers that really booked
+'   a load with you (rate confirmation sent, signed, driver details sent, booked...), and shows them to you for review.
+'   It never sends, deletes, moves or changes any e-mail. It only reads.
+'
+' INSTALL (once)
+'   Outlook > Alt+F11 > Insert > Module > paste this ENTIRE file > save. (Put it in its own Module. If you prefer ThisOutlookSession,
+'   that works too: every name here starts with HX_ so it cannot clash with the Freight Signal v7 macro.)
+'
+' USE
+'   1) In Freight Signal: Carrier Database > Import historical emails > choose 30 or 90 days > "Ask Outlook".
+'   2) In Outlook: Alt+F8 > FS_ExportHistory > Run. Choose your folders when asked.
+'      (If you run it without asking from the app, it asks for 30 or 90 days itself.)
+'   3) Go back to Freight Signal: the import review opens by itself when the file is ready.
+'
+' Privacy: the file stays in your Freight Signal folder on your computer. Nothing is uploaded anywhere.
+' Not tested in a live Outlook by its author: run it once on 30 days and check the numbers in the summary box.
+' =====================================================================================================
+
+Private Const HX_VERSION As String = "v1"
+' Leave empty to auto-detect Documents\FreightSignal. Or set a full path, e.g. "C:\Users\you\Documents\FreightSignal"
+Private Const HX_FOLDER_OVERRIDE As String = ""
+Private Const HX_MAX_BODY As Long = 9000
+Private Const HX_MAX_MESSAGES As Long = 20000
+Private Const HX_PR_SMTP As String = "http://schemas.microsoft.com/mapi/proptag/0x39FE001E"
+Private Const HX_PR_SENDER_SMTP As String = "http://schemas.microsoft.com/mapi/proptag/0x5D01001E"
+Private Const HX_PR_MSGID As String = "http://schemas.microsoft.com/mapi/proptag/0x1035001E"
+
+Private hx_seen As Object            ' EntryID / message id -> True  (a message that sits in two chosen folders is exported once)
+Private hx_own As String             ' ";me@x.com;alias@x.com;"
+Private hx_sentId As String          ' EntryID of the default Sent Items folder
+
+Public Sub FS_ExportHistory()
+    Dim bridge As String, days As Long, reqId As String
+    bridge = HX_BridgeFolder()
+    If Len(bridge) = 0 Then
+        MsgBox "Freight Signal folder not found." & vbCrLf & "Create Documents\FreightSignal (the folder you chose in Freight Signal > System > Outlook connection), or set HX_FOLDER_OVERRIDE at the top of this macro.", vbExclamation, "Freight Signal"
+        Exit Sub
+    End If
+    HX_ReadRequest bridge, days, reqId
+    If days = 0 Then
+        Dim ans As String
+        ans = InputBox("How many days back should Freight Signal read?" & vbCrLf & "Type 30 or 90.", "Freight Signal - historical e-mails", "30")
+        If Len(Trim$(ans)) = 0 Then Exit Sub
+        days = CLng(Val(ans))
+        If days <> 90 Then days = 30
+        reqId = "manual-" & Format$(Now, "yyyymmddhhnnss")
+    End If
+
+    Dim folders As Collection
+    Set folders = HX_ChooseFolders()
+    If folders Is Nothing Then Exit Sub
+    If folders.Count = 0 Then Exit Sub
+
+    On Error GoTo EH
+    Set hx_seen = CreateObject("Scripting.Dictionary")
+    hx_own = HX_OwnAddresses()
+    hx_sentId = ""
+    On Error Resume Next
+    hx_sentId = Application.Session.GetDefaultFolder(5).EntryID   ' olFolderSentMail
+    On Error GoTo EH
+
+    Dim tmp As String, finalPath As String, statusPath As String, f As Integer
+    tmp = bridge & "\freight-signal-history.tsv.tmp"
+    finalPath = bridge & "\freight-signal-history.tsv"
+    statusPath = bridge & "\freight-signal-history-status.txt"
+    HX_WriteStatus statusPath, reqId, "running", 0, folders.Count
+
+    If Len(Dir$(tmp)) > 0 Then Kill tmp
+    f = FreeFile
+    Open tmp For Output As #f
+    Print #f, "#FREIGHT-SIGNAL-HISTORY" & vbTab & HX_VERSION & vbTab & HX_Enc(reqId) & vbTab & days & vbTab & Format$(Now, "yyyy-mm-dd hh:nn:ss") & vbTab & ""
+    Print #f, "MsgId" & vbTab & "ConvId" & vbTab & "Time" & vbTab & "Dir" & vbTab & "FromName" & vbTab & "FromEmail" & vbTab & "To" & vbTab & "Cc" & vbTab & "Bcc" & vbTab & "Subject" & vbTab & "Attachments" & vbTab & "Folder" & vbTab & "Body"
+
+    Dim cutoff As Date, written As Long, i As Long, fld As Outlook.Folder
+    cutoff = DateAdd("d", -days, Now)
+    For i = 1 To folders.Count
+        Set fld = folders(i)
+        HX_ScanFolder fld, cutoff, f, written
+        If written >= HX_MAX_MESSAGES Then Exit For
+    Next i
+    Print #f, "#END" & vbTab & written
+    Close #f
+
+    If Len(Dir$(finalPath)) > 0 Then Kill finalPath
+    Name tmp As finalPath
+    HX_WriteStatus statusPath, reqId, "done", written, folders.Count
+    MsgBox "Done. " & written & " messages from " & folders.Count & " folder(s), last " & days & " days." & vbCrLf & vbCrLf & _
+           "Go back to Freight Signal: the import review opens by itself.", vbInformation, "Freight Signal"
+    Exit Sub
+EH:
+    On Error Resume Next
+    Close #f
+    HX_WriteStatus statusPath, reqId, "error: " & Err.Description, written, 0
+    MsgBox "The export stopped: " & Err.Description, vbExclamation, "Freight Signal"
+End Sub
+
+' ---------------------------------------------------------------------------------------------- folders
+Private Function HX_ChooseFolders() As Collection
+    Dim col As New Collection, ans As VbMsgBoxResult, sub1 As VbMsgBoxResult, f As Outlook.Folder
+    ans = MsgBox("Scan your Inbox and Sent Items?" & vbCrLf & vbCrLf & _
+                 "Yes  = Inbox + Sent Items (recommended)" & vbCrLf & _
+                 "No   = let me pick the folders myself" & vbCrLf & _
+                 "Cancel = stop", vbYesNoCancel + vbQuestion, "Freight Signal - which folders?")
+    If ans = vbCancel Then Set HX_ChooseFolders = Nothing: Exit Function
+    sub1 = MsgBox("Include the subfolders of the folders you choose (for example a 'Carriers' or 'Loads' subfolder)?", vbYesNo + vbQuestion, "Freight Signal")
+    Dim ids As Object: Set ids = CreateObject("Scripting.Dictionary")
+    On Error Resume Next
+    If ans = vbYes Then
+        HX_AddTree col, ids, Application.Session.GetDefaultFolder(6), (sub1 = vbYes), 0   ' olFolderInbox
+        HX_AddTree col, ids, Application.Session.GetDefaultFolder(5), (sub1 = vbYes), 0   ' olFolderSentMail
+    Else
+        Do
+            Set f = Nothing
+            Set f = Application.Session.PickFolder
+            If f Is Nothing Then Exit Do
+            HX_AddTree col, ids, f, (sub1 = vbYes), 0
+            If MsgBox("Added: " & f.FolderPath & vbCrLf & "Add another folder?", vbYesNo + vbQuestion, "Freight Signal") <> vbYes Then Exit Do
+        Loop
+    End If
+    On Error GoTo 0
+    Set HX_ChooseFolders = col
+End Function
+
+Private Sub HX_AddTree(ByRef col As Collection, ByRef ids As Object, ByVal f As Outlook.Folder, ByVal withSub As Boolean, ByVal depth As Long)
+    On Error Resume Next
+    If f Is Nothing Then Exit Sub
+    If ids.Exists(f.EntryID) Then Exit Sub
+    Dim p As String: p = LCase$(f.FolderPath)
+    If InStr(p, "deleted items") > 0 Or InStr(p, "junk") > 0 Or InStr(p, "spam") > 0 Or InStr(p, "drafts") > 0 Or InStr(p, "outbox") > 0 Then Exit Sub
+    ids.Add f.EntryID, True
+    If f.DefaultItemType = 0 Then col.Add f                               ' olMailItem folders only
+    If withSub And depth < 6 Then
+        Dim s As Outlook.Folder
+        For Each s In f.Folders
+            HX_AddTree col, ids, s, True, depth + 1
+            If col.Count > 200 Then Exit For
+        Next s
+    End If
+End Sub
+
+' ---------------------------------------------------------------------------------------------- messages
+Private Sub HX_ScanFolder(ByVal fld As Outlook.Folder, ByVal cutoff As Date, ByVal f As Integer, ByRef written As Long)
+    Dim items As Outlook.Items, hits As Outlook.Items, it As Object, flt As String, d As String
+    On Error Resume Next
+    Set items = fld.Items
+    If items Is Nothing Then Exit Sub
+    d = Format$(cutoff, "ddddd h:nn AMPM")
+    flt = "[ReceivedTime] >= '" & d & "' OR [SentOn] >= '" & d & "'"
+    Set hits = items.Restrict(flt)
+    If hits Is Nothing Then Set hits = items
+    On Error GoTo 0
+    For Each it In hits
+        If written >= HX_MAX_MESSAGES Then Exit For
+        If TypeOf it Is Outlook.MailItem Then
+            HX_WriteMail it, fld, cutoff, f, written
+        End If
+        If (written Mod 50) = 0 Then DoEvents
+    Next it
+End Sub
+
+Private Sub HX_WriteMail(ByVal mail As Outlook.MailItem, ByVal fld As Outlook.Folder, ByVal cutoff As Date, ByVal f As Integer, ByRef written As Long)
+    On Error GoTo EH
+    Dim key As String, t As Date, fromAddr As String, fromName As String, dirText As String
+    key = HX_MessageId(mail)
+    If hx_seen.Exists(key) Then Exit Sub
+    hx_seen.Add key, True
+    t = mail.SentOn
+    If Year(t) < 1990 Or Year(t) > 3000 Then t = mail.ReceivedTime
+    If t < cutoff Then Exit Sub
+    fromAddr = HX_SenderSmtp(mail)
+    fromName = HX_Clean(mail.SenderName)
+    If InStr(hx_own, ";" & LCase$(fromAddr) & ";") > 0 Or (Len(hx_sentId) > 0 And fld.EntryID = hx_sentId) Then dirText = "Sent" Else dirText = "Received"
+    Dim toL As String, ccL As String, bccL As String, r As Outlook.Recipient, a As String
+    For Each r In mail.Recipients
+        a = HX_RecipientSmtp(r)
+        If Len(a) > 0 Then
+            Select Case r.Type
+                Case 1: toL = toL & HX_Clean(r.Name) & " <" & a & ">; "
+                Case 2: ccL = ccL & HX_Clean(r.Name) & " <" & a & ">; "
+                Case 3: bccL = bccL & HX_Clean(r.Name) & " <" & a & ">; "
+            End Select
+        End If
+    Next r
+    Dim att As String, at As Outlook.Attachment
+    For Each at In mail.Attachments
+        att = att & HX_Clean(at.FileName) & "|"
+    Next at
+    Dim body As String: body = mail.Body
+    If Len(body) > HX_MAX_BODY Then body = Left$(body, HX_MAX_BODY)
+    Dim conv As String: conv = ""
+    conv = Trim$(CStr(mail.ConversationID))
+    If Len(conv) = 0 Then conv = "S:" & LCase$(Trim$(mail.Subject))
+    Print #f, HX_Enc(key) & vbTab & HX_Enc(conv) & vbTab & Format$(t, "yyyy-mm-dd hh:nn:ss") & vbTab & dirText & vbTab & HX_Enc(fromName) & vbTab & HX_Enc(fromAddr) & vbTab & _
+              HX_Enc(toL) & vbTab & HX_Enc(ccL) & vbTab & HX_Enc(bccL) & vbTab & HX_Enc(mail.Subject) & vbTab & HX_Enc(att) & vbTab & HX_Enc(fld.Name) & vbTab & HX_Enc(body)
+    written = written + 1
+    Exit Sub
+EH:
+    ' one unreadable message must never stop the export
+End Sub
+
+Private Function HX_MessageId(ByVal mail As Outlook.MailItem) As String
+    On Error Resume Next
+    HX_MessageId = CStr(mail.PropertyAccessor.GetProperty(HX_PR_MSGID))
+    If Len(HX_MessageId) = 0 Then HX_MessageId = mail.EntryID
+End Function
+
+Private Function HX_SenderSmtp(ByVal mail As Outlook.MailItem) As String
+    On Error Resume Next
+    Dim s As String
+    s = CStr(mail.PropertyAccessor.GetProperty(HX_PR_SENDER_SMTP))
+    If Len(s) = 0 Then
+        If UCase$(mail.SenderEmailType) = "EX" Then s = mail.Sender.GetExchangeUser.PrimarySmtpAddress
+    End If
+    If Len(s) = 0 Then s = mail.SenderEmailAddress
+    If InStr(s, "@") = 0 Then s = ""
+    HX_SenderSmtp = LCase$(Trim$(s))
+End Function
+
+Private Function HX_RecipientSmtp(ByVal r As Outlook.Recipient) As String
+    On Error Resume Next
+    Dim s As String
+    s = CStr(r.PropertyAccessor.GetProperty(HX_PR_SMTP))
+    If Len(s) = 0 Then s = r.Address
+    If InStr(s, "@") = 0 Then s = ""
+    HX_RecipientSmtp = LCase$(Trim$(s))
+End Function
+
+Private Function HX_OwnAddresses() As String
+    On Error Resume Next
+    Dim s As String, a As Outlook.Account
+    s = ";"
+    For Each a In Application.Session.Accounts
+        If Len(a.SmtpAddress) > 0 Then s = s & LCase$(a.SmtpAddress) & ";"
+    Next a
+    Dim ex As Object
+    Set ex = Application.Session.CurrentUser.AddressEntry.GetExchangeUser
+    If Not ex Is Nothing Then s = s & LCase$(ex.PrimarySmtpAddress) & ";"
+    HX_OwnAddresses = s
+End Function
+
+' ---------------------------------------------------------------------------------------------- bridge folder + files
+Private Function HX_BridgeFolder() As String
+    Dim cands(0 To 4) As String, i As Long, docs As String
+    If Len(HX_FOLDER_OVERRIDE) > 0 Then cands(0) = HX_FOLDER_OVERRIDE
+    On Error Resume Next
+    docs = CreateObject("WScript.Shell").SpecialFolders("MyDocuments")
+    On Error GoTo 0
+    If Len(docs) > 0 Then cands(1) = docs & "\FreightSignal"
+    cands(2) = Environ$("USERPROFILE") & "\Documents\FreightSignal"
+    cands(3) = Environ$("OneDrive") & "\Documents\FreightSignal"
+    cands(4) = Environ$("OneDriveCommercial") & "\Documents\FreightSignal"
+    For i = 0 To 4
+        If Len(cands(i)) > 0 Then
+            If HX_FolderExists(cands(i)) Then HX_BridgeFolder = cands(i): Exit Function
+        End If
+    Next i
+End Function
+
+Private Function HX_FolderExists(ByVal p As String) As Boolean
+    On Error Resume Next
+    HX_FolderExists = (Len(Dir$(p, vbDirectory)) > 0)
+    On Error GoTo 0
+End Function
+
+Private Sub HX_ReadRequest(ByVal bridge As String, ByRef days As Long, ByRef reqId As String)
+    On Error GoTo EH
+    Dim p As String, f As Integer, ln As String, parts() As String
+    p = bridge & "\freight-signal-history-request.tsv"
+    If Len(Dir$(p)) = 0 Then Exit Sub
+    f = FreeFile
+    Open p For Input As #f
+    Do While Not EOF(f)
+        Line Input #f, ln
+        parts = Split(ln, vbTab)
+        If UBound(parts) >= 1 Then
+            If LCase$(parts(0)) = "days" Then days = CLng(Val(parts(1)))
+            If LCase$(parts(0)) = "requestid" Then reqId = Trim$(parts(1))
+        End If
+    Loop
+    Close #f
+    If days <> 90 Then days = 30
+    Exit Sub
+EH:
+    On Error Resume Next
+    Close #f
+    days = 0
+End Sub
+
+Private Sub HX_WriteStatus(ByVal path As String, ByVal reqId As String, ByVal st As String, ByVal count As Long, ByVal nFolders As Long)
+    On Error Resume Next
+    Dim f As Integer
+    f = FreeFile
+    Open path For Output As #f
+    Print #f, "macroVersion=" & HX_VERSION
+    Print #f, "requestId=" & HX_Enc(reqId)
+    Print #f, "state=" & HX_Enc(st)
+    Print #f, "messages=" & count
+    Print #f, "folders=" & nFolders
+    Print #f, "updated=" & Format$(Now, "yyyy-mm-dd hh:nn:ss")
+    Close #f
+End Sub
+
+' ---------------------------------------------------------------------------------------------- text helpers
+Private Function HX_Clean(ByVal s As String) As String
+    s = Replace(s, "<", " "): s = Replace(s, ">", " "): s = Replace(s, ";", " "): s = Replace(s, """", " "): s = Replace(s, vbTab, " ")
+    s = Replace(s, vbCr, " "): s = Replace(s, vbLf, " ")
+    HX_Clean = Trim$(s)
+End Function
+
+' ASCII only, tab / newline / backslash escaped: identical to the Freight Signal bridge format.
+Private Function HX_Enc(ByVal s As String) As String
+    Dim i As Long, c As String, out As String, code As Long
+    s = Replace(s, "\", "\\")
+    s = Replace(s, vbTab, "\t")
+    s = Replace(s, vbCrLf, "\n"): s = Replace(s, vbCr, "\n"): s = Replace(s, vbLf, "\n")
+    For i = 1 To Len(s)
+        c = Mid$(s, i, 1): code = AscW(c)
+        If code >= 32 And code <= 126 Then out = out & c
+    Next i
+    HX_Enc = out
+End Function

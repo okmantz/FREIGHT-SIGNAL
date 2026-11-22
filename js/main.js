@@ -20,6 +20,7 @@ import * as rescue from './ui/pages/rescue.js';
 import * as lanes from './ui/pages/lanes.js';
 import * as channels from './ui/pages/channels.js';
 import * as net from './store/net.js';
+import { marketKey } from './core/netcommon.js';
 import { mountOwen } from './ui/owen.js';
 import { openPublish } from './ui/pages/trucks.js';
 import { initBridge, onBridge } from './store/bridge.js';
@@ -270,9 +271,15 @@ async function boot() {
   state.hooks.onWeeklyGoal = (g) => celebrate(g);
   state.hooks.teamTrucks = () => (net.joined() ? net.resolvedTrucks() : []);
   state.hooks.askTeam = (members, o) => net.askForHelp(members, o);
+  state.hooks.teamLane = (load) => {
+    if (!net.joined()) return null;
+    const o = marketKey(load.originCity, load.originState), d = marketKey(load.destCity, load.destState);
+    const s = net.laneSummaries().find(x => x.o === o && x.d === d); if (!s) return null;
+    return { n: s.coverN, median: s.lastCover ? s.lastCover.rate : 0, carriers: s.responsive || [], summary: s };
+  };
   state.hooks.onMatches = (r) => { const t = r.newTrucks[0]; if (t && t.truck) toast(`New truck ${t.truck.carrierName ? t.truck.carrierName + ' ' : ''}in ${t.truck.oCity || t.truck.oState} fits ${t.loads.length} open load${t.loads.length === 1 ? '' : 's'}. See Cover Desk.`, 'ok', 8000); };
   if (cloudOn) {
-    const NAMES = { postings: 'loads', carriers: 'carriers', inquiries: 'the inquiry log', outreach: 'outreach history', spares: 'spare loads', drafts: 'drafts', kv: 'settings', customers: 'customers', coverLog: 'the cover log' };
+    const NAMES = { postings: 'loads', carriers: 'carriers', inquiries: 'the inquiry log', outreach: 'outreach history', spares: 'spare loads', drafts: 'drafts', kv: 'settings', customers: 'customers', coverLog: 'the cover log', history: 'e-mail history', assignments: 'primary carriers', approaches: 'what worked on hard loads' };
     const list = (ss) => ss.map(s => NAMES[s] || s).join(', ');
     cloud.setHooks({
       onRemoteChange: async (stores) => { await reloadStores(); toast('Updated from your other device: ' + list(stores) + '.', 'info', 6000); },

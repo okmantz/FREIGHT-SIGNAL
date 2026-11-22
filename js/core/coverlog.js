@@ -100,7 +100,7 @@ export function cityPerformance(log, side = 'origin', minAppear = 1) {
     .sort((x, y) => y.wins - x.wins || y.rate - x.rate || y.appear - x.appear);
 }
 
-const isCover = (e) => e.outcome === 'Covered';
+const isCover = (e) => e.outcome === 'Covered' && !e.imported;   // covers read from old e-mail never count toward today's or this week's pace
 
 /**
  * Lane memory for a lane (posting-shaped object). Exact city pair first (matched on the original lane OR the posting that covered),

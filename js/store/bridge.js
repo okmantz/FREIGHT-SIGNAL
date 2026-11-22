@@ -4,6 +4,7 @@
 
 import * as db from './db.js';
 import { state, subscribe, actions } from './state.js';
+import { FILES as HFILES, requestFile as historyRequest, parseExport } from '../core/history.js';
 import { FILES, postingsFile, postingsFingerprint, configFile, inquiriesHeader, foldInquiryEvents, ledgerFromEventLines, parseStatus, planInquirySync, outboxFile, parseDraftsDone } from '../core/bridge.js';
 
 export const bridge = {
@@ -174,3 +175,27 @@ export async function initBridge() {
 }
 
 export const outlookConnected = () => !!(bridge.outlook && bridge.outlook.lastSeen && Date.now() - new Date(bridge.outlook.lastSeen).getTime() < 36 * 3600 * 1000);
+
+/* ------------------------------------------------------------------------------------------------ historical e-mail export (Import historical emails) */
+/** Ask the Outlook macro for the last 30 or 90 days. Returns the request id the export will carry. */
+export async function requestHistory(days = 30) {
+  if (!handle || !bridge.connected) throw new Error('Connect the Outlook folder first (System > Outlook connection).');
+  const requestId = 'h' + Date.now().toString(36);
+  try { await handle.removeEntry(HFILES.data); } catch { /* none yet */ }
+  await writeText(HFILES.request, historyRequest({ days, requestId }));
+  return requestId;
+}
+/** Read the export file once. { state:'none'|'writing'|'ready'|'error', parsed, requestId, status } */
+export async function readHistory(requestId = '') {
+  if (!handle || !bridge.connected) return { state: 'none' };
+  let st = null; try { st = await readText(HFILES.status); } catch { st = null; }
+  const status = {}; if (st) for (const ln of st.text.split(/\r?\n/)) { const i = ln.indexOf('='); if (i > 0) status[ln.slice(0, i)] = ln.slice(i + 1); }
+  if (status.state && /^error/i.test(status.state) && (!requestId || status.requestId === requestId)) return { state: 'error', status, error: status.state };
+  const f = await readText(HFILES.data); if (!f) return { state: status.state === 'running' ? 'writing' : 'none', status };
+  const parsed = parseExport(f.text);
+  if (parsed.partial) return { state: 'writing', status };
+  if (!parsed.ok) return { state: 'error', error: parsed.error, status };
+  if (requestId && parsed.meta.requestId && parsed.meta.requestId !== requestId && !/^manual-/.test(parsed.meta.requestId)) return { state: status.state === 'running' ? 'writing' : 'none', status, stale: true };
+  return { state: 'ready', parsed, status, modified: f.modified };
+}
+export const historyFolderReady = () => bridge.connected;
