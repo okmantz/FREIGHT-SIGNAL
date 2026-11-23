@@ -34,7 +34,7 @@ export function rescueStrip(head) {
     r || q.length ? h('button', { class: 'btn small', type: 'button', onclick: () => openRescueFor(head) }, r ? 'Details' : 'See matches') : null);
 }
 
-const openRescueFor = (head) => openRescue({ head, members: state.postings.filter(p => (p.groupId || p.id) === (head.groupId || head.id)) }, head);
+export const openRescueFor = (head) => openRescue({ head, members: state.postings.filter(p => (p.groupId || p.id) === (head.groupId || head.id)) }, head);
 
 function stageRow(s, r, now) {
   const done = r && r.fired[s.id]; const cur = r && stageAt(minutesIn(r, now)).id === s.id && r.status === 'active';
