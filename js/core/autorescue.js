@@ -204,18 +204,8 @@ export function signatureOf(load, ctx = {}) {
   return tr + '|' + inq + '|' + rate;
 }
 
-/** Is this load hard enough, and quiet enough, to escalate by itself? */
-export function shouldAutoStart(head, { zipMap = null, settings = {}, now = Date.now(), minutesQuiet = 30 } = {}) {
-  if (settings.autoEscalateHard === false) return { start: false, why: 'switched off' };
-  if (!head || head.status === 'Covered') return { start: false, why: 'not open' };
-  const d = laneDifficulty(head, { zipMap, settings });
-  if (!d.tough) return { start: false, why: 'not a hard lane' };
-  const posted = (Array.isArray(head.ops) ? head.ops : []).filter(o => o.type === 'posted').map(o => Date.parse(o.at)).filter(Number.isFinite);
-  if (!posted.length) return { start: false, why: 'not posted yet' };
-  const first = Math.min(...posted); if (now - first < minutesQuiet * MIN) return { start: false, why: 'posted less than ' + minutesQuiet + ' min ago' };
-  if (safeNumeric(head.inquiryCount) > 0) return { start: false, why: 'carriers are already replying' };
-  return { start: true, why: d.notes[0] || 'hard lane', notes: d.notes };
-}
+/** Auto Rescue never starts by itself any more: it only runs when the user presses Auto Rescue on a load and clicks Start. Kept so older callers get a clear "no". */
+export function shouldAutoStart() { return { start: false, why: 'Auto Rescue only starts when you start it' }; }
 
 export function rescueSummary(r, now = Date.now()) {
   const mins = minutesIn(r, now); const cur = stageAt(mins); const nx = nextStep(r, now);

@@ -35,7 +35,7 @@ export const DEFAULT_SETTINGS = {
   sendDuplicateMinutes: 120,
   // v16 coverage: suggest a target rate for a new load from your own results; learn the matrix from qualified responses; hard-lane states (empty = built-in list)
   autoSuggestTarget: true,
-  autoEscalateHard: true, rescueWaveSize: 8, rescueMinHoursBetween: 12, rescueMaxPerLoad: 2, rescueMaxHours: 72,
+  autoEscalateHard: false, rescueWaveSize: 8, rescueMinHoursBetween: 12, rescueMaxPerLoad: 2, rescueMaxHours: 72,
   adaptiveMatrix: true,
   thinOutboundStates: [],
   autoSendOutbound: false,
