@@ -22,7 +22,7 @@ import { parseTruckText, parseTruckList, makeTruck, mergeTrucks, isActive } from
 import { suggestRate } from '../core/raterec.js';
 import { duplicateRows, mergePatches } from '../core/prospects.js';
 import { reconcileMatches, openLoads } from '../core/matching.js';
-import { newRescue, dueStages, planStage, signatureOf, shouldAutoStart, keyOfEmail, minutesIn } from '../core/autorescue.js';
+import { newRescue, dueStages, planStage, signatureOf, keyOfEmail, minutesIn } from '../core/autorescue.js';
 import { activeTrucks } from '../core/truckbook.js';
 import { headsOf, findBackhaulLoads } from '../core/corridor.js';
 import { cleanAssignment, matchAssignments, recordOutcome } from '../core/assignments.js';
@@ -861,18 +861,15 @@ export const actions = {
   },
   async resumeAutoRescue(id) { const r = actions.autoRescueFor(id); if (!r) return; r.status = 'active'; delete r.endedAt; r.log.push({ at: Date.now(), stage: 'start', text: 'Resumed.' }); await guard(() => db.put('autorescues', r)); emit(); await actions.tickAutoRescue({ reason: 'resume' }); },
   async deleteAutoRescue(id) { state.autoRescues = state.autoRescues.filter(r => r.id !== id); await guard(() => db.del('autorescues', id)); emit(); },
-  /** Do whatever is due: start hard lanes that have gone quiet, run each rescue's due stages, and re-run a cycle when something new appears. */
+  /** Do whatever is due: run each rescue you started, and re-run a cycle when something new appears. Never starts a rescue by itself. */
   async tickAutoRescue({ now = Date.now(), reason = 'tick', force = null } = {}) {
     if (actions._rescueBusy) return 0; actions._rescueBusy = true; let did = 0;
     try {
       const heads = headsOf(state.postings);
-      // 1. hard lanes that nobody has answered start by themselves
-      for (const head of heads) {
-        const ex = actions.autoRescueFor(head.id); if (ex && ex.status !== 'stopped' && ex.status !== 'covered') continue; if (ex && ex.autoDeclined) continue;
-        const a = shouldAutoStart(head, { zipMap: state.zip, settings: state.settings, now });
-        if (a.start) { const r = newRescue(head, { now, includeTeam: false, auto: true }); r.log[0].text = 'Started automatically: ' + (a.why || 'hard lane') + ', posted and no replies yet.'; state.autoRescues = state.autoRescues.filter(x => x.id !== head.id); state.autoRescues.push(r); await guard(() => db.put('autorescues', r)); did++; }
-      }
-      // 2. run the active rescues
+      // 1. Auto Rescue NEVER starts by itself: it only runs for loads where you pressed Auto Rescue and clicked Start.
+      //    Rescues that an older version started automatically are ended here once (and stay ended) so nothing runs that you did not start.
+      for (const r of state.autoRescues.filter(x => x.auto && x.status === 'active')) await actions.stopAutoRescue(r.id, 'stopped', 'Ended: Auto Rescue now only runs when you start it yourself. Press Auto Rescue on the load and click Start to run it.');
+      // 2. run the active rescues (only ones you started)
       for (const r of state.autoRescues.filter(x => x.status === 'active')) {
         const head = heads.find(p => p.id === r.headId);
         if (!head || head.status === 'Covered') { await actions.stopAutoRescue(r.id, head ? 'covered' : 'stopped', head ? 'The load was covered.' : 'The load left the board.'); continue; }
