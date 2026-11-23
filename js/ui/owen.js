@@ -13,6 +13,7 @@ import { paceStats, laneMemory } from '../core/coverlog.js';
 import { activeTrucks } from '../core/truckbook.js';
 import { exceptionQueue, ledgerSummary } from '../core/ledger.js';
 import { sendModeOf } from '../core/sendpolicy.js';
+import { openRescueFor } from './board/autorescue.js';
 
 const MOODS = { smart: 'assets/owen/owen-1.webp', thumbs: 'assets/owen/owen-2.webp', think: 'assets/owen/owen-3.webp', relax: 'assets/owen/owen-4.webp' };
 const ORDER = ['smart', 'thumbs', 'think', 'relax'];
@@ -95,7 +96,7 @@ function say(who, m) { history.push({ who, ...m }); if (history.length > 60) his
 
 async function doAct(a, m) {
   if (a.id === 'open-load') return go('board');
-  if (a.id === 'auto-rescue' && m.loadId) { await actions.startAutoRescue(m.loadId, {}); toast('Auto Rescue started for that load.', 'ok'); say('owen', { mood: 'thumbs', text: 'Done. Auto Rescue is working it now. Open the load to set the highest rate it may offer, or to watch its log.', links: [{ label: 'Open Load Board', route: 'board' }] }); }
+  if (a.id === 'auto-rescue' && m.loadId) { const head = state.postings.find(p => p.id === m.loadId); if (head) openRescueFor(head); say('owen', { mood: 'thumbs', text: 'I opened Auto Rescue for that load. Set the highest rate it may offer, then click Start Auto Rescue. It will not run until you do.', links: [{ label: 'Open Load Board', route: 'board' }] }); }
 }
 
 function ask(text) {
