@@ -1,11 +1,8 @@
-Freight Signal v20 update: paste these files over the repo (same paths, keep the folders), commit, push.
-Every file here is new or changed; nothing else in the repo needs touching. Includes a rebuilt dist/freight-signal.html.
+Freight Signal v20.1 update: paste these files over the repo (same paths, keep the folders), commit, push.
 
-NEW OUTLOOK MACRO (needed only for IMPORT HISTORICAL EMAILS > "From Outlook"):
-  outlook/Outlook_v7_HistoryExport.txt  ->  Outlook > Alt+F11 > Insert > Module > paste the whole file > save.
-  Run with Alt+F8 > FS_ExportHistory. It only READS mail; it never sends, moves or deletes anything.
-  (Without the macro you can still import: choose a saved export file, or select .eml files.)
-  The existing v7 macro is unchanged.
+FIX: Auto Rescue no longer turns itself on. It only runs for a load after you press the Auto Rescue button
+on that load and click "Start Auto Rescue". Stop now sticks (it was being re-created on the next minute tick).
+Any rescue an older version started automatically is ended once, the first time the app loads this version.
+The Owen "Start Auto Rescue" button now opens the same Start window instead of starting it directly.
 
-After deploying, hard-refresh once (Ctrl+Shift+R) so the new service-worker cache (v20) loads.
-Details: docs/CHANGELOG-v20.md
+After deploying, hard-refresh once (Ctrl+Shift+R) so the new service-worker cache (v21) loads.
