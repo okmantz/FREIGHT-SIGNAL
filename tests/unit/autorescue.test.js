@@ -99,15 +99,12 @@ test('updated offers go only to carriers already written to who have not answere
   assert.equal(b.drafts.length, 0);
 });
 
-test('hard lanes with no replies start by themselves; easy lanes and answered loads do not', () => {
+test('Auto Rescue never starts by itself, however hard the lane or quiet the load', () => {
   const posted = (mins) => [{ type: 'posted', at: new Date(NOW - mins * 60000).toISOString() }];
   const hard = mkLoad({ destState: 'FL', destCity: 'Miami', destZip: '33101', ops: posted(45) });
-  assert.equal(shouldAutoStart(hard, { zipMap: zip, settings: {}, now: NOW }).start, true);
-  assert.equal(shouldAutoStart({ ...hard, ops: posted(10) }, { zipMap: zip, settings: {}, now: NOW }).start, false);
-  assert.equal(shouldAutoStart({ ...hard, inquiryCount: 2 }, { zipMap: zip, settings: {}, now: NOW }).start, false);
-  assert.equal(shouldAutoStart(hard, { zipMap: zip, settings: { autoEscalateHard: false }, now: NOW }).start, false);
-  const easy = mkLoad({ originCity: 'Chicago', originState: 'IL', originZip: '60601', destCity: 'Atlanta', destState: 'GA', destZip: '30303', ops: posted(90) });
-  assert.equal(shouldAutoStart(easy, { zipMap: zip, settings: {}, now: NOW }).start, false);
+  assert.equal(shouldAutoStart(hard, { zipMap: zip, settings: {}, now: NOW }).start, false);
+  assert.equal(shouldAutoStart(hard, { zipMap: zip, settings: { autoEscalateHard: true }, now: NOW }).start, false);
+  assert.equal(shouldAutoStart({ ...hard, ops: posted(600) }, { zipMap: zip, settings: {}, now: NOW }).start, false);
 });
 
 test('the signature changes when a new truck appears, which triggers another matching cycle', () => {
