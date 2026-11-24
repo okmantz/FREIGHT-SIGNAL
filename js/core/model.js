@@ -30,6 +30,7 @@ export function blankPosting(over = {}) {
     comment: '', commodity: '', referenceId: '',   // DAT columns V, W, X
     broker: '',               // v2: which broker owns this load (scoreboards / tabs)
     ops: [],                  // v2: actions applied to the load (reprice, second wave...) - drives the next-step advice
+    calls: [],                // v21: phone calls logged on this load [{ key, name, phone, result, at }]
     originAltMiles: '', destAltMiles: '',
     draftsCreated: '', lastRun: '', result: '',
     order: 0,

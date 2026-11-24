@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-nk3mloTLGcFYmz0BlaVwFtYTC7BQaD4kNVJwpgBvlwM='; style-src 'sha256-YxyPqjE1j9HgKmzfP+dfnksJIhoJnvgH7TZRMXSr+YQ='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-Ry2R8uvwAwakKhRADbGqhu2sKhSnjGE6leqDxn0fOxo='; style-src 'sha256-pPbGX7uPBXmTGWuQ+SCkdZXNm7pWFDzgduQIK0/gPX4='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -1546,6 +1546,41 @@ details.boardextras > :not(summary) { margin: 12px; }
 .perf .perf-d.better { color: var(--good); }
 .perf .perf-d.worse { color: var(--bad); }
 .perf .perf-n { margin-top: 2px; }
+
+/* v21: primary carrier star, search highlight, relevance hint */
+.dir-avwrap { position: relative; flex: none; display: inline-flex; }
+.pstar { position: absolute; right: -4px; top: -5px; width: 17px; height: 17px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff;
+  background: linear-gradient(145deg, #f7cb5a, #d38c0c); box-shadow: 0 0 0 2px var(--panel), 0 1px 4px rgba(0, 0, 0, .35); cursor: help; }
+.pstar svg { width: 10px; height: 10px; fill: currentColor; stroke: none; }
+.pstar.backup { background: var(--panel); color: #d39a1a; box-shadow: 0 0 0 1.5px #d39a1a, 0 0 0 3.5px var(--panel); }
+.pstar.backup svg { fill: none; stroke: currentColor; stroke-width: 2.4; }
+.pstar.inline { position: static; width: 15px; height: 15px; margin-right: 6px; vertical-align: -3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .18); }
+.pstar.inline.backup { box-shadow: 0 0 0 1.5px #d39a1a; }
+.pstar.inline svg { width: 9px; height: 9px; }
+mark.hl { background: rgba(var(--accent-rgb), .22); color: inherit; border-radius: 3px; padding: 0 1px; }
+.dir-hint { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: .88em; }
+.dir-hint b { color: var(--text); font-weight: 700; }
+.dir-hint .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.dir-hint.warn { color: var(--warn); }
+.dir-seg .seg .pstar.inline { margin: 0 4px 0 0; }
+
+/* v21: Auto Rescue banner, who-first list, call outcomes */
+.rescuewrap { margin: 8px 0; }
+.rescuewrap .rescuestrip { margin: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.rs-repost { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-top: 0; border-radius: 0 0 12px 12px; background: color-mix(in srgb, var(--warn) 10%, var(--panel)); font-size: .9em; }
+.rs-win > .rs-repost { border-top: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius: 12px; margin-bottom: 12px; }
+.rs-repost-ic { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 50%; background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); flex: none; }
+.rs-repost-tx { flex: 1; min-width: 200px; }
+.rs-tag { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: .82em; font-weight: 700; }
+.rs-who { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.rs-who ul, .rs-calls { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.rs-who li, .rs-call { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; }
+.rs-who-star { display: inline-flex; justify-content: center; }
+.rs-who-n small { font-size: .88em; }
+.rs-call-out select.dir-sel { height: 28px; }
+.rs-auth .dir-seg .seg { height: 30px; }
+.rs-auth .dir-seg .seg[aria-pressed="true"] { color: var(--on-btn); background: linear-gradient(180deg, var(--btn-a), var(--btn-b)); border-color: transparent; }
+tr.dim td { opacity: .55; }
 </style>
 <script>/* Runs before first paint (classic script, loaded in <head>): replays the last saved appearance from localStorage so the
  * theme, accent and background never flash. The real engine is js/ui/appearance.js; this file only reads what it wrote. */
@@ -2916,6 +2951,8 @@ details.boardextras > :not(summary) { margin: 12px; }
       // v2: which broker owns this load (scoreboards / tabs)
       ops: [],
       // v2: actions applied to the load (reprice, second wave...) - drives the next-step advice
+      calls: [],
+      // v21: phone calls logged on this load [{ key, name, phone, result, at }]
       originAltMiles: "",
       destAltMiles: "",
       draftsCreated: "",
@@ -3768,12 +3805,27 @@ details.boardextras > :not(summary) { margin: 12px; }
     const minSep = Math.max(4, ideal * 0.8);
     const first2 = ranked[0];
     let second = ranked.slice(1).find((c) => calculateDistanceMiles(first2.lat, first2.lng, c.lat, c.lng) >= minSep) || ranked[1];
+    if (args.crossState) {
+      const home = String(args.centerState || "").trim().toUpperCase();
+      const sameHome = (c) => String(c.state || "").trim().toUpperCase() === home;
+      if (home && sameHome(first2) && sameHome(second)) {
+        const alt = ranked.find((c) => !sameHome(c) && c.score >= ranked[0].score * 0.4 && calculateDistanceMiles(first2.lat, first2.lng, c.lat, c.lng) >= minSep);
+        if (alt) second = alt;
+      } else if (home && !sameHome(first2) && !sameHome(second)) {
+        const alt = ranked.find((c) => sameHome(c) && c.score >= ranked[0].score * 0.4 && c.key !== first2.key);
+        if (alt) second = alt;
+      }
+    }
     return { picks: [first2, second], ring, pinned: false, ranked };
   }
   function rankCandidates(zm, caches, centerZip, originalCity, originalState, otherCity, otherState, selectingOrigin, strategy = DEFAULT_STRATEGIES.regional, topN = 15, attr = null) {
     return rankMarkets(zm, { centerCity: originalCity, centerState: originalState, centerZip, otherCity, otherState, selectingOrigin, strategy, caches, attr, topN }).ranked;
   }
-  function planMatrix({ source, zipMap, inquiries, coverLog = [], settings = DEFAULT_SETTINGS, exclude = [], now = /* @__PURE__ */ new Date() }) {
+  function widenStrategy(st2, reach = 1) {
+    if (!(reach > 1)) return st2;
+    return { ...st2, altMax: Math.round(st2.altMax * reach), altIdeal: Math.round(st2.altIdeal * (1 + (reach - 1) * 0.7)), minPop: reach >= 1.7 ? Math.round(st2.minPop * 0.8) : st2.minPop };
+  }
+  function planMatrix({ source, zipMap, inquiries, coverLog = [], settings = DEFAULT_SETTINGS, exclude = [], now = /* @__PURE__ */ new Date(), reach = 1, crossState = false }) {
     if (!zipMap || !zipMap.size) return { ok: false, error: "ZIP Map sheet is missing." };
     const warnings = [];
     const rec2 = reconcileManualLane(source, zipMap);
@@ -3788,11 +3840,12 @@ details.boardextras > :not(summary) { margin: 12px; }
     const caches = buildInquiryCaches(inquiries, { weighted: settings.adaptiveMatrix !== false, now: now instanceof Date ? now.getTime() : Date.now() });
     const attr = attributionFromLog(coverLog);
     const lane = classifyLane({ ...source, originZip: o0.zip, destZip: d0.zip }, zipMap, settings);
+    if (reach > 1) lane.strategy = widenStrategy(lane.strategy, reach);
     const pins = exclude.length ? {} : settings.matrixPins || {};
     const ex = exclude.length ? new Set(exclude) : null;
-    const oSel = selectAlternates(zipMap, { centerCity: o0.city, centerState: o0.state, centerZip: o0.zip, otherCity: d0.city, otherState: d0.state, selectingOrigin: true, strategy: lane.strategy, attr, caches, exclude: ex, pins: pins[pinKey(o0.city, o0.state)] });
+    const oSel = selectAlternates(zipMap, { centerCity: o0.city, centerState: o0.state, centerZip: o0.zip, otherCity: d0.city, otherState: d0.state, selectingOrigin: true, strategy: lane.strategy, attr, caches, exclude: ex, crossState, pins: pins[pinKey(o0.city, o0.state)] });
     if (!oSel) return { ok: false, error: "Could not find two distinct origin alternatives anywhere in ZIP Map." };
-    const dSel = selectAlternates(zipMap, { centerCity: d0.city, centerState: d0.state, centerZip: d0.zip, otherCity: o0.city, otherState: o0.state, selectingOrigin: false, strategy: lane.strategy, attr, caches, exclude: ex, pins: pins[pinKey(d0.city, d0.state)] });
+    const dSel = selectAlternates(zipMap, { centerCity: d0.city, centerState: d0.state, centerZip: d0.zip, otherCity: o0.city, otherState: o0.state, selectingOrigin: false, strategy: lane.strategy, attr, caches, exclude: ex, crossState, pins: pins[pinKey(d0.city, d0.state)] });
     if (!dSel) return { ok: false, error: "Could not find two distinct destination alternatives anywhere in ZIP Map." };
     const toLoc = (a) => ({ city: a.city, state: a.state, zip: a.zip, miles: a.miles });
     const reasons = [];
@@ -4047,6 +4100,394 @@ details.boardextras > :not(summary) { margin: 12px; }
     }
   });
 
+  // js/core/resources.js
+  function parseMcDot(text2) {
+    const t2 = clean(text2);
+    if (!t2) return null;
+    const dot = t2.match(/(?:us\s*)?dot\s*(?:no\.?|#|:)?\s*(\d{3,9})/i);
+    if (dot) return { type: "DOT", num: dot[1] };
+    const mc = t2.match(/\b(?:mc|mx|ff)\s*(?:no\.?|#|:|-)?\s*(\d{3,8})/i);
+    if (mc) return { type: "MC", num: mc[1] };
+    const bare = t2.match(/^\D*(\d{3,9})\D*$/);
+    if (bare) return { type: bare[1].length >= 7 ? "DOT" : "MC", num: bare[1] };
+    return null;
+  }
+  function fmcsaUrl(mcDot) {
+    const p = parseMcDot(mcDot);
+    if (!p) return "";
+    return `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=${p.type === "DOT" ? "USDOT" : "MC_MX"}&query_string=${p.num}`;
+  }
+  function mapsRouteUrl(p) {
+    const o = place(p.originCity, p.originState), d = place(p.destCity, p.destState);
+    if (!o || !d) return "";
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}&travelmode=driving`;
+  }
+  function mapsCarriersNearUrl(p) {
+    const o = place(p.originCity, p.originState);
+    if (!o) return "";
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("trucking companies near " + o)}`;
+  }
+  function telHref(phone) {
+    const main = clean(phone).split(/\b(?:ext\.?|x)\s*\d+/i)[0];
+    const d = main.replace(/\D/g, "");
+    if (d.length < 7 || d.length > 15) return "";
+    return "tel:" + (/^\s*\+/.test(main) ? "+" : "") + d;
+  }
+  var FMCSA_SAFER_URL, clean, place, mailHref, TOOLKIT;
+  var init_resources = __esm({
+    "js/core/resources.js"() {
+      init_defaults();
+      FMCSA_SAFER_URL = "https://safer.fmcsa.dot.gov/CompanySnapshot.aspx";
+      clean = (s) => String(s ?? "").trim();
+      place = (city, st2) => [clean(city), clean(st2).toUpperCase()].filter(Boolean).join(", ");
+      mailHref = (email) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(clean(email)) ? "mailto:" + clean(email) : "";
+      TOOLKIT = [
+        { id: "dat-trucks", label: "DAT Find Trucks", note: "Search posted trucks", url: FINDTRUCK_URL, icon: "truck" },
+        { id: "dat-rates", label: "DAT RateView", note: "Lane rate averages", url: RATEVIEW_BASE, icon: "rateview" },
+        { id: "fmcsa", label: "FMCSA SAFER", note: "Check authority and insurance", url: FMCSA_SAFER_URL, icon: "shield" },
+        { id: "maps", label: "Google Maps", note: "Routes and carriers near a pickup", url: "https://www.google.com/maps", icon: "route" },
+        { id: "weather", label: "Ventusky weather", note: "Weather along the lane", url: VENTUSKY_URL, icon: "storm" }
+      ];
+    }
+  });
+
+  // js/core/netcommon.js
+  function newId(now = Date.now(), rand2 = Math.random) {
+    return now.toString(36).padStart(9, "0") + Math.floor(rand2() * 36 ** 5).toString(36).padStart(5, "0");
+  }
+  function carrierKey({ mc, email } = {}) {
+    const p = parseMcDot(mc);
+    if (p) return (p.type === "DOT" ? "dot:" : "mc:") + p.num;
+    const e = emailOf(email);
+    return e ? "em:" + hash(e) : "";
+  }
+  function hash(s) {
+    let h2 = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h2 ^= s.charCodeAt(i);
+      h2 = Math.imul(h2, 16777619) >>> 0;
+    }
+    return h2.toString(36);
+  }
+  function makeInvite(rand2) {
+    const pick2 = (n) => {
+      const bytes = new Uint8Array(n);
+      if (rand2) for (let i = 0; i < n; i++) bytes[i] = Math.floor(rand2() * 256);
+      else globalThis.crypto.getRandomValues(bytes);
+      return [...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join("");
+    };
+    const team = pick2(TEAM_LEN), secret = pick2(SECRET_LEN);
+    return { teamId: team.toLowerCase(), secret: secret.toLowerCase(), code: formatInvite(team + secret) };
+  }
+  function formatInvite(raw) {
+    return (String(raw).toUpperCase().replace(/[^A-Z0-9]/g, "").match(/.{1,4}/g) || []).join("-");
+  }
+  function parseInvite(text2) {
+    const up = String(text2 ?? "").toUpperCase();
+    let raw = up.replace(/[^A-Z0-9]/g, "");
+    if (raw.length !== TEAM_LEN + SECRET_LEN) {
+      const m = /(?:[A-Z2-9]{4}[\s-]*){4}[A-Z2-9]{4}/.exec(up);
+      raw = m ? m[0].replace(/[^A-Z0-9]/g, "") : "";
+    }
+    if (raw.length !== TEAM_LEN + SECRET_LEN) return null;
+    if ([...raw].some((c) => !ALPHABET.includes(c))) return null;
+    return { teamId: raw.slice(0, TEAM_LEN).toLowerCase(), secret: raw.slice(TEAM_LEN).toLowerCase(), code: formatInvite(raw) };
+  }
+  function resolveSpot(text2, zipMap) {
+    const t2 = oneLine(text2, 80);
+    if (!t2 || !zipMap || !zipMap.size) return null;
+    let zip = "";
+    if (/^\d{5}(-\d{4})?$/.test(t2)) zip = normalizeZip(t2);
+    else {
+      const m = /^(.*?)[,\s]+([A-Za-z]{2})$/.exec(t2);
+      if (m) zip = zipMap.bestZipForCityState(m[1].trim(), m[2].toUpperCase());
+    }
+    if (!zip) return null;
+    const r = zipMap.findZip(zip);
+    if (!r) return null;
+    return { zip, city: r.city, state: r.state, lat: r.lat, lng: r.lng };
+  }
+  function equipFits(want, truck, looseReefer = false) {
+    if (!want) return true;
+    const a = equipFamilies(want) || ["van"], b = equipFamilies(truck) || ["van"];
+    if (a.some((f) => b.includes(f))) return true;
+    return !!looseReefer && a.includes("van") && b.includes("reefer");
+  }
+  function isoDay(v) {
+    const t2 = String(v ?? "").trim();
+    if (!t2) return "";
+    let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t2);
+    if (!m) {
+      const x = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(t2);
+      if (x) m = [0, x[3].length === 2 ? "20" + x[3] : x[3], x[1].padStart(2, "0"), x[2].padStart(2, "0")];
+    }
+    if (!m) return "";
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (d.getFullYear() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) return "";
+    return `${m[1]}-${m[2]}-${m[3]}`;
+  }
+  function ago(ms, now = Date.now()) {
+    if (!Number.isFinite(ms)) return "";
+    const m = Math.max(0, Math.round((now - ms) / MIN));
+    return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 48 * 60 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago";
+  }
+  function until(ms, now = Date.now()) {
+    if (!Number.isFinite(ms)) return "";
+    const m = Math.round((ms - now) / MIN);
+    return m <= 0 ? "expired" : m < 60 ? `in ${m} min` : m < 48 * 60 ? `in ${Math.round(m / 60)} h` : `in ${Math.round(m / 1440)} d`;
+  }
+  function repriceTotal(ops) {
+    let total = 0;
+    for (const o of Array.isArray(ops) ? ops : []) {
+      if (!o || o.type !== "reprice") continue;
+      const m = /([+-])\s*\$?\s*([\d,]+)/.exec(String(o.detail || ""));
+      if (m) total += (m[1] === "-" ? -1 : 1) * Number(m[2].replace(/,/g, ""));
+    }
+    return total;
+  }
+  var MIN, HOUR, DAY2, oneLine, multiLine, stateCode, emailOf, phoneOf, ALPHABET, TEAM_LEN, SECRET_LEN, marketKey, placeText, zipMiles, equipFamily, dayStart, dayEnd, todayIso, addDays, usDate, median, mean, percentile, roundTo2, money2;
+  var init_netcommon = __esm({
+    "js/core/netcommon.js"() {
+      init_util();
+      init_resources();
+      init_equipment();
+      MIN = 6e4;
+      HOUR = 36e5;
+      DAY2 = 864e5;
+      oneLine = (v, max = 120) => String(v ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, max);
+      multiLine = (v, max = 1e3) => String(v ?? "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
+      stateCode = (v) => oneLine(v, 2).toUpperCase();
+      emailOf = (v) => {
+        const t2 = oneLine(v, 120).toLowerCase();
+        return /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/.test(t2) ? t2 : "";
+      };
+      phoneOf = (v) => {
+        const t2 = oneLine(v, 30);
+        const d = t2.replace(/\D/g, "");
+        return d.length >= 7 && d.length <= 15 ? t2 : "";
+      };
+      ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      TEAM_LEN = 8;
+      SECRET_LEN = 12;
+      marketKey = (city, st2) => normalizeText(city) + "|" + normalizeText(st2);
+      placeText = (city, st2) => [oneLine(city, 60), stateCode(st2)].filter(Boolean).join(", ");
+      zipMiles = (zipMap, a, b) => zipMap && zipMap.size && a && b ? zipMap.distanceBetweenZips(a, b) : null;
+      equipFamily = (code) => (equipFamilies(code) || ["van"])[0] || "van";
+      dayStart = (iso) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+        return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime() : NaN;
+      };
+      dayEnd = (iso) => {
+        const s = dayStart(iso);
+        return Number.isFinite(s) ? s + DAY2 - 1 : NaN;
+      };
+      todayIso = (now = Date.now()) => {
+        const d = new Date(now);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      };
+      addDays = (iso, n) => {
+        const s = dayStart(iso);
+        if (!Number.isFinite(s)) return "";
+        return todayIso(s + n * DAY2 + 12 * HOUR);
+      };
+      usDate = (iso) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+        return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : "";
+      };
+      median = (list) => {
+        const a = list.filter(Number.isFinite).sort((x, y) => x - y);
+        if (!a.length) return null;
+        const n = a.length;
+        return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
+      };
+      mean = (list) => {
+        const a = list.filter(Number.isFinite);
+        return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+      };
+      percentile = (list, p) => {
+        const a = list.filter(Number.isFinite).sort((x, y) => x - y);
+        if (!a.length) return null;
+        const i = Math.min(a.length - 1, Math.max(0, Math.ceil(p * a.length) - 1));
+        return a[i];
+      };
+      roundTo2 = (n, step2 = 25) => Number.isFinite(n) ? Math.round(n / step2) * step2 : null;
+      money2 = (n) => Number.isFinite(Number(n)) && n !== "" && n !== null ? "$" + Math.round(Number(n)).toLocaleString("en-US") : "";
+    }
+  });
+
+  // js/core/lanematch.js
+  function relation(a, b, { zipMap = null, radius = 60 } = {}) {
+    const A4 = laneOf(a), B = laneOf(b);
+    if (!A4.originState || !A4.destState || !B.originState || !B.destState) return { kind: "", w: 0 };
+    if (placeKey(A4.originCity, A4.originState) === placeKey(B.originCity, B.originState) && placeKey(A4.destCity, A4.destState) === placeKey(B.destCity, B.destState) && A4.originCity && A4.destCity) return { kind: "same", w: 1, oMi: 0, dMi: 0 };
+    if (zipMap && zipMap.size) {
+      const ao = spot(zipMap, A4.originCity, A4.originState), bo = spot(zipMap, B.originCity, B.originState), ad = spot(zipMap, A4.destCity, A4.destState), bd = spot(zipMap, B.destCity, B.destState);
+      const oMi = miles(zipMap, ao, bo), dMi = miles(zipMap, ad, bd);
+      if (oMi !== null && dMi !== null) {
+        if (oMi <= 12 && dMi <= 12) return { kind: "same", w: 0.95, oMi, dMi };
+        if (oMi <= radius && dMi <= radius) return { kind: "near", w: Math.max(0.25, 0.7 - (oMi + dMi) / (4 * radius)), oMi, dMi };
+      }
+      return { kind: "", w: 0 };
+    }
+    if (A4.originState === B.originState && A4.destState === B.destState) return { kind: "state", w: 0.3 };
+    return { kind: "", w: 0 };
+  }
+  var nm, placeKey, spot, miles, laneOf;
+  var init_lanematch = __esm({
+    "js/core/lanematch.js"() {
+      init_util();
+      init_netcommon();
+      nm = (v) => normalizeText(v);
+      placeKey = (city, st2) => nm(city) + "|" + stateCode(st2).toLowerCase();
+      spot = (zipMap, city, st2) => {
+        try {
+          const m = zipMap && zipMap.size ? zipMap.market(city, st2) : null;
+          return m && m.zip ? m.zip : "";
+        } catch {
+          return "";
+        }
+      };
+      miles = (zipMap, a, b) => {
+        try {
+          return a && b ? zipMap.distanceBetweenZips(a, b) : null;
+        } catch {
+          return null;
+        }
+      };
+      laneOf = (x = {}) => ({ originCity: x.originCity || "", originState: stateCode(x.originState), destCity: x.destCity || "", destState: stateCode(x.destState) });
+    }
+  });
+
+  // js/core/assignments.js
+  function cleanAssignment(f = {}, uid2 = () => "a" + Math.random().toString(36).slice(2, 9)) {
+    const a = {
+      id: f.id || uid2(),
+      carrierId: oneLine(f.carrierId, 60),
+      carrierName: oneLine(f.carrierName, 80),
+      mc: oneLine(f.mc, 20),
+      email: oneLine(f.email, 120).toLowerCase(),
+      phone: oneLine(f.phone, 30),
+      originCity: oneLine(f.originCity, 60),
+      originState: stateCode(f.originState),
+      destCity: oneLine(f.destCity, 60),
+      destState: stateCode(f.destState),
+      priority: f.priority === "backup" ? "backup" : "primary",
+      rate: f.rate === "" || f.rate === void 0 ? "" : safeNumeric(f.rate) || "",
+      note: oneLine(f.note, 300),
+      active: f.active === false ? false : true,
+      createdAt: f.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+      hits: Number(f.hits) || 0,
+      wins: Number(f.wins) || 0,
+      lastOfferedAt: f.lastOfferedAt || "",
+      lastWonAt: f.lastWonAt || ""
+    };
+    if (!a.carrierName && !a.carrierId && !a.email) return null;
+    if (!a.originState && !a.originCity) return null;
+    if (!a.destState && !a.destCity) return null;
+    return a;
+  }
+  function fit(load, a, { zipMap = null, radius = 40 } = {}) {
+    if (!a || a.active === false) return 0;
+    const end = (lc2, ls, ac, as) => {
+      const lS = stateCode(ls), aS = stateCode(as);
+      if (aS && lS !== aS) return 0;
+      if (!ac) return 0.6;
+      if (placeKey(lc2, ls) === placeKey(ac, as || ls)) return 1;
+      if (zipMap && zipMap.size) {
+        try {
+          const x = zipMap.market(lc2, ls), y = zipMap.market(ac, as || ls);
+          if (x && y && zipMap.distanceBetweenZips(x.zip, y.zip) <= radius) return 0.9;
+        } catch {
+        }
+      }
+      return 0;
+    };
+    const o = end(load.originCity, load.originState, a.originCity, a.originState), d = end(load.destCity, load.destState, a.destCity, a.destState);
+    if (!o || !d) return 0;
+    return Math.round((o + d) / 2 * 100) * (a.priority === "backup" ? 0.9 : 1);
+  }
+  function matchAssignments(load, assignments = [], carriers = [], opts2 = {}) {
+    const out = [];
+    for (const a of assignments) {
+      const f = fit(load, a, opts2);
+      if (f <= 0) continue;
+      const row5 = carriers.find((c) => a.carrierId && c.id === a.carrierId) || carriers.find((c) => a.mc && normalizeText(c.mc).replace(/\D/g, "") === a.mc.replace(/\D/g, "") && a.mc.replace(/\D/g, "")) || null;
+      const gone = !row5 && !a.email;
+      out.push({ ...a, fit: f, carrier: row5, name: a.carrierName || row5 && row5.carrierName || "", email: a.email || row5 && row5.email || "", phone: a.phone || row5 && row5.phone || "", unreachable: gone });
+    }
+    return out.sort((x, y) => y.fit - x.fit || (y.priority === "primary") - (x.priority === "primary") || y.wins - x.wins);
+  }
+  function assignmentDraft(load, a, { signature: signature2 = "", rate: rate3 = "" } = {}) {
+    const hello2 = a.name ? "Hi " + String(a.name).split(/\s+/)[0] + " team," : "Hello,";
+    const pu = load.pickupEarliest || load.pickupDate || "";
+    const lane = placeText(load.originCity, load.originState) + " to " + placeText(load.destCity, load.destState);
+    const r = safeNumeric(rate3) || safeNumeric(a.rate) || 0;
+    const subject = "First call: " + lane + (pu ? " (" + day(pu) + ")" : "");
+    const lines2 = [
+      hello2,
+      "",
+      "You usually run this lane for us, so you get the first look: " + lane + (pu ? ", pickup " + (day(pu) || pu) : "") + ".",
+      load.equip ? "Equipment: " + load.equip + "." : "",
+      r ? "I can do " + money2(r) + ' all-in. If you have a truck, reply "yes" and I will send the rate confirmation right away.' : "If you have a truck for it, reply with your all-in rate and I will confirm right away.",
+      "Please send driver and dispatch info as soon as you have it.",
+      "",
+      signature2 || "Thank you,"
+    ].filter((l, i, arr) => l !== "" || arr[i - 1] !== "" && i > 0);
+    const script = ["Call " + (a.name || "the carrier") + (a.phone ? " at " + a.phone : "") + ":", '"' + lane + (pu ? ", picking up " + (day(pu) || pu) : "") + ". You usually run this one. " + (r ? "I can do " + money2(r) + ". " : "What do you need on it? ") + 'Can you cover it?"', "If yes: send the rate confirmation and ask for driver and dispatch info."];
+    return { to: a.email, subject, body: lines2.join("\n"), script: script.join("\n") };
+  }
+  function recordOutcome(a, { won = false, at = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+    return { ...a, hits: (a.hits || 0) + 1, wins: (a.wins || 0) + (won ? 1 : 0), lastOfferedAt: at, lastWonAt: won ? at : a.lastWonAt || "" };
+  }
+  function primaryMap(assignments = [], carriers = []) {
+    const byId = new Map(carriers.map((c) => [c.id, c]));
+    const byMc = /* @__PURE__ */ new Map();
+    const byMail = /* @__PURE__ */ new Map();
+    for (const c of carriers) {
+      const d = digitsOnly(c.mc);
+      if (d && !byMc.has(d)) byMc.set(d, c);
+      const e = mailOf(c.email);
+      if (e && !byMail.has(e)) byMail.set(e, c);
+    }
+    const out = /* @__PURE__ */ new Map();
+    for (const a of assignments) {
+      if (!a || a.active === false) continue;
+      const c = a.carrierId && byId.get(a.carrierId) || digitsOnly(a.mc) && byMc.get(digitsOnly(a.mc)) || mailOf(a.email) && byMail.get(mailOf(a.email)) || null;
+      if (!c) continue;
+      const e = out.get(c.id) || { level: "backup", lanes: [], count: 0, wins: 0, text: "" };
+      const level = a.priority === "backup" ? "backup" : "primary";
+      if (level === "primary") e.level = "primary";
+      e.lanes.push(describeAssignment(a));
+      e.count++;
+      e.wins += Number(a.wins) || 0;
+      out.set(c.id, e);
+    }
+    for (const e of out.values()) e.text = e.level + " " + e.lanes.join(" ; ");
+    return out;
+  }
+  function primaryBoost(fitScore, priority) {
+    const f = Math.max(0, Math.min(100, Number(fitScore) || 0));
+    return priority === "backup" ? Math.round(f * 0.35) : Math.round(f * 0.6);
+  }
+  var describeAssignment, day, digitsOnly, mailOf;
+  var init_assignments = __esm({
+    "js/core/assignments.js"() {
+      init_util();
+      init_netcommon();
+      init_lanematch();
+      describeAssignment = (a) => {
+        const side = (c, s) => c ? placeText(c, s) : s ? "anywhere in " + s : "anywhere";
+        return side(a.originCity, a.originState) + " to " + side(a.destCity, a.destState);
+      };
+      day = (iso) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ""));
+        return m ? `${Number(m[2])}/${Number(m[3])}` : "";
+      };
+      digitsOnly = (v) => String(v ?? "").replace(/\D/g, "");
+      mailOf = (v) => String(v ?? "").trim().toLowerCase();
+    }
+  });
+
   // js/core/ranking.js
   function dist(zip, aCity, aState, bCity, bState) {
     if (!zip || !zip.size) return null;
@@ -4095,6 +4536,14 @@ details.boardextras > :not(summary) { margin: 12px; }
       const same3 = normalizeText(q4.originState) === normalizeText(post3.originState);
       if (same3) inqBy.set(em, (inqBy.get(em) || 0) + (String(q4.stage || "").toUpperCase() === "RATE_RESPONSE_SENT" || safeNumeric(q4.lastCarrierRate) > 0 ? 2 : 1));
     }
+    const star = /* @__PURE__ */ new Map();
+    if (ctx2.assignments && ctx2.assignments.length) {
+      for (const a of matchAssignments(post3, ctx2.assignments, carriers, { zipMap: ctx2.zip })) if (a.carrier) {
+        const old = star.get(a.carrier.id);
+        const b = primaryBoost(a.fit, a.priority);
+        if (!old || b > old.boost) star.set(a.carrier.id, { boost: b, level: a.priority === "backup" ? "backup" : "primary", lane: describeLane(a) });
+      }
+    }
     const out = [];
     for (const c of carriers) {
       const email = safeString(c.email).toLowerCase();
@@ -4102,10 +4551,16 @@ details.boardextras > :not(summary) { margin: 12px; }
       if (safeString(c.status).toLowerCase() === "inactive") continue;
       if (email && isBlockedExcel(email, settings.outreachBlocklist)) continue;
       if (ctx2.exclude && email && ctx2.exclude.has(email)) continue;
-      const fit2 = laneFit(post3, c, ctx2.zip, radius);
+      let fit2 = laneFit(post3, c, ctx2.zip, radius);
+      const st2 = star.get(c.id);
+      if (!fit2 && st2) fit2 = { tier: "P", tierLabel: st2.level === "backup" ? "Backup carrier" : "Primary carrier", geo: 30, why: "you set them as " + st2.level + " for " + st2.lane };
       if (!fit2) continue;
       let score2 = fit2.geo;
       const reasons = [fit2.why];
+      if (st2) {
+        score2 += st2.boost;
+        reasons.unshift(st2.level === "backup" ? "backup carrier for this lane" : "primary carrier for this lane");
+      }
       const cov = coversBy.get(email) || 0, near3 = nearBy.get(email) || 0;
       if (cov) {
         score2 += Math.min(60, cov * 30);
@@ -4131,17 +4586,17 @@ details.boardextras > :not(summary) { margin: 12px; }
         reasons.push(`${Math.round(rr)}% response rate`);
       }
       const lc2 = Date.parse(c.lastCovered);
-      if (Number.isFinite(lc2) && now - lc2 < 30 * DAY2) {
+      if (Number.isFinite(lc2) && now - lc2 < 30 * DAY3) {
         score2 += 5;
         reasons.push("covered in the last 30 days");
       }
       const ct = Date.parse(c.lastContacted);
       if (Number.isFinite(ct)) {
         const age2 = now - ct;
-        if (age2 < DAY2) {
+        if (age2 < DAY3) {
           score2 -= 25;
           reasons.push("contacted in the last 24 h");
-        } else if (age2 < 3 * DAY2) {
+        } else if (age2 < 3 * DAY3) {
           score2 -= 10;
           reasons.push("contacted in the last 3 days");
         }
@@ -4156,7 +4611,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           reasons.push("equipment may not match");
         }
       }
-      out.push({ carrier: c, score: Math.round(score2 * 10) / 10, tier: fit2.tier, tierLabel: fit2.tierLabel, reasons });
+      out.push({ carrier: c, score: Math.round(score2 * 10) / 10, tier: fit2.tier, tierLabel: fit2.tierLabel, reasons, primary: st2 ? st2.level : "" });
     }
     return out.sort((a, b) => b.score - a.score || String(a.carrier.carrierName).localeCompare(String(b.carrier.carrierName)));
   }
@@ -4240,7 +4695,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     }
     return { drafts, logEntries, countUpdates };
   }
-  var DAY2, isYes;
+  var DAY3, describeLane, isYes;
   var init_ranking = __esm({
     "js/core/ranking.js"() {
       init_util();
@@ -4250,7 +4705,12 @@ details.boardextras > :not(summary) { margin: 12px; }
       init_lanes();
       init_defaults();
       init_equipment();
-      DAY2 = 864e5;
+      init_assignments();
+      DAY3 = 864e5;
+      describeLane = (a) => {
+        const side = (c, s) => c ? c + (s ? ", " + s : "") : s ? "anywhere in " + s : "anywhere";
+        return side(a.originCity, a.originState) + " to " + side(a.destCity, a.destState);
+      };
       isYes = (t2) => ["YES", "Y", "TRUE", "1"].includes(String(t2 ?? "").trim().toUpperCase());
     }
   });
@@ -5192,237 +5652,22 @@ details.boardextras > :not(summary) { margin: 12px; }
   function sendCounts(entries = [], convId = "", now = Date.now()) {
     const auto = entries.filter((e) => e && e.status === "auto");
     const sentInConversation = auto.filter((e) => convId && e.convId === convId).map((e) => ({ kind: e.kind, at: e.at }));
-    return { sentInConversation, sentToday: auto.filter((e) => now - e.at < DAY3).length, sentLastHour: auto.filter((e) => now - e.at < HOUR).length };
+    return { sentInConversation, sentToday: auto.filter((e) => now - e.at < DAY4).length, sentLastHour: auto.filter((e) => now - e.at < HOUR2).length };
   }
   function shadowStats(entries = []) {
     return readiness(entries.filter((e) => e && (e.status === "shadow" || e.status === "auto" || e.status === "drafted")));
   }
   function ledgerSummary(entries = [], now = Date.now()) {
-    const day2 = entries.filter((e) => e && now - e.at < DAY3);
+    const day2 = entries.filter((e) => e && now - e.at < DAY4);
     const c = (s) => day2.filter((e) => e.status === s).length;
     return { today: day2.length, auto: c("auto"), drafted: c("drafted") + c("shadow"), review: exceptionQueue(entries).length, ignored: c("ignored") };
   }
-  var HOUR, DAY3;
+  var HOUR2, DAY4;
   var init_ledger = __esm({
     "js/core/ledger.js"() {
       init_sendpolicy();
-      HOUR = 36e5;
-      DAY3 = 24 * HOUR;
-    }
-  });
-
-  // js/core/resources.js
-  function parseMcDot(text2) {
-    const t2 = clean(text2);
-    if (!t2) return null;
-    const dot = t2.match(/(?:us\s*)?dot\s*(?:no\.?|#|:)?\s*(\d{3,9})/i);
-    if (dot) return { type: "DOT", num: dot[1] };
-    const mc = t2.match(/\b(?:mc|mx|ff)\s*(?:no\.?|#|:|-)?\s*(\d{3,8})/i);
-    if (mc) return { type: "MC", num: mc[1] };
-    const bare = t2.match(/^\D*(\d{3,9})\D*$/);
-    if (bare) return { type: bare[1].length >= 7 ? "DOT" : "MC", num: bare[1] };
-    return null;
-  }
-  function fmcsaUrl(mcDot) {
-    const p = parseMcDot(mcDot);
-    if (!p) return "";
-    return `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=${p.type === "DOT" ? "USDOT" : "MC_MX"}&query_string=${p.num}`;
-  }
-  function mapsRouteUrl(p) {
-    const o = place(p.originCity, p.originState), d = place(p.destCity, p.destState);
-    if (!o || !d) return "";
-    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}&travelmode=driving`;
-  }
-  function mapsCarriersNearUrl(p) {
-    const o = place(p.originCity, p.originState);
-    if (!o) return "";
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("trucking companies near " + o)}`;
-  }
-  function telHref(phone) {
-    const main = clean(phone).split(/\b(?:ext\.?|x)\s*\d+/i)[0];
-    const d = main.replace(/\D/g, "");
-    if (d.length < 7 || d.length > 15) return "";
-    return "tel:" + (/^\s*\+/.test(main) ? "+" : "") + d;
-  }
-  var FMCSA_SAFER_URL, clean, place, mailHref, TOOLKIT;
-  var init_resources = __esm({
-    "js/core/resources.js"() {
-      init_defaults();
-      FMCSA_SAFER_URL = "https://safer.fmcsa.dot.gov/CompanySnapshot.aspx";
-      clean = (s) => String(s ?? "").trim();
-      place = (city, st2) => [clean(city), clean(st2).toUpperCase()].filter(Boolean).join(", ");
-      mailHref = (email) => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(clean(email)) ? "mailto:" + clean(email) : "";
-      TOOLKIT = [
-        { id: "dat-trucks", label: "DAT Find Trucks", note: "Search posted trucks", url: FINDTRUCK_URL, icon: "truck" },
-        { id: "dat-rates", label: "DAT RateView", note: "Lane rate averages", url: RATEVIEW_BASE, icon: "rateview" },
-        { id: "fmcsa", label: "FMCSA SAFER", note: "Check authority and insurance", url: FMCSA_SAFER_URL, icon: "shield" },
-        { id: "maps", label: "Google Maps", note: "Routes and carriers near a pickup", url: "https://www.google.com/maps", icon: "route" },
-        { id: "weather", label: "Ventusky weather", note: "Weather along the lane", url: VENTUSKY_URL, icon: "storm" }
-      ];
-    }
-  });
-
-  // js/core/netcommon.js
-  function newId(now = Date.now(), rand2 = Math.random) {
-    return now.toString(36).padStart(9, "0") + Math.floor(rand2() * 36 ** 5).toString(36).padStart(5, "0");
-  }
-  function carrierKey({ mc, email } = {}) {
-    const p = parseMcDot(mc);
-    if (p) return (p.type === "DOT" ? "dot:" : "mc:") + p.num;
-    const e = emailOf(email);
-    return e ? "em:" + hash(e) : "";
-  }
-  function hash(s) {
-    let h2 = 2166136261;
-    for (let i = 0; i < s.length; i++) {
-      h2 ^= s.charCodeAt(i);
-      h2 = Math.imul(h2, 16777619) >>> 0;
-    }
-    return h2.toString(36);
-  }
-  function makeInvite(rand2) {
-    const pick2 = (n) => {
-      const bytes = new Uint8Array(n);
-      if (rand2) for (let i = 0; i < n; i++) bytes[i] = Math.floor(rand2() * 256);
-      else globalThis.crypto.getRandomValues(bytes);
-      return [...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join("");
-    };
-    const team = pick2(TEAM_LEN), secret = pick2(SECRET_LEN);
-    return { teamId: team.toLowerCase(), secret: secret.toLowerCase(), code: formatInvite(team + secret) };
-  }
-  function formatInvite(raw) {
-    return (String(raw).toUpperCase().replace(/[^A-Z0-9]/g, "").match(/.{1,4}/g) || []).join("-");
-  }
-  function parseInvite(text2) {
-    const up = String(text2 ?? "").toUpperCase();
-    let raw = up.replace(/[^A-Z0-9]/g, "");
-    if (raw.length !== TEAM_LEN + SECRET_LEN) {
-      const m = /(?:[A-Z2-9]{4}[\s-]*){4}[A-Z2-9]{4}/.exec(up);
-      raw = m ? m[0].replace(/[^A-Z0-9]/g, "") : "";
-    }
-    if (raw.length !== TEAM_LEN + SECRET_LEN) return null;
-    if ([...raw].some((c) => !ALPHABET.includes(c))) return null;
-    return { teamId: raw.slice(0, TEAM_LEN).toLowerCase(), secret: raw.slice(TEAM_LEN).toLowerCase(), code: formatInvite(raw) };
-  }
-  function resolveSpot(text2, zipMap) {
-    const t2 = oneLine(text2, 80);
-    if (!t2 || !zipMap || !zipMap.size) return null;
-    let zip = "";
-    if (/^\d{5}(-\d{4})?$/.test(t2)) zip = normalizeZip(t2);
-    else {
-      const m = /^(.*?)[,\s]+([A-Za-z]{2})$/.exec(t2);
-      if (m) zip = zipMap.bestZipForCityState(m[1].trim(), m[2].toUpperCase());
-    }
-    if (!zip) return null;
-    const r = zipMap.findZip(zip);
-    if (!r) return null;
-    return { zip, city: r.city, state: r.state, lat: r.lat, lng: r.lng };
-  }
-  function equipFits(want, truck, looseReefer = false) {
-    if (!want) return true;
-    const a = equipFamilies(want) || ["van"], b = equipFamilies(truck) || ["van"];
-    if (a.some((f) => b.includes(f))) return true;
-    return !!looseReefer && a.includes("van") && b.includes("reefer");
-  }
-  function isoDay(v) {
-    const t2 = String(v ?? "").trim();
-    if (!t2) return "";
-    let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t2);
-    if (!m) {
-      const x = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(t2);
-      if (x) m = [0, x[3].length === 2 ? "20" + x[3] : x[3], x[1].padStart(2, "0"), x[2].padStart(2, "0")];
-    }
-    if (!m) return "";
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    if (d.getFullYear() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) return "";
-    return `${m[1]}-${m[2]}-${m[3]}`;
-  }
-  function ago(ms, now = Date.now()) {
-    if (!Number.isFinite(ms)) return "";
-    const m = Math.max(0, Math.round((now - ms) / MIN));
-    return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 48 * 60 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago";
-  }
-  function until(ms, now = Date.now()) {
-    if (!Number.isFinite(ms)) return "";
-    const m = Math.round((ms - now) / MIN);
-    return m <= 0 ? "expired" : m < 60 ? `in ${m} min` : m < 48 * 60 ? `in ${Math.round(m / 60)} h` : `in ${Math.round(m / 1440)} d`;
-  }
-  function repriceTotal(ops) {
-    let total = 0;
-    for (const o of Array.isArray(ops) ? ops : []) {
-      if (!o || o.type !== "reprice") continue;
-      const m = /([+-])\s*\$?\s*([\d,]+)/.exec(String(o.detail || ""));
-      if (m) total += (m[1] === "-" ? -1 : 1) * Number(m[2].replace(/,/g, ""));
-    }
-    return total;
-  }
-  var MIN, HOUR2, DAY4, oneLine, multiLine, stateCode, emailOf, phoneOf, ALPHABET, TEAM_LEN, SECRET_LEN, marketKey, placeText, zipMiles, equipFamily, dayStart, dayEnd, todayIso, addDays, usDate, median, mean, percentile, roundTo2, money2;
-  var init_netcommon = __esm({
-    "js/core/netcommon.js"() {
-      init_util();
-      init_resources();
-      init_equipment();
-      MIN = 6e4;
       HOUR2 = 36e5;
-      DAY4 = 864e5;
-      oneLine = (v, max = 120) => String(v ?? "").replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, max);
-      multiLine = (v, max = 1e3) => String(v ?? "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
-      stateCode = (v) => oneLine(v, 2).toUpperCase();
-      emailOf = (v) => {
-        const t2 = oneLine(v, 120).toLowerCase();
-        return /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/.test(t2) ? t2 : "";
-      };
-      phoneOf = (v) => {
-        const t2 = oneLine(v, 30);
-        const d = t2.replace(/\D/g, "");
-        return d.length >= 7 && d.length <= 15 ? t2 : "";
-      };
-      ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      TEAM_LEN = 8;
-      SECRET_LEN = 12;
-      marketKey = (city, st2) => normalizeText(city) + "|" + normalizeText(st2);
-      placeText = (city, st2) => [oneLine(city, 60), stateCode(st2)].filter(Boolean).join(", ");
-      zipMiles = (zipMap, a, b) => zipMap && zipMap.size && a && b ? zipMap.distanceBetweenZips(a, b) : null;
-      equipFamily = (code) => (equipFamilies(code) || ["van"])[0] || "van";
-      dayStart = (iso) => {
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
-        return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime() : NaN;
-      };
-      dayEnd = (iso) => {
-        const s = dayStart(iso);
-        return Number.isFinite(s) ? s + DAY4 - 1 : NaN;
-      };
-      todayIso = (now = Date.now()) => {
-        const d = new Date(now);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      };
-      addDays = (iso, n) => {
-        const s = dayStart(iso);
-        if (!Number.isFinite(s)) return "";
-        return todayIso(s + n * DAY4 + 12 * HOUR2);
-      };
-      usDate = (iso) => {
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
-        return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : "";
-      };
-      median = (list) => {
-        const a = list.filter(Number.isFinite).sort((x, y) => x - y);
-        if (!a.length) return null;
-        const n = a.length;
-        return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
-      };
-      mean = (list) => {
-        const a = list.filter(Number.isFinite);
-        return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
-      };
-      percentile = (list, p) => {
-        const a = list.filter(Number.isFinite).sort((x, y) => x - y);
-        if (!a.length) return null;
-        const i = Math.min(a.length - 1, Math.max(0, Math.ceil(p * a.length) - 1));
-        return a[i];
-      };
-      roundTo2 = (n, step2 = 25) => Number.isFinite(n) ? Math.round(n / step2) * step2 : null;
-      money2 = (n) => Number.isFinite(Number(n)) && n !== "" && n !== null ? "$" + Math.round(Number(n)).toLocaleString("en-US") : "";
+      DAY4 = 24 * HOUR2;
     }
   });
 
@@ -5430,7 +5675,7 @@ details.boardextras > :not(summary) { margin: 12px; }
   function freshness(t2, now = Date.now()) {
     const at = Number(t2 && t2.at);
     if (!Number.isFinite(at) || at <= 0) return 0.25;
-    const h2 = (now - at) / HOUR2;
+    const h2 = (now - at) / HOUR;
     if (h2 <= FRESH_FULL_HOURS) return 1;
     if (h2 >= FRESH_ZERO_HOURS) return 0;
     return Math.round((1 - (h2 - FRESH_FULL_HOURS) / (FRESH_ZERO_HOURS - FRESH_FULL_HOURS)) * 100) / 100;
@@ -5482,7 +5727,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       dateTo,
       note: oneLine(input2.note, 300),
       at,
-      exp: Number(input2.exp) > 0 ? Number(input2.exp) : Math.max(at + hours * HOUR2, dayStart(date) + 12 * HOUR2),
+      exp: Number(input2.exp) > 0 ? Number(input2.exp) : Math.max(at + hours * HOUR, dayStart(date) + 12 * HOUR),
       status: input2.status || "open",
       source,
       by
@@ -5832,7 +6077,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     for (const e of ctx2.coverLog || []) {
       if (e.outcome !== "Covered" || !e.carrier || !(e.carrier.email || e.carrier.mc)) continue;
       const t2 = Date.parse(e.closedAt);
-      const days2 = Number.isFinite(t2) ? (now - t2) / DAY4 : 999;
+      const days2 = Number.isFinite(t2) ? (now - t2) / DAY2 : 999;
       if (days2 > 90) continue;
       const l = e.lane || {};
       const who = { name: e.carrier.name, email: e.carrier.email, phone: e.carrier.phone, mc: e.carrier.mc };
@@ -5874,7 +6119,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       if (d === null || d === "" || !oz) continue;
       const pick2 = isoDay(o.pickupEarliest) || arrive, last2 = isoDay(o.pickupLatest) || pick2;
       if (last2 < arrive) continue;
-      out.push({ load: o, gapMiles: Math.round(d), daysAfter: Math.max(0, Math.round((Date.parse(pick2) - Date.parse(arrive)) / DAY4)) });
+      out.push({ load: o, gapMiles: Math.round(d), daysAfter: Math.max(0, Math.round((Date.parse(pick2) - Date.parse(arrive)) / DAY2)) });
     }
     return out.sort((a, b) => a.gapMiles - b.gapMiles || a.daysAfter - b.daysAfter);
   }
@@ -5980,7 +6225,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     const dat = safeNumeric(load.datAvg);
     if (dat > 0) {
       const t2 = Date.parse(load.datAvgAt);
-      const ageH = Number.isFinite(t2) ? (now - t2) / HOUR2 : null;
+      const ageH = Number.isFinite(t2) ? (now - t2) / HOUR : null;
       const w = ageH === null ? 1.2 : ageH <= 48 ? 2.5 : ageH <= 24 * 7 ? 1.5 : 0.7;
       pts.push({ rate: dat, w, tag: "dat" });
       basis.push("The DAT average you entered (" + money2(dat) + ", " + (ageH === null ? "date unknown" : ageH < 1 ? "just now" : ageH < 48 ? Math.round(ageH) + " h old" : Math.round(ageH / 24) + " d old") + ")");
@@ -6032,7 +6277,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       recency = (iso, now) => {
         const t2 = Date.parse(iso);
         if (!Number.isFinite(t2)) return 0.5;
-        const d = Math.max(0, (now - t2) / DAY4);
+        const d = Math.max(0, (now - t2) / DAY2);
         return Math.max(0.2, Math.pow(0.5, d / HALF_LIFE_DAYS));
       };
       zipFor = (city, st2, zip, zipMap) => normalizeZip(zip) || (zipMap && zipMap.size && city && st2 ? zipMap.bestZipForCityState(city, st2) : "");
@@ -6054,7 +6299,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     for (const c of rows || []) {
       const id = identityOf(c);
       if (!id) continue;
-      const k = id + "#" + laneOf(c);
+      const k = id + "#" + laneOf2(c);
       (groups.get(k) || groups.set(k, []).get(k)).push(c);
     }
     const drop = [], keep = [];
@@ -6071,7 +6316,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     for (const c of rows || []) {
       const id = identityOf(c);
       if (!id) continue;
-      const k = id + "#" + laneOf(c);
+      const k = id + "#" + laneOf2(c);
       (groups.get(k) || groups.set(k, []).get(k)).push(c);
     }
     const out = [];
@@ -6090,7 +6335,7 @@ details.boardextras > :not(summary) { margin: 12px; }
   }
   function callSheet(heads, carriers, ctx2 = {}) {
     const now = (ctx2.now instanceof Date ? ctx2.now : new Date(ctx2.now || Date.now())).getTime();
-    const quiet = (Number(ctx2.quietHours) > 0 ? Number(ctx2.quietHours) : 4) * HOUR2;
+    const quiet = (Number(ctx2.quietHours) > 0 ? Number(ctx2.quietHours) : 4) * HOUR;
     const recent = new Set((ctx2.outreach || []).filter((o) => now - Date.parse(o.at || o.sentAt || o.date || 0) < quiet).map((o) => String(o.email || "").toLowerCase()).filter(Boolean));
     const best = /* @__PURE__ */ new Map();
     const callable = (carriers || []).filter((c) => safeString(c.phone));
@@ -6121,7 +6366,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     const bits = [];
     const created = Date.parse(load.createdAt);
     if (Number.isFinite(created)) {
-      const h2 = (now - created) / HOUR2;
+      const h2 = (now - created) / HOUR;
       if (h2 > 24) {
         f += 0.2;
         bits.push("posted " + ago(created, now));
@@ -6129,7 +6374,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     }
     const pu = Date.parse(load.pickupEarliest);
     if (Number.isFinite(pu)) {
-      const d = (pu - now) / DAY4;
+      const d = (pu - now) / DAY2;
       if (d < 1) {
         f += 0.35;
         bits.push("picks up today");
@@ -6147,14 +6392,14 @@ details.boardextras > :not(summary) { margin: 12px; }
     }
     return { factor: Math.min(1, f), label: bits.join(", ") };
   }
-  var laneOf, richness;
+  var laneOf2, richness;
   var init_prospects = __esm({
     "js/core/prospects.js"() {
       init_netcommon();
       init_util();
       init_ranking();
       init_corridor();
-      laneOf = (c) => [c.originCity, c.originState, c.destCity, c.destState].map(normalizeText).join("|");
+      laneOf2 = (c) => [c.originCity, c.originState, c.destCity, c.destState].map(normalizeText).join("|");
       richness = (c) => ["carrierName", "mc", "email", "phone", "equipment", "rate", "lastCovered", "lastContacted", "notes"].reduce((n, k) => n + (safeString(c[k]) ? 1 : 0), 0) + safeNumeric(c.coverCount);
     }
   });
@@ -6235,12 +6480,12 @@ details.boardextras > :not(summary) { margin: 12px; }
   });
 
   // js/core/autorescue.js
-  function stageAt(minutes) {
+  function stageAt(minutes, pace = 1) {
     let cur = STAGES[0];
-    for (const s of STAGES) if (minutes >= s.at) cur = s;
+    for (const s of STAGES) if (minutes * pace >= s.at) cur = s;
     return cur;
   }
-  function newRescue(head, { now = Date.now(), maxRate = 0, includeTeam = false, auto = false } = {}) {
+  function newRescue(head, { now = Date.now(), maxRate = 0, includeTeam = false, auto = false, pace = 1, cycleMinutes = 0 } = {}) {
     return {
       id: head.id,
       headId: head.id,
@@ -6250,6 +6495,8 @@ details.boardextras > :not(summary) { margin: 12px; }
       maxRate: Math.max(0, Math.round(safeNumeric(maxRate))),
       includeTeam: !!includeTeam,
       auto: !!auto,
+      pace: Number(pace) >= 2 ? 2 : 1,
+      cycleEvery: Math.max(0, Math.round(safeNumeric(cycleMinutes))),
       fired: {},
       contacts: {},
       calls: [],
@@ -6258,18 +6505,35 @@ details.boardextras > :not(summary) { margin: 12px; }
       raised: 0,
       sig: "",
       lastEvalAt: 0,
-      drafts: 0
+      drafts: 0,
+      cycles: 0,
+      lastCycleAt: 0,
+      reshuffles: 0,
+      lastReshuffleAt: 0,
+      repliesAtReshuffle: 0,
+      repost: null
     };
   }
-  function dueStages(rescue, now = Date.now()) {
+  function dueStages(rescue, now = Date.now(), settings = {}) {
     if (!rescue || rescue.status !== "active") return [];
+    const pace = paceOf(rescue);
     const mins = (now - rescue.startedAt) / MIN;
-    return STAGES.filter((s) => mins >= s.at && !rescue.fired[s.id]).map((s) => s.id);
+    const due = STAGES.filter((s) => mins * pace >= s.at && !rescue.fired[s.id]).map((s) => s.id);
+    if (mins * pace >= CYCLE_STAGE.at && !due.length) {
+      const every = cycleEveryOf(rescue, settings) / pace;
+      if (!rescue.lastCycleAt || (now - rescue.lastCycleAt) / MIN >= every) due.push("cycle");
+    }
+    return due;
   }
-  function nextStep(rescue, now = Date.now()) {
+  function nextStep(rescue, now = Date.now(), settings = {}) {
+    const pace = paceOf(rescue);
     const mins = (now - rescue.startedAt) / MIN;
-    const n = STAGES.find((s) => !rescue.fired[s.id] && s.at > mins);
-    return n ? { stage: n, inMinutes: Math.max(0, Math.ceil(n.at - mins)) } : null;
+    const n = STAGES.find((s) => !rescue.fired[s.id] && s.at / pace > mins);
+    if (n) return { stage: n, inMinutes: Math.max(0, Math.ceil(n.at / pace - mins)) };
+    if (rescue.status !== "active") return null;
+    const every = cycleEveryOf(rescue, settings) / pace;
+    const at = rescue.lastCycleAt ? rescue.lastCycleAt + every * MIN : rescue.startedAt + CYCLE_STAGE.at / pace * MIN;
+    return { stage: CYCLE_STAGE, inMinutes: Math.max(0, Math.ceil((at - now) / MIN)) };
   }
   function contactLedger({ outreach = [], rescues = [], carriers = [], drafts = [] } = {}) {
     const m = /* @__PURE__ */ new Map();
@@ -6289,14 +6553,18 @@ details.boardextras > :not(summary) { margin: 12px; }
     for (const d of drafts) if (d.rescueId) add(keyFor2(d.to), Date.parse(d.createdAt), d.postingId);
     return m;
   }
-  function canContact(key, loadId2, ledger, now, settings = {}) {
+  function canContact(key, loadId2, ledger, now, settings = {}, opts2 = {}) {
     const list = ledger && ledger.get(key) || [];
-    const gap = cfg(settings, "rescueMinHoursBetween") * HOUR2;
-    const maxLoad = cfg(settings, "rescueMaxPerLoad");
+    const cycles = Math.max(0, Number(opts2.cycles) || 0);
+    let gapH = cfg(settings, "rescueMinHoursBetween") / (1 + 0.5 * Math.min(cycles, 4));
+    if (cycles) gapH = Math.max(4, gapH);
+    if (opts2.update) gapH = Math.min(gapH, 3);
+    const gap = gapH * HOUR;
+    const maxLoad = cfg(settings, "rescueMaxPerLoad") + Math.min(2, Math.floor(cycles / 2));
     const forLoad = list.filter((c) => c.loadId === loadId2).length;
     if (forLoad >= maxLoad) return { ok: false, why: "already contacted " + forLoad + " times about this load" };
     const last2 = list.reduce((mx, c) => Math.max(mx, c.t), 0);
-    if (last2 && now - last2 < gap) return { ok: false, why: "contacted " + Math.max(1, Math.round((now - last2) / HOUR2)) + " h ago (minimum gap " + Math.round(gap / HOUR2) + " h)" };
+    if (last2 && now - last2 < gap) return { ok: false, why: "contacted " + Math.max(1, Math.round((now - last2) / HOUR)) + " h ago (minimum gap " + Math.round(gapH) + " h)" };
     return { ok: true, why: "" };
   }
   function gatherProspects(load, ctx2 = {}, { wide = false } = {}) {
@@ -6307,20 +6575,27 @@ details.boardextras > :not(summary) { margin: 12px; }
       const k = carrierKey({ mc: who.mc, email }) || (email ? "e:" + email : "") || (who.phone ? "p:" + String(who.phone).replace(/\D/g, "") : "");
       if (!k) return;
       const ek = email ? "e:" + email : k;
-      const o = out.get(ek) || out.get(k) || { key: ek, name: "", email, phone: "", mc: "", score: 0, why: [], sources: [] };
+      const o = out.get(ek) || out.get(k) || { key: ek, ck: "", name: "", email, phone: "", mc: "", score: 0, why: [], sources: [] };
       o.name = o.name || who.name || "";
       o.phone = o.phone || who.phone || "";
       o.mc = o.mc || who.mc || "";
       o.email = o.email || email;
+      o.ck = callKeyOf(o);
       o.score += add;
       if (why && !o.why.includes(why)) o.why.push(why);
       if (!o.sources.includes(src)) o.sources.push(src);
+      const keepPrimary = o.primary === "primary" || o.primary === "backup" && extra.primary !== "primary" ? o.primary : extra.primary;
       Object.assign(o, extra);
+      if (keepPrimary) o.primary = keepPrimary;
       out.set(o.key, o);
     };
+    for (const a of matchAssignments(load, ctx2.assignments || [], ctx2.carriers || [], { zipMap })) {
+      if (!a.email && !a.phone) continue;
+      put2({ name: a.name, email: a.email, phone: a.phone, mc: a.mc || a.carrier && a.carrier.mc }, (a.priority === "backup" ? 70 : 120) * (a.fit / 100), (a.priority === "backup" ? "backup" : "primary") + " carrier for " + describeSide(a), "primary", { carrierId: a.carrierId || a.carrier && a.carrier.id || "", primary: a.priority === "backup" ? "backup" : "primary", tier: a.priority === "backup" ? "Backup carrier" : "Primary carrier" });
+    }
     const asked = ctx2.exclude || /* @__PURE__ */ new Set();
-    for (const r of rankCarriers(load, ctx2.carriers || [], { zip: zipMap, settings, coverLog: ctx2.coverLog, inquiries: ctx2.inquiries, now: new Date(now), exclude: asked }).slice(0, wide ? 60 : 30)) {
-      put2({ name: r.carrier.carrierName, email: r.carrier.email, phone: r.carrier.phone, mc: r.carrier.mc }, Number(r.score) || 0, (r.reasons || []).slice(0, 2).join("; "), "database", { carrierId: r.carrier.id, tier: r.tierLabel });
+    for (const r of rankCarriers(load, ctx2.carriers || [], { zip: zipMap, settings, coverLog: ctx2.coverLog, inquiries: ctx2.inquiries, assignments: ctx2.assignments, now: new Date(now), exclude: asked, requireEmail: false }).slice(0, wide ? 60 : 30)) {
+      put2({ name: r.carrier.carrierName, email: r.carrier.email, phone: r.carrier.phone, mc: r.carrier.mc }, Number(r.score) || 0, (r.reasons || []).slice(0, 2).join("; "), "database", { carrierId: r.carrier.id, tier: r.tierLabel, ...r.primary ? { primary: r.primary } : {} });
     }
     const tctx = { zipMap, now, carrierHistory: carrierHistoryFromLog(ctx2.coverLog), radius: wide ? 400 : 200 };
     for (const t2 of matchTrucksToLoad(load, ctx2.trucks || [], tctx)) {
@@ -6335,7 +6610,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     const current4 = Math.max(safeNumeric(rescue.offerRate), safeNumeric(load.targetRate));
     const sg = suggestRate(load, { zipMap: ctx2.zipMap, coverLog: ctx2.coverLog, inquiries: ctx2.inquiries, settings: ctx2.settings, now: ctx2.now });
     const diff = laneDifficulty(load, { zipMap: ctx2.zipMap, settings: ctx2.settings });
-    const step2 = cfg(ctx2.settings, "rescueRaiseStep");
+    const step2 = cfg(ctx2.settings, "rescueRaiseStep") + 0.01 * Math.min(Number(rescue.cycles) || 0, 3);
     let want = current4;
     if (sg.rate > current4 && sg.confidence !== "none" && sg.confidence !== "low") want = sg.rate;
     if (want <= current4) want = current4 * (1 + step2 + (diff.tough ? 0.01 : 0));
@@ -6353,29 +6628,70 @@ details.boardextras > :not(summary) { margin: 12px; }
     let details = cleanLoadDetailsText(load.details);
     if (!details) details = buildFallbackLoadDetails(load);
     const t2 = p.truck;
-    const opener = update ? "We have improved the rate on this load:" : t2 ? "I saw you have a truck open in " + placeText(t2.oCity, t2.oState) + (t2.destOpen ? "" : t2.dCity ? " heading toward " + placeText(t2.dCity, t2.dState) : "") + ". We have a load that fits:" : "We have the following load available:";
+    const opener = update ? "We have improved the rate on this load:" : p.primary ? "You usually run this lane for us, so you get the first look:" : t2 ? "I saw you have a truck open in " + placeText(t2.oCity, t2.oState) + (t2.destOpen ? "" : t2.dCity ? " heading toward " + placeText(t2.dCity, t2.dState) : "") + ". We have a load that fits:" : "We have the following load available:";
     const rateLine = rate3 > 0 ? (update ? "New rate: " : "We can offer ") + money2(rate3) + " all-in.\r\n\r\n" : "";
     const body = hello2 + "\r\n\r\n" + opener + "\r\n\r\n" + details + "\r\n\r\n" + rateLine + "Please reply with availability and your best rate.\r\n\r\nThank you,";
-    return { to: p.email, subject: (update ? "Updated rate: " : "") + buildExcelSubject(load), body, carrierId: p.carrierId || "", why: p.why.join("; "), tier: stage === "commercial" ? "Auto Rescue (rate)" : "Auto Rescue", score: p.score };
+    return { to: p.email, subject: (update ? "Updated rate: " : "") + buildExcelSubject(load), body, carrierId: p.carrierId || "", why: p.why.join("; "), tier: p.primary ? p.primary === "backup" ? "Auto Rescue (backup carrier)" : "Auto Rescue (primary carrier)" : stage === "commercial" ? "Auto Rescue (rate)" : "Auto Rescue", score: p.score, primary: p.primary || "" };
+  }
+  function callState(load) {
+    const m = /* @__PURE__ */ new Map();
+    for (const c of Array.isArray(load && load.calls) ? load.calls : []) {
+      if (!c || !c.key) continue;
+      const o = m.get(c.key);
+      if (!o || c.at >= o.at) m.set(c.key, { result: c.result, at: c.at });
+    }
+    return m;
+  }
+  function callCooling(entry, now) {
+    if (!entry) return "";
+    const age2 = (now - entry.at) / HOUR;
+    if (entry.result === "notruck" && age2 < 36) return "said they have no truck";
+    if ((entry.result === "noanswer" || entry.result === "voicemail") && age2 < 3) return entry.result === "voicemail" ? "left a voicemail" + (age2 < 1 ? " just now" : " " + Math.round(age2) + " h ago") : "did not answer " + (age2 < 1 ? "just now" : Math.round(age2) + " h ago");
+    if (entry.result === "callback" && age2 < 1) return "asked for a call back later";
+    return "";
+  }
+  function reshuffleDecision(stage, rescue, load, ctx2 = {}) {
+    if (!["expand", "commercial", "team", "cycle"].includes(stage)) return null;
+    const now = ctx2.now || Date.now();
+    const level = Number(rescue.reshuffles) || 0;
+    const pace = paceOf(rescue);
+    if (level >= cfg(ctx2.settings, "rescueMaxReshuffles")) return null;
+    if (rescue.lastReshuffleAt && now - rescue.lastReshuffleAt < 25 * MIN / pace) return null;
+    const replies = repliesOn(load, rescue, ctx2);
+    if (level === 0 ? replies >= 3 : replies > (Number(rescue.repliesAtReshuffle) || 0)) return null;
+    return { level: level + 1, reach: Math.round(Math.min(2.4, 1 + level * 0.3) * 100) / 100, crossState: true, replies };
   }
   function planStage(stage, rescue, load, ctx2 = {}) {
     const now = ctx2.now || Date.now();
     const settings = ctx2.settings || {};
+    const cycles = Number(rescue.cycles) || 0;
     const ledger = contactLedger({ outreach: ctx2.outreach, rescues: ctx2.rescues, carriers: ctx2.carriers, drafts: ctx2.drafts });
     const mine2 = rescue.contacts || {};
-    const answered = new Set((ctx2.inquiries || []).filter((q4) => q4.postingId === load.id).map((q4) => keyOfEmail(q4.senderEmail)).filter(Boolean));
-    const wave = cfg(settings, "rescueWaveSize");
-    const res = { stage, prospects: [], drafts: [], calls: [], raise: null, askTeam: false, note: "", skipped: [] };
-    const wide = stage === "expand" || stage === "team";
+    const ids = idsOf(load, rescue, ctx2);
+    const answered = new Set((ctx2.inquiries || []).filter((q4) => ids.has(q4.postingId)).map((q4) => keyOfEmail(q4.senderEmail)).filter(Boolean));
+    const calledNow = callState(load);
+    const wave = waveSizeOf(rescue, settings);
+    const res = { stage, prospects: [], drafts: [], calls: [], raise: null, reshuffle: null, askTeam: false, note: "", skipped: [] };
+    const wide = stage === "expand" || stage === "team" || stage === "cycle";
     const prospects = gatherProspects(load, ctx2, { wide });
     res.prospects = prospects;
     const used = /* @__PURE__ */ new Set();
+    const addCall = (p) => {
+      if (!p.phone || res.calls.some((c) => c.key === p.ck)) return;
+      if (callCooling(calledNow.get(p.ck), now)) return;
+      res.calls.push({ key: p.ck, name: p.name, phone: p.phone, why: p.why[0] || "", primary: p.primary || "", hot: !!p.hot, carrierId: p.carrierId || "" });
+    };
     const pick2 = (list, n, { update = false, rate: rate3 = 0 } = {}) => {
       for (const p of list) {
         if (res.drafts.length >= n) break;
         if (used.has(p.key)) continue;
+        const cool = callCooling(calledNow.get(p.ck), now);
+        if (cool === "said they have no truck") {
+          res.skipped.push({ p, why: cool });
+          continue;
+        }
         if (!p.email) {
-          if (p.phone && !res.calls.some((c2) => c2.key === p.key) && !(mine2[p.key] || []).length) res.calls.push({ key: p.key, name: p.name, phone: p.phone, why: p.why[0] || "" });
+          if (p.phone && !(mine2[p.key] || []).length) addCall(p);
           continue;
         }
         const first2 = !(mine2[p.key] || []).length;
@@ -6387,7 +6703,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           res.skipped.push({ p, why: "already replied to this load" });
           continue;
         }
-        const c = canContact(p.key, load.id, ledger, now, settings);
+        const c = canContact(p.key, load.id, ledger, now, settings, { cycles, update });
         if (!c.ok) {
           res.skipped.push({ p, why: c.why });
           continue;
@@ -6396,33 +6712,54 @@ details.boardextras > :not(summary) { margin: 12px; }
         res.drafts.push({ ...offerDraft(load, p, { rate: rate3, update, stage }), key: p.key });
       }
     };
+    const fillCalls = (limit = 6) => {
+      const order = [...prospects].filter((p) => p.phone && !answered.has(p.key)).sort((a, b) => (b.primary === "primary") - (a.primary === "primary") || !!b.primary - !!a.primary || !!b.hot - !!a.hot || b.score - a.score);
+      for (const p of order) {
+        if (res.calls.length >= limit) break;
+        addCall(p);
+      }
+      res.calls.sort((a, b) => (b.primary === "primary") - (a.primary === "primary") || !!b.primary - !!a.primary || !!b.hot - !!a.hot);
+    };
+    const offers = () => res.drafts.length + " offer" + (res.drafts.length === 1 ? "" : "s") + " drafted";
+    const target = safeNumeric(load.targetRate);
+    const curRate = safeNumeric(rescue.offerRate) || target;
     if (stage === "match") {
-      res.note = prospects.length + " prospect" + (prospects.length === 1 ? "" : "s") + " found (" + prospects.filter((p) => p.sources.includes("truck") || p.sources.includes("team truck")).length + " with an open truck).";
+      fillCalls();
+      const prim = prospects.filter((p) => p.primary).length;
+      const trk = prospects.filter((p) => p.sources.includes("truck") || p.sources.includes("team truck")).length;
+      res.note = prospects.length + " prospect" + (prospects.length === 1 ? "" : "s") + " found (" + prim + " primary or backup, " + trk + " with an open truck)." + (res.calls.length ? " " + res.calls.length + " worth a call right now." : "");
       return res;
     }
     if (stage === "wave1") {
-      pick2(prospects.filter((p) => p.sources.includes("truck") || p.sources.includes("team truck") || p.sources.includes("database")), wave, { rate: safeNumeric(load.targetRate) });
-      res.note = res.drafts.length + " offer" + (res.drafts.length === 1 ? "" : "s") + " drafted" + (res.calls.length ? ", " + res.calls.length + " to call" : "") + ".";
+      pick2(prospects.filter((p) => p.sources.some((x) => x === "truck" || x === "team truck" || x === "database" || x === "primary")), wave, { rate: target });
+      fillCalls();
+      res.note = offers() + (res.calls.length ? ", " + res.calls.length + " to call" : "") + ".";
       return res;
     }
     if (stage === "expand") {
-      pick2(prospects, wave, { rate: safeNumeric(load.targetRate) });
+      res.reshuffle = reshuffleDecision(stage, rescue, load, ctx2);
+      pick2(prospects, wave, { rate: target });
+      fillCalls();
       res.note = "Widened to " + (wide ? "a larger radius and the corridor" : "more markets") + ": " + res.drafts.length + " new offer" + (res.drafts.length === 1 ? "" : "s") + ".";
       return res;
     }
-    if (stage === "commercial") {
+    if (stage === "commercial" || stage === "cycle") {
       const pr = proposeRate(load, ctx2, rescue);
       res.raise = pr.raise ? pr : null;
-      const rate3 = pr.raise ? pr.rate : safeNumeric(rescue.offerRate) || safeNumeric(load.targetRate);
+      const rate3 = pr.raise ? pr.rate : curRate;
+      res.reshuffle = reshuffleDecision(stage, rescue, load, ctx2);
       const silent = prospects.filter((p) => (mine2[p.key] || []).length && !answered.has(p.key));
       if (pr.raise) pick2(silent, wave, { update: true, rate: rate3 });
       pick2(prospects.filter((p) => !(mine2[p.key] || []).length), wave, { rate: rate3 });
-      res.note = pr.reason + " " + res.drafts.length + " offer" + (res.drafts.length === 1 ? "" : "s") + " drafted.";
+      fillCalls();
+      res.note = (stage === "cycle" ? "Escalation round " + (cycles + 1) + ". " : "") + pr.reason + " " + offers() + ".";
       return res;
     }
     if (stage === "team") {
       res.askTeam = !!rescue.includeTeam;
-      pick2(prospects.filter((p) => p.sources.includes("team truck") || p.sources.includes("corridor")), wave, { rate: safeNumeric(rescue.offerRate) || safeNumeric(load.targetRate) });
+      res.reshuffle = reshuffleDecision(stage, rescue, load, ctx2);
+      pick2(prospects.filter((p) => p.sources.includes("team truck") || p.sources.includes("corridor")), wave, { rate: curRate });
+      fillCalls();
       res.note = (res.askTeam ? "Asked the team for help. " : "Team help is switched off for this rescue. ") + res.drafts.length + " offer" + (res.drafts.length === 1 ? "" : "s") + " drafted from all team trucks and corridors.";
       return res;
     }
@@ -6431,17 +6768,33 @@ details.boardextras > :not(summary) { margin: 12px; }
   function signatureOf(load, ctx2 = {}) {
     const now = ctx2.now || Date.now();
     const tr = matchTrucksToLoad(load, ctx2.trucks || [], { zipMap: ctx2.zipMap, now, radius: 200 }).filter((t2) => t2.tier !== "maybe").map((t2) => (t2.truck.key || t2.truck.id) + ":" + (t2.truck.at || 0)).sort().join(",");
-    const inq = (ctx2.inquiries || []).filter((q4) => q4.postingId === load.id).length;
-    const rate3 = (ctx2.inquiries || []).filter((q4) => q4.postingId === load.id).reduce((n, q4) => n + (safeNumeric(q4.lastCarrierRate) > 0 ? 1 : 0), 0);
-    return tr + "|" + inq + "|" + rate3;
+    const ids = /* @__PURE__ */ new Set([load.id, ...ctx2.groupIds || [], ...ctx2.pastIds || []]);
+    const mineQ = (ctx2.inquiries || []).filter((q4) => ids.has(q4.postingId));
+    const rate3 = mineQ.reduce((n, q4) => n + (safeNumeric(q4.lastCarrierRate) > 0 ? 1 : 0), 0);
+    return tr + "|" + mineQ.length + "|" + rate3;
   }
-  function rescueSummary(r, now = Date.now()) {
+  function rescueSummary(r, now = Date.now(), settings = {}) {
     const mins = minutesIn(r, now);
-    const cur = stageAt(mins);
-    const nx = nextStep(r, now);
-    return { minutes: mins, stage: cur, index: stageIndex(cur.id), next: nx, drafts: r.drafts || 0, contacts: Object.keys(r.contacts || {}).length, text: cur.label + " \xB7 " + (mins < 90 ? mins + " min" : Math.round(mins / 6) / 10 + " h") + " in" + (nx ? " \xB7 next: " + nx.stage.label.toLowerCase() + " in " + nx.inMinutes + " min" : "") };
+    const pace = paceOf(r);
+    const timed = stageAt(mins, pace);
+    const inCycle = mins * pace >= CYCLE_STAGE.at && STAGES.every((s) => r.fired[s.id]);
+    const cur = inCycle ? CYCLE_STAGE : timed;
+    const nx = nextStep(r, now, settings);
+    const nxMin = nx ? nx.inMinutes : 0;
+    const nxText = nx ? nxMin >= 90 ? Math.round(nxMin / 6) / 10 + " h" : nxMin + " min" : "";
+    return {
+      minutes: mins,
+      stage: cur,
+      index: ALL_STAGES.findIndex((x) => x.id === cur.id),
+      next: nx,
+      drafts: r.drafts || 0,
+      contacts: Object.keys(r.contacts || {}).length,
+      reshuffles: r.reshuffles || 0,
+      cycles: r.cycles || 0,
+      text: cur.label + (inCycle && r.cycles ? " " + r.cycles : "") + " \xB7 " + (mins < 90 ? mins + " min" : Math.round(mins / 6) / 10 + " h") + " in" + (nx ? " \xB7 next: " + nx.stage.label.toLowerCase() + " in " + nxText : "")
+    };
   }
-  var STAGES, STAGE_IDS, stageIndex, RESCUE_DEFAULTS, cfg, minutesIn, keyOfEmail;
+  var STAGES, STAGE_IDS, CYCLE_STAGE, ALL_STAGES, RESCUE_DEFAULTS, cfg, paceOf, cycleEveryOf, minutesIn, keyOfEmail, describeSide, callKeyOf, CALL_RESULTS, idsOf, repliesOn, waveSizeOf;
   var init_autorescue = __esm({
     "js/core/autorescue.js"() {
       init_ranking();
@@ -6450,167 +6803,53 @@ details.boardextras > :not(summary) { margin: 12px; }
       init_raterec();
       init_outreach();
       init_netcommon();
+      init_assignments();
       init_util();
       STAGES = [
         { id: "match", at: 0, label: "Instant match", blurb: "Searching your carriers, past covers, Truck Book and team trucks" },
         { id: "wave1", at: 5, label: "First outreach wave", blurb: "Offers to the best-ranked qualified prospects" },
-        { id: "expand", at: 30, label: "Widen the search", blurb: "More markets and corridor matches" },
-        { id: "commercial", at: 60, label: "Rate check", blurb: "Recalculate the rate and send updated offers within your limit" },
+        { id: "expand", at: 30, label: "Widen the search", blurb: "More markets and corridor matches, and the DAT postings reshuffled to new cities and nearby states" },
+        { id: "commercial", at: 60, label: "Rate check", blurb: "Recalculate the rate, send updated offers within your limit, reshuffle again if it is still quiet" },
         { id: "team", at: 120, label: "Team rescue", blurb: "Ask the team and search every team truck" }
       ];
       STAGE_IDS = STAGES.map((s) => s.id);
-      stageIndex = (id) => STAGE_IDS.indexOf(id);
-      RESCUE_DEFAULTS = { rescueWaveSize: 8, rescueMinHoursBetween: 12, rescueMaxPerLoad: 2, rescueRaiseStep: 0.05, rescueMaxHours: 72 };
+      CYCLE_STAGE = { id: "cycle", at: 150, label: "Escalation round", blurb: "Reshuffle postings, step the rate up, wider wave, fresh call list: repeats until covered" };
+      ALL_STAGES = [...STAGES, CYCLE_STAGE];
+      RESCUE_DEFAULTS = { rescueWaveSize: 8, rescueMinHoursBetween: 12, rescueMaxPerLoad: 2, rescueRaiseStep: 0.05, rescueMaxHours: 72, rescueCycleMinutes: 60, rescueMaxReshuffles: 6 };
       cfg = (settings, k) => {
         const v = Number(settings && settings[k]);
         return Number.isFinite(v) && v > 0 ? v : RESCUE_DEFAULTS[k];
       };
+      paceOf = (rescue) => rescue && Number(rescue.pace) >= 2 ? 2 : 1;
+      cycleEveryOf = (rescue, settings) => Number(rescue && rescue.cycleEvery) > 0 ? Number(rescue.cycleEvery) : cfg(settings, "rescueCycleMinutes");
       minutesIn = (rescue, now = Date.now()) => Math.max(0, Math.floor((now - rescue.startedAt) / MIN));
       keyOfEmail = (email) => {
         const e = emailOf(email);
         return e ? "e:" + e : "";
       };
-    }
-  });
-
-  // js/core/lanematch.js
-  function relation(a, b, { zipMap = null, radius = 60 } = {}) {
-    const A4 = laneOf2(a), B = laneOf2(b);
-    if (!A4.originState || !A4.destState || !B.originState || !B.destState) return { kind: "", w: 0 };
-    if (placeKey(A4.originCity, A4.originState) === placeKey(B.originCity, B.originState) && placeKey(A4.destCity, A4.destState) === placeKey(B.destCity, B.destState) && A4.originCity && A4.destCity) return { kind: "same", w: 1, oMi: 0, dMi: 0 };
-    if (zipMap && zipMap.size) {
-      const ao = spot(zipMap, A4.originCity, A4.originState), bo = spot(zipMap, B.originCity, B.originState), ad = spot(zipMap, A4.destCity, A4.destState), bd = spot(zipMap, B.destCity, B.destState);
-      const oMi = miles(zipMap, ao, bo), dMi = miles(zipMap, ad, bd);
-      if (oMi !== null && dMi !== null) {
-        if (oMi <= 12 && dMi <= 12) return { kind: "same", w: 0.95, oMi, dMi };
-        if (oMi <= radius && dMi <= radius) return { kind: "near", w: Math.max(0.25, 0.7 - (oMi + dMi) / (4 * radius)), oMi, dMi };
-      }
-      return { kind: "", w: 0 };
-    }
-    if (A4.originState === B.originState && A4.destState === B.destState) return { kind: "state", w: 0.3 };
-    return { kind: "", w: 0 };
-  }
-  var nm, placeKey, spot, miles, laneOf2;
-  var init_lanematch = __esm({
-    "js/core/lanematch.js"() {
-      init_util();
-      init_netcommon();
-      nm = (v) => normalizeText(v);
-      placeKey = (city, st2) => nm(city) + "|" + stateCode(st2).toLowerCase();
-      spot = (zipMap, city, st2) => {
-        try {
-          const m = zipMap && zipMap.size ? zipMap.market(city, st2) : null;
-          return m && m.zip ? m.zip : "";
-        } catch {
-          return "";
-        }
-      };
-      miles = (zipMap, a, b) => {
-        try {
-          return a && b ? zipMap.distanceBetweenZips(a, b) : null;
-        } catch {
-          return null;
-        }
-      };
-      laneOf2 = (x = {}) => ({ originCity: x.originCity || "", originState: stateCode(x.originState), destCity: x.destCity || "", destState: stateCode(x.destState) });
-    }
-  });
-
-  // js/core/assignments.js
-  function cleanAssignment(f = {}, uid2 = () => "a" + Math.random().toString(36).slice(2, 9)) {
-    const a = {
-      id: f.id || uid2(),
-      carrierId: oneLine(f.carrierId, 60),
-      carrierName: oneLine(f.carrierName, 80),
-      mc: oneLine(f.mc, 20),
-      email: oneLine(f.email, 120).toLowerCase(),
-      phone: oneLine(f.phone, 30),
-      originCity: oneLine(f.originCity, 60),
-      originState: stateCode(f.originState),
-      destCity: oneLine(f.destCity, 60),
-      destState: stateCode(f.destState),
-      priority: f.priority === "backup" ? "backup" : "primary",
-      rate: f.rate === "" || f.rate === void 0 ? "" : safeNumeric(f.rate) || "",
-      note: oneLine(f.note, 300),
-      active: f.active === false ? false : true,
-      createdAt: f.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
-      hits: Number(f.hits) || 0,
-      wins: Number(f.wins) || 0,
-      lastOfferedAt: f.lastOfferedAt || "",
-      lastWonAt: f.lastWonAt || ""
-    };
-    if (!a.carrierName && !a.carrierId && !a.email) return null;
-    if (!a.originState && !a.originCity) return null;
-    if (!a.destState && !a.destCity) return null;
-    return a;
-  }
-  function fit(load, a, { zipMap = null, radius = 40 } = {}) {
-    if (!a || a.active === false) return 0;
-    const end = (lc2, ls, ac, as) => {
-      const lS = stateCode(ls), aS = stateCode(as);
-      if (aS && lS !== aS) return 0;
-      if (!ac) return 0.6;
-      if (placeKey(lc2, ls) === placeKey(ac, as || ls)) return 1;
-      if (zipMap && zipMap.size) {
-        try {
-          const x = zipMap.market(lc2, ls), y = zipMap.market(ac, as || ls);
-          if (x && y && zipMap.distanceBetweenZips(x.zip, y.zip) <= radius) return 0.9;
-        } catch {
-        }
-      }
-      return 0;
-    };
-    const o = end(load.originCity, load.originState, a.originCity, a.originState), d = end(load.destCity, load.destState, a.destCity, a.destState);
-    if (!o || !d) return 0;
-    return Math.round((o + d) / 2 * 100) * (a.priority === "backup" ? 0.9 : 1);
-  }
-  function matchAssignments(load, assignments = [], carriers = [], opts2 = {}) {
-    const out = [];
-    for (const a of assignments) {
-      const f = fit(load, a, opts2);
-      if (f <= 0) continue;
-      const row5 = carriers.find((c) => a.carrierId && c.id === a.carrierId) || carriers.find((c) => a.mc && normalizeText(c.mc).replace(/\D/g, "") === a.mc.replace(/\D/g, "") && a.mc.replace(/\D/g, "")) || null;
-      const gone = !row5 && !a.email;
-      out.push({ ...a, fit: f, carrier: row5, name: a.carrierName || row5 && row5.carrierName || "", email: a.email || row5 && row5.email || "", phone: a.phone || row5 && row5.phone || "", unreachable: gone });
-    }
-    return out.sort((x, y) => y.fit - x.fit || (y.priority === "primary") - (x.priority === "primary") || y.wins - x.wins);
-  }
-  function assignmentDraft(load, a, { signature: signature2 = "", rate: rate3 = "" } = {}) {
-    const hello2 = a.name ? "Hi " + String(a.name).split(/\s+/)[0] + " team," : "Hello,";
-    const pu = load.pickupEarliest || load.pickupDate || "";
-    const lane = placeText(load.originCity, load.originState) + " to " + placeText(load.destCity, load.destState);
-    const r = safeNumeric(rate3) || safeNumeric(a.rate) || 0;
-    const subject = "First call: " + lane + (pu ? " (" + day(pu) + ")" : "");
-    const lines2 = [
-      hello2,
-      "",
-      "You usually run this lane for us, so you get the first look: " + lane + (pu ? ", pickup " + (day(pu) || pu) : "") + ".",
-      load.equip ? "Equipment: " + load.equip + "." : "",
-      r ? "I can do " + money2(r) + ' all-in. If you have a truck, reply "yes" and I will send the rate confirmation right away.' : "If you have a truck for it, reply with your all-in rate and I will confirm right away.",
-      "Please send driver and dispatch info as soon as you have it.",
-      "",
-      signature2 || "Thank you,"
-    ].filter((l, i, arr) => l !== "" || arr[i - 1] !== "" && i > 0);
-    const script = ["Call " + (a.name || "the carrier") + (a.phone ? " at " + a.phone : "") + ":", '"' + lane + (pu ? ", picking up " + (day(pu) || pu) : "") + ". You usually run this one. " + (r ? "I can do " + money2(r) + ". " : "What do you need on it? ") + 'Can you cover it?"', "If yes: send the rate confirmation and ask for driver and dispatch info."];
-    return { to: a.email, subject, body: lines2.join("\n"), script: script.join("\n") };
-  }
-  function recordOutcome(a, { won = false, at = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
-    return { ...a, hits: (a.hits || 0) + 1, wins: (a.wins || 0) + (won ? 1 : 0), lastOfferedAt: at, lastWonAt: won ? at : a.lastWonAt || "" };
-  }
-  var describeAssignment, day;
-  var init_assignments = __esm({
-    "js/core/assignments.js"() {
-      init_util();
-      init_netcommon();
-      init_lanematch();
-      describeAssignment = (a) => {
-        const side = (c, s) => c ? placeText(c, s) : s ? "anywhere in " + s : "anywhere";
+      describeSide = (a) => {
+        const side = (c, st2) => c ? placeText(c, st2) : st2 ? "anywhere in " + st2 : "anywhere";
         return side(a.originCity, a.originState) + " to " + side(a.destCity, a.destState);
       };
-      day = (iso) => {
-        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ""));
-        return m ? `${Number(m[2])}/${Number(m[3])}` : "";
+      callKeyOf = (who) => {
+        const e = emailOf(who && who.email);
+        if (e) return "e:" + e;
+        const d = String(who && who.phone || "").replace(/\D/g, "");
+        return d.length >= 7 ? "p:" + d.slice(-10) : "";
       };
+      CALL_RESULTS = [
+        ["truck", "Has a truck"],
+        ["callback", "Call back later"],
+        ["voicemail", "Left voicemail"],
+        ["noanswer", "No answer"],
+        ["notruck", "No truck"]
+      ];
+      idsOf = (load, rescue, ctx2) => /* @__PURE__ */ new Set([load.id, ...ctx2.groupIds || [], ...rescue && rescue.pastIds || [], ...ctx2.pastIds || []]);
+      repliesOn = (load, rescue, ctx2) => {
+        const ids = idsOf(load, rescue, ctx2);
+        return (ctx2.inquiries || []).filter((q4) => ids.has(q4.postingId)).length;
+      };
+      waveSizeOf = (rescue, settings) => Math.max(1, Math.round(cfg(settings, "rescueWaveSize") * (paceOf(rescue) === 2 ? 1.5 : 1) * (1 + 0.5 * Math.min(Number(rescue.cycles) || 0, 3))));
     }
   });
 
@@ -6717,7 +6956,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       init_util();
       init_netcommon();
       init_lanematch();
-      ageDays = (t2, now) => Number.isFinite(t2) ? Math.max(0, (now - t2) / DAY4) : 365;
+      ageDays = (t2, now) => Number.isFinite(t2) ? Math.max(0, (now - t2) / DAY2) : 365;
       recency2 = (days2) => Math.max(0.25, Math.pow(0.5, days2 / 60));
     }
   });
@@ -6727,7 +6966,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     const { zipMap = null, settings = {}, now = Date.now() } = ctx2;
     const F3 = [];
     const add = (key, label2, weight, score3, note2, tag) => F3.push({ key, label: label2, weight, score: score3 === null ? null : clamp2(score3), note: note2, tag });
-    const lane = laneOf2(load);
+    const lane = laneOf(load);
     const rel = (l, radius = 60) => relation(load, l, { zipMap, radius });
     const covers = (ctx2.coverLog || []).filter((e) => e.outcome === "Covered" && rel(e.covered || e.lane || {}).kind);
     const real = covers.filter((e) => !e.imported && Number(e.ageHours) > 0);
@@ -6748,7 +6987,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       const rr = repliedN / contactedN;
       add("response", "Carrier response and quote rate", 12, rr < 0.1 ? 90 : rr < 0.25 ? 65 : rr < 0.5 ? 35 : 12, Math.round(rr * 100) + "% replied, " + quotedN + " quoted", "low-response");
     } else add("response", "Carrier response and quote rate", 12, null, "Not enough outreach history on this lane");
-    const recent = covers.filter((e) => (now - Date.parse(e.closedAt)) / DAY4 <= 180).length + th.filter((t2) => t2.booked && (now - (t2.bookedAt || 0)) / DAY4 <= 180 && !covers.some((e) => e.threadId === t2.id)).length;
+    const recent = covers.filter((e) => (now - Date.parse(e.closedAt)) / DAY2 <= 180).length + th.filter((t2) => t2.booked && (now - (t2.bookedAt || 0)) / DAY2 <= 180 && !covers.some((e) => e.threadId === t2.id)).length;
     const hasHistory = (ctx2.coverLog || []).length >= 10 || recent > 0;
     if (hasHistory) add("similar", "Similar loads covered (6 months)", 14, recent === 0 ? 95 : recent === 1 ? 75 : recent <= 3 ? 50 : recent <= 7 ? 25 : 8, recent + " covered on or next to this lane" + (expired.length ? ", " + expired.length + " expired" : ""), "few-covers");
     else add("similar", "Similar loads covered (6 months)", 14, null, "Not enough cover history yet");
@@ -6766,7 +7005,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     } else add("hub", "Distance from major freight markets", 10, null, "Needs the ZIP Map");
     const pu = pickupAt(load);
     if (Number.isFinite(pu)) {
-      const lead = (pu - now) / HOUR2;
+      const lead = (pu - now) / HOUR;
       const d = new Date(pu);
       const dow = d.getDay();
       let s = lead < 0 ? 85 : lead < 6 ? 90 : lead < 24 ? 70 : lead < 48 ? 40 : 15;
@@ -7036,7 +7275,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       if (r.kind === "same") {
         const n = (byCarrier.get(o.key + "|s") || 0) + 1;
         byCarrier.set(o.key + "|s", n);
-        hit(o, "exact", (n === 1 ? 40 : 15) * rec(t2, now), n === 1 ? "Covered this exact lane " + Math.round((now - t2) / DAY4) + " d ago" + (safeNumeric(e.rate) ? " at $" + Math.round(safeNumeric(e.rate)).toLocaleString("en-US") : "") : "Covered this lane " + n + " times", 70);
+        hit(o, "exact", (n === 1 ? 40 : 15) * rec(t2, now), n === 1 ? "Covered this exact lane " + Math.round((now - t2) / DAY2) + " d ago" + (safeNumeric(e.rate) ? " at $" + Math.round(safeNumeric(e.rate)).toLocaleString("en-US") : "") : "Covered this lane " + n + " times", 70);
       } else if (r.kind === "near") {
         const n = (byCarrier.get(o.key + "|n") || 0) + 1;
         byCarrier.set(o.key + "|n", n);
@@ -7064,7 +7303,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       if (!o) continue;
       const t2 = Date.parse(q4.dateCounted);
       if (String(q4.stage || "").toUpperCase() === "DECLINED") {
-        if (Number.isFinite(t2) && now - t2 < 14 * DAY4) {
+        if (Number.isFinite(t2) && now - t2 < 14 * DAY2) {
           o.declinedAt = Math.max(o.declinedAt, t2);
           o.score -= 25;
           if (!o.why.includes("Declined a similar load recently")) o.why.push("Declined a similar load recently");
@@ -7139,7 +7378,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           return null;
         }
       };
-      rec = (t2, now) => Math.max(0.3, Math.pow(0.5, Math.max(0, (now - t2) / DAY4) / 90));
+      rec = (t2, now) => Math.max(0.3, Math.pow(0.5, Math.max(0, (now - t2) / DAY2) / 90));
       suggestedKeys = (list, n = 5) => new Set((list || []).slice(0, n).map((o) => o.key));
     }
   });
@@ -7178,7 +7417,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     };
   }
   function summarize(log3, { now = Date.now(), days: days2 = 0 } = {}) {
-    const inRange2 = (e) => !days2 || (now - Date.parse(e.closedAt)) / DAY4 <= days2;
+    const inRange2 = (e) => !days2 || (now - Date.parse(e.closedAt)) / DAY2 <= days2;
     const all = (log3 || []).filter((e) => (e.outcome === "Covered" || e.outcome === "Expired") && inRange2(e));
     const covered = all.filter((e) => e.outcome === "Covered"), expired = all.filter((e) => e.outcome === "Expired");
     const live2 = covered.filter((e) => !e.imported);
@@ -7231,7 +7470,7 @@ details.boardextras > :not(summary) { margin: 12px; }
   }
   function compare(log3, { now = Date.now(), days: days2 = 30 } = {}) {
     const a = summarize(log3, { now, days: days2 }), b = summarize((log3 || []).filter((e) => {
-      const t2 = (now - Date.parse(e.closedAt)) / DAY4;
+      const t2 = (now - Date.parse(e.closedAt)) / DAY2;
       return t2 > days2 && t2 <= days2 * 2;
     }), { now, days: 0 });
     const delta = (x, y) => x === null || y === null ? null : Math.round((x - y) * 10) / 10;
@@ -8073,7 +8312,7 @@ details.boardextras > :not(summary) { margin: 12px; }
         const di = readDriverInfo(authoredText(m.body));
         const engagedBefore = state2.rcOut || state2.bookOut || state2.driverReq;
         if (di.found) {
-          if (engagedBefore && m.at - Math.max(state2.rcOut, state2.bookOut, state2.driverReq) <= 14 * DAY4) add("driverInfoAfter", 35, "Carrier sent driver / truck details after we asked or booked" + (di.name ? " (" + di.name + ")" : ""), m.at);
+          if (engagedBefore && m.at - Math.max(state2.rcOut, state2.bookOut, state2.driverReq) <= 14 * DAY2) add("driverInfoAfter", 35, "Carrier sent driver / truck details after we asked or booked" + (di.name ? " (" + di.name + ")" : ""), m.at);
           else add("driverInfoAny", 15, "Carrier sent driver details" + (di.name ? " (" + di.name + ")" : ""), m.at);
           for (const k of ["name", "phone", "truck", "trailer"]) if (di[k] && !driver[k]) driver[k] = di[k];
         }
@@ -8194,7 +8433,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       return { thread, exclude: "weak evidence" };
     }
     const eventAt = bookAt || firstEvidence;
-    if (cancelAt && cancelAt >= (firstEngaged || eventAt) - HOUR2) return { thread, exclude: "cancelled / fell off after booking" };
+    if (cancelAt && cancelAt >= (firstEngaged || eventAt) - HOUR) return { thread, exclude: "cancelled / fell off after booking" };
     if (problemAt && problemAt >= (firstEngaged || eventAt)) return { thread, exclude: "problem reported (late, damage or claim)" };
     thread.booked = true;
     thread.bookedAt = eventAt;
@@ -8436,7 +8675,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       }
       for (const b of c.bookings) {
         if (!b.lane || !levels.has(b.level)) continue;
-        const dup = (ctx2.coverLog || []).some((e) => e.threadId === b.threadId || e.outcome === "Covered" && sameCarrier(e.carrier, c) && laneKeyOf({ originCity: (e.lane || {}).originCity, originState: (e.lane || {}).originState, destCity: (e.lane || {}).destCity, destState: (e.lane || {}).destState }) === laneKeyOf(b.lane) && Math.abs(Date.parse(e.closedAt) - b.at) <= 2 * DAY4);
+        const dup = (ctx2.coverLog || []).some((e) => e.threadId === b.threadId || e.outcome === "Covered" && sameCarrier(e.carrier, c) && laneKeyOf({ originCity: (e.lane || {}).originCity, originState: (e.lane || {}).originState, destCity: (e.lane || {}).destCity, destState: (e.lane || {}).destState }) === laneKeyOf(b.lane) && Math.abs(Date.parse(e.closedAt) - b.at) <= 2 * DAY2);
         if (dup) continue;
         covers.push({ candidate: c.key, threadId: b.threadId, at: b.at, lane: b.lane, rate: b.rateConf === "high" ? b.rate : "", rateConf: b.rateConf, carrier: { name: c.name, email: c.email, mc: c.mc ? "MC " + c.mc : "", phone: fmtPhone(phoneKey(c.dispatchPhone || c.phone)) }, equip: b.equip || c.equipment || "", score: b.score, negotiationMinutes: b.negotiationMinutes, quotes: b.quotes, evidence: b.evidence });
       }
@@ -8791,27 +9030,82 @@ details.boardextras > :not(summary) { margin: 12px; }
     }
     return notes;
   }
+  function buildRescueCtx(head, r, now) {
+    const team = (() => {
+      try {
+        return state.hooks.teamTrucks ? state.hooks.teamTrucks() : [];
+      } catch {
+        return [];
+      }
+    })();
+    const mine2 = activeTrucks(state.trucks, now);
+    const trucks = [...mine2, ...activeTrucks(team, now).filter((t2) => !mine2.some((m) => m.key && m.key === t2.key))];
+    const gids = (head.groupId ? groupMembers(state.postings, head.groupId) : [head]).map((m) => m.id);
+    return { carriers: state.carriers, assignments: state.assignments, trucks, coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, rescues: state.autoRescues, drafts: state.drafts, settings: state.settings, zipMap: state.zip, groupIds: gids, pastIds: r && r.pastIds || [], now };
+  }
+  async function reshuffleForRescue(head, dec) {
+    const members = head.groupId ? groupMembers(state.postings, head.groupId) : [head];
+    let plan;
+    if (members.length > 1) plan = await actions.rebuildMatrix(head.id, { reach: dec.reach, crossState: dec.crossState });
+    else {
+      const copy = JSON.parse(JSON.stringify(head));
+      plan = planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, reach: dec.reach, crossState: dec.crossState });
+      if (plan.ok) {
+        head.originCity = copy.originCity;
+        head.originState = copy.originState;
+        head.originZip = copy.originZip;
+        head.destState = copy.destState;
+        await actions.createMatrix(head.id, plan);
+      }
+    }
+    if (!plan || !plan.ok) return { ok: false, error: plan && plan.error || "could not plan new cities" };
+    const list = (arr) => arr.slice(1).map((l) => l.city + ", " + l.state).join(" and ");
+    return { ok: true, built: members.length < 2, text: (members.length < 2 ? "Built the 9-posting matrix" : "Reshuffled the DAT postings") + " (round " + dec.level + (dec.reach > 1 ? ", reaching " + Math.round((dec.reach - 1) * 100) + "% further" : "") + "): pickups from " + list(plan.origins) + "; deliveries to " + list(plan.dests) + "." };
+  }
   async function runRescueStage(r, head, stage, ctx2, reason) {
     const now = ctx2.now;
     const planStageId = stage === "rematch" ? "wave1" : stage;
     const plan = planStage(planStageId, r, head, ctx2);
-    const label2 = { match: "Instant match", wave1: "First wave", expand: "Widened search", commercial: "Rate check", team: "Team rescue", rematch: "New activity" }[stage] || stage;
+    const label2 = { match: "Instant match", wave1: "First wave", expand: "Widened search", commercial: "Rate check", team: "Team rescue", rematch: "New activity", cycle: "Escalation round " + ((r.cycles || 0) + 1) }[stage] || stage;
     let text2 = plan.note;
     let acted = false;
+    const membersNow = () => head.groupId ? groupMembers(state.postings, head.groupId) : [head];
+    if (plan.reshuffle) {
+      r.pastIds = [.../* @__PURE__ */ new Set([...r.pastIds || [], ...membersNow().map((m) => m.id)])].slice(-80);
+      const res = await reshuffleForRescue(head, plan.reshuffle);
+      r.lastReshuffleAt = now;
+      if (res.ok) {
+        r.reshuffles = plan.reshuffle.level;
+        r.repliesAtReshuffle = plan.reshuffle.replies;
+        r.repost = { at: now, why: res.built ? "matrix built" : "postings reshuffled" };
+        text2 += " " + res.text + " Download the DAT CSV and upload it so the new postings go live.";
+        acted = true;
+      } else {
+        r.reshuffles = (r.reshuffles || 0) + 1;
+        text2 += " (Postings not reshuffled: " + res.error + ")";
+      }
+    }
     if (plan.raise && plan.raise.raise) {
-      const ids = groupMembers(state.postings, head.groupId || "__none__").map((m) => m.id);
-      const members = ids.length ? ids : [head.id];
+      const members = membersNow();
+      const delta = plan.raise.rate - (plan.raise.from || 0);
       r.offerRate = plan.raise.rate;
       r.raised = (r.raised || 0) + 1;
-      for (const m of state.postings.filter((x) => members.includes(x.id))) {
+      let moved = 0;
+      for (const m of members) {
         m.targetRate = String(plan.raise.rate);
         m.targetSource = "user";
+        const d = Number(cleanRate(m.datRate));
+        if (d > 0 && delta) {
+          m.datRate = String(Math.max(1, Math.round(d + delta)));
+          moved++;
+        }
       }
       head.ops = [...Array.isArray(head.ops) ? head.ops : [], { type: "rescue-rate", at: new Date(now).toISOString(), detail: "Auto Rescue raised the target to $" + plan.raise.rate }].slice(-40);
       await savePostings();
-      text2 += " Target raised to $" + plan.raise.rate + " (re-upload the DAT CSV to repost at the new rate).";
+      r.repost = { at: now, why: r.repost ? r.repost.why + " and rate raised" : "rate raised" };
+      text2 += " Target raised to $" + plan.raise.rate + (moved ? " (" + moved + " posting" + (moved === 1 ? "" : "s") + " with their own DAT rate moved by the same $" + Math.abs(delta) + ")" : "") + ". Upload the DAT CSV to repost at the new rate.";
       acted = true;
-    }
+    } else if (plan.reshuffle && r.repost) await savePostings();
     if (plan.drafts.length) {
       const stamped = plan.drafts.map((d) => ({ id: uid(), createdAt: new Date(now).toISOString(), postingId: head.id, rescueId: r.id, kind: "Auto Rescue", to: d.to, subject: d.subject, body: d.body, carrierId: d.carrierId, tier: d.tier, score: d.score, why: d.why }));
       state.drafts.unshift(...stamped);
@@ -8845,12 +9139,13 @@ details.boardextras > :not(summary) { margin: 12px; }
       acted = true;
     }
     if (plan.calls.length) {
-      const known = new Set((r.calls || []).map((c) => c.key));
-      for (const c of plan.calls) if (!known.has(c.key)) {
-        (r.calls = r.calls || []).push({ ...c, at: now });
+      const before = new Map((r.calls || []).map((c) => [c.key, c]));
+      const fresh = plan.calls.filter((c) => !before.has(c.key));
+      r.calls = plan.calls.map((c) => ({ ...c, at: (before.get(c.key) || {}).at || now }));
+      if (fresh.length) {
         acted = true;
+        text2 += " To call: " + fresh.slice(0, 3).map((c) => (c.name || "carrier") + (c.primary ? " (" + c.primary + ")" : "") + " " + c.phone).join("; ") + ".";
       }
-      text2 += " To call: " + plan.calls.slice(0, 3).map((c) => (c.name || "carrier") + " " + c.phone).join("; ") + ".";
     }
     if (plan.askTeam && state.hooks.askTeam && !r.askedTeam) {
       try {
@@ -9147,6 +9442,12 @@ details.boardextras > :not(summary) { margin: 12px; }
             const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
             const head = members.find((m) => m.variant === "Original") || members[0];
             head.ops = [...Array.isArray(head.ops) ? head.ops : [], { type: "posted", at, detail }].slice(-40);
+            const rs = state.autoRescues.find((x) => x.id === head.id);
+            if (rs && rs.repost && members.every((m) => set.has(m.id))) {
+              rs.repost = null;
+              rs.log.push({ at: Date.now(), stage: "repost", text: "DAT file downloaded. Upload it in DAT's bulk posting tool to put the new postings live." });
+              await guard(() => put("autorescues", rs));
+            }
           }
           await savePostings();
           emit();
@@ -9477,10 +9778,11 @@ details.boardextras > :not(summary) { margin: 12px; }
         },
         /** Delete the alternates and rebuild the 3x3 with different cities (the first picks are excluded). Returns the new plan or an error. */
         /** Reshuffle: the same as rebuilding, named for the board button. */
-        async reshuffleMatrix(id) {
-          return actions.rebuildMatrix(id);
+        async reshuffleMatrix(id, opts2 = {}) {
+          return actions.rebuildMatrix(id, opts2);
         },
-        async rebuildMatrix(id) {
+        /** opts.reach (1 = normal, 1.6 = wider) and opts.crossState (include a market across the state line) are used by "Reshuffle wider" and Auto Rescue. */
+        async rebuildMatrix(id, opts2 = {}) {
           const p = state.postings.find((x) => x.id === id);
           if (!p) return { ok: false, error: "Posting not found." };
           const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
@@ -9494,7 +9796,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           const ownRates = new Map(members.filter((m) => m.variant !== "Original" && Number(cleanRate(m.datRate)) > 0).map((m) => [m.variant, m.datRate]));
           const ids = new Set(members.filter((m) => m.variant !== "Original").map((m) => m.id));
           const copy = JSON.parse(JSON.stringify(head));
-          const run2 = (exclude) => planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, exclude });
+          const run2 = (exclude) => planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, exclude, reach: Number(opts2.reach) > 1 ? Number(opts2.reach) : 1, crossState: !!opts2.crossState });
           let plan = run2([.../* @__PURE__ */ new Set([...current4, ...tried])]);
           let recycled = false;
           if (!plan.ok) {
@@ -9512,7 +9814,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           for (const m of state.postings) {
             if (m.groupId && m.groupId === h2?.groupId && m.variant !== "Original" && ownRates.has(m.variant)) m.datRate = ownRates.get(m.variant);
           }
-          if (h2) h2.ops = [...oldOps, { type: "recities", at: (/* @__PURE__ */ new Date()).toISOString(), detail: plan.origins.slice(1).concat(plan.dests.slice(1)).map((l) => l.city).join(", ") }].slice(-40);
+          if (h2) h2.ops = [...oldOps, { type: "recities", at: (/* @__PURE__ */ new Date()).toISOString(), detail: plan.origins.slice(1).concat(plan.dests.slice(1)).map((l) => l.city + ", " + l.state).join(" | ") }].slice(-40);
           await savePostings();
           emit();
           return { ...plan, rows };
@@ -9594,7 +9896,7 @@ details.boardextras > :not(summary) { margin: 12px; }
         async runOutreach(id, opts2 = {}) {
           const p = state.postings.find((x) => x.id === id);
           if (!p) return null;
-          const ctx2 = { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries };
+          const ctx2 = { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments };
           let res;
           const contacted = new Set(state.outreach.filter((o) => o.postingId === p.id).map((o) => String(o.email || "").toLowerCase()).filter(Boolean));
           if (state.settings.outreachButtonMode === "outlook") {
@@ -9644,7 +9946,7 @@ details.boardextras > :not(summary) { margin: 12px; }
         },
         /** Outlook-engine scan over all eligible loads (Active + Carrier Outreach = Yes), ranked by lane fit within the carrier radius. */
         async runOutlookScan() {
-          const scan = planRankedScan(state.postings, state.carriers, state.outreach, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries });
+          const scan = planRankedScan(state.postings, state.carriers, state.outreach, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments });
           const stamped = scan.drafts.map((d) => ({ id: uid(), createdAt: (/* @__PURE__ */ new Date()).toISOString(), kind: "Carrier outreach (scan)", ...d }));
           state.drafts.unshift(...stamped);
           state.outreach.push(...scan.logEntries);
@@ -9705,7 +10007,7 @@ details.boardextras > :not(summary) { margin: 12px; }
             const t2 = Date.parse(c.lastContacted);
             if (Number.isFinite(t2) && t2 > cutoff) asked.add(String(c.email || "").toLowerCase());
           }
-          const ranked = rankCarriers(p, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, exclude: asked });
+          const ranked = rankCarriers(p, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments, exclude: asked });
           const seen2 = /* @__PURE__ */ new Set();
           const ids = [];
           for (const r of ranked) {
@@ -9940,7 +10242,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           if (!head) return null;
           const ex = actions.autoRescueFor(headId);
           if (ex && ex.status === "active") return ex;
-          const r = newRescue(head, { now: Date.now(), maxRate: opts2.maxRate, includeTeam: opts2.includeTeam, auto: !!opts2.auto });
+          const r = newRescue(head, { now: Date.now(), maxRate: opts2.maxRate, includeTeam: opts2.includeTeam, auto: !!opts2.auto, pace: opts2.pace, cycleMinutes: Number(state.settings.rescueCycleMinutes) || 0 });
           state.autoRescues = state.autoRescues.filter((x) => x.id !== headId);
           state.autoRescues.push(r);
           await guard(() => put("autorescues", r));
@@ -9975,20 +10277,70 @@ details.boardextras > :not(summary) { margin: 12px; }
           emit();
           await actions.tickAutoRescue({ reason: "resume" });
         },
+        /** Log a phone call on a load: who, and how it went. Feeds the call list, Auto Rescue (it leaves out "no truck" and does not re-dial a no-answer for 3 h) and the carrier's detail card. */
+        async logCall(loadId2, who, result) {
+          const p = state.postings.find((x) => x.id === loadId2);
+          if (!p) return null;
+          const head = (p.groupId ? groupMembers(state.postings, p.groupId) : [p]).find((m) => m.variant === "Original") || p;
+          const key = callKeyOf(who);
+          const label2 = (CALL_RESULTS.find((x) => x[0] === result) || [])[1];
+          if (!key || !label2) return null;
+          const at = Date.now();
+          head.calls = [...Array.isArray(head.calls) ? head.calls : [], { key, name: String(who.name || ""), phone: String(who.phone || ""), result, at }].slice(-80);
+          head.ops = [...Array.isArray(head.ops) ? head.ops : [], { type: "call", at: new Date(at).toISOString(), detail: (who.name || "Carrier") + ": " + label2 }].slice(-40);
+          await savePostings();
+          const c = who.carrierId && state.carriers.find((x) => x.id === who.carrierId) || state.carriers.find((x) => callKeyOf(x) === key);
+          if (c) {
+            c.lastCallAt = new Date(at).toISOString();
+            c.lastCallResult = label2;
+            await guard(() => put("carriers", c));
+            state.carrierRev++;
+          }
+          emit();
+          return { key, result, at };
+        },
+        /** Who Auto Rescue would reach right now for this load (pure read): primary and backup carriers first. For the Auto Rescue window. */
+        rescuePreview(headId, limit = 8) {
+          const head = state.postings.find((p) => p.id === headId);
+          if (!head) return [];
+          const now = Date.now();
+          const r = actions.autoRescueFor(headId) || newRescue(head, { now });
+          return gatherProspects(head, buildRescueCtx(head, r, now), { wide: false }).slice(0, limit);
+        },
+        /** "Reshuffle now" in the Auto Rescue window: the same reshuffle the engine does, on demand, and it counts as one of the engine's rounds. */
+        async rescueReshuffleNow(headId) {
+          const head = state.postings.find((p) => p.id === headId);
+          if (!head) return { ok: false, error: "Load not found." };
+          const r = actions.autoRescueFor(headId) || null;
+          const level = (r ? r.reshuffles || 0 : 0) + 1;
+          const dec = { level, reach: Math.round(Math.min(2.4, 1 + (level - 1) * 0.3 + 0.3) * 100) / 100, crossState: true, replies: r ? repliesOn(head, r, buildRescueCtx(head, r, Date.now())) : 0 };
+          if (r) r.pastIds = [.../* @__PURE__ */ new Set([...r.pastIds || [], ...(head.groupId ? groupMembers(state.postings, head.groupId) : [head]).map((m) => m.id)])].slice(-80);
+          const res = await reshuffleForRescue(head, dec);
+          if (r && res.ok) {
+            r.reshuffles = level;
+            r.lastReshuffleAt = Date.now();
+            r.repliesAtReshuffle = dec.replies;
+            r.repost = { at: Date.now(), why: res.built ? "matrix built" : "postings reshuffled" };
+            r.log.push({ at: Date.now(), stage: "reshuffle", label: "Reshuffle", text: res.text + " Download the DAT CSV and upload it so the new postings go live." });
+            await guard(() => put("autorescues", r));
+          }
+          emit();
+          return res;
+        },
         async deleteAutoRescue(id) {
           state.autoRescues = state.autoRescues.filter((r) => r.id !== id);
           await guard(() => del("autorescues", id));
           emit();
         },
         /** Do whatever is due: run each rescue you started, and re-run a cycle when something new appears. Never starts a rescue by itself. */
-        async tickAutoRescue({ now = Date.now(), reason = "tick", force = null } = {}) {
+        async tickAutoRescue({ now = Date.now(), reason = "tick", force = null, only = "" } = {}) {
           if (actions._rescueBusy) return 0;
           actions._rescueBusy = true;
           let did = 0;
           try {
             const heads = headsOf(state.postings);
             for (const r of state.autoRescues.filter((x) => x.auto && x.status === "active")) await actions.stopAutoRescue(r.id, "stopped", "Ended: Auto Rescue now only runs when you start it yourself. Press Auto Rescue on the load and click Start to run it.");
-            for (const r of state.autoRescues.filter((x) => x.status === "active")) {
+            for (const r of state.autoRescues.filter((x) => x.status === "active" && (!only || x.id === only))) {
               const head = heads.find((p) => p.id === r.headId);
               if (!head || head.status === "Covered") {
                 await actions.stopAutoRescue(r.id, head ? "covered" : "stopped", head ? "The load was covered." : "The load left the board.");
@@ -9998,24 +10350,18 @@ details.boardextras > :not(summary) { margin: 12px; }
                 await actions.stopAutoRescue(r.id, "stopped", "Stopped after 72 hours. Restart it if the load is still open.");
                 continue;
               }
-              const team = (() => {
-                try {
-                  return state.hooks.teamTrucks ? state.hooks.teamTrucks() : [];
-                } catch {
-                  return [];
-                }
-              })();
-              const mine2 = activeTrucks(state.trucks, now);
-              const trucks = [...mine2, ...activeTrucks(team, now).filter((t2) => !mine2.some((m) => m.key && m.key === t2.key))];
-              const ctx2 = { carriers: state.carriers, trucks, coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, rescues: state.autoRescues, drafts: state.drafts, settings: state.settings, zipMap: state.zip, now };
-              let due = force ? [force] : dueStages(r, now);
+              let due = force ? [force] : dueStages(r, now, state.settings);
               if (due.length > 2) due = [due[0], due[due.length - 1]];
               for (const stage of due) {
-                did += await runRescueStage(r, head, stage, ctx2, reason);
+                did += await runRescueStage(r, head, stage, buildRescueCtx(head, r, now), reason);
                 r.fired[stage] = now;
+                if (stage === "cycle") {
+                  r.cycles = (r.cycles || 0) + 1;
+                  r.lastCycleAt = now;
+                }
               }
-              const sig = signatureOf(head, ctx2);
-              if (r.sig && sig !== r.sig && !due.length) did += await runRescueStage(r, head, "rematch", ctx2, reason);
+              const sig = signatureOf(head, buildRescueCtx(head, r, now));
+              if (r.sig && sig !== r.sig && !due.length) did += await runRescueStage(r, head, "rematch", buildRescueCtx(head, r, now), reason);
               r.sig = sig;
               r.lastEvalAt = now;
               await guard(() => put("autorescues", r));
@@ -12130,12 +12476,12 @@ details.boardextras > :not(summary) { margin: 12px; }
     let ms;
     if (ttl === "date") {
       const e = dayEnd(dateTo || date);
-      ms = Number.isFinite(e) ? e - now : 4 * HOUR2;
+      ms = Number.isFinite(e) ? e - now : 4 * HOUR;
     } else {
       const h2 = Number(ttl);
-      ms = (Number.isFinite(h2) && h2 > 0 ? h2 : DEFAULT_TTL_HOURS) * HOUR2;
+      ms = (Number.isFinite(h2) && h2 > 0 ? h2 : DEFAULT_TTL_HOURS) * HOUR;
     }
-    ms = Math.min(Math.max(ms, HOUR2), MAX_TTL_HOURS * HOUR2);
+    ms = Math.min(Math.max(ms, HOUR), MAX_TTL_HOURS * HOUR);
     return now + ms;
   }
   function cleanTruck(raw, id = "") {
@@ -12185,7 +12531,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           statusAt = st2.at;
           statusNote = st2.note;
         } else if (st2.s === "open" && st2.by === t2.uid && st2.exp > 0) {
-          expiresAt = Math.min(st2.exp, st2.at + MAX_TTL_HOURS * HOUR2);
+          expiresAt = Math.min(st2.exp, st2.at + MAX_TTL_HOURS * HOUR);
           statusAt = st2.at;
         }
       }
@@ -12267,7 +12613,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       init_netcommon();
       MAX_TTL_HOURS = 7 * 24;
       DEFAULT_TTL_HOURS = 24;
-      KEEP_EXPIRED_MS = 7 * DAY4;
+      KEEP_EXPIRED_MS = 7 * DAY2;
       TTL_OPTIONS = [[4, "4 hours"], [8, "8 hours"], [24, "24 hours (default)"], [48, "2 days"], [72, "3 days"], ["date", "Until the end of the available date"]];
       prunable = (row5, now = Date.now()) => now - Math.max(row5.expiresAt || 0, row5.status === "booked" || row5.status === "withdrawn" ? row5.statusAt || 0 : 0) > KEEP_EXPIRED_MS;
     }
@@ -12305,7 +12651,7 @@ details.boardextras > :not(summary) { margin: 12px; }
         by: oneLine(me2.name, 60),
         byEmail: emailOf(me2.email),
         at: now,
-        exp: now + Math.min(Math.max(ttlHours, 1), 72) * HOUR2,
+        exp: now + Math.min(Math.max(ttlHours, 1), 72) * HOUR,
         status: "open",
         oCity: oneLine(head.originCity, 60),
         oState: stateCode(head.originState),
@@ -12458,7 +12804,7 @@ details.boardextras > :not(summary) { margin: 12px; }
       init_netcommon();
       init_resources();
       RESCUE_TTL_HOURS = 12;
-      KEEP_RESCUE_MS = 3 * 24 * HOUR2;
+      KEEP_RESCUE_MS = 3 * 24 * HOUR;
       TIP_TYPES = [
         ["carrier", "A carrier who could take it"],
         ["market", "A market with trucks"],
@@ -12740,7 +13086,7 @@ details.boardextras > :not(summary) { margin: 12px; }
         const m = laneMiles({ originCity: l.originCity, originState: l.originState, originZip: l.originZip, destCity: l.destCity, destState: l.destState, destZip: l.destZip }, zipMap);
         return Number.isFinite(m) ? Math.round(m) : 0;
       };
-      within = (events, now, days2) => events.filter((e) => e.t >= now - days2 * DAY4 && e.t <= now + DAY4);
+      within = (events, now, days2) => events.filter((e) => e.t >= now - days2 * DAY2 && e.t <= now + DAY2);
       verifiedRate = (e) => e.v === 1 && e.r > 0;
       laneOf3 = (p) => ({ o: marketKey(p.originCity, p.originState), d: marketKey(p.destCity, p.destState), os: stateCode(p.originState), ds: stateCode(p.destState) });
     }
@@ -12935,7 +13281,7 @@ details.boardextras > :not(summary) { margin: 12px; }
           t2.list("tips"),
           t2.list("marks"),
           t2.list("posts"),
-          t2.laneList(monthKey(Date.now() - (DEFAULTS.days + 31) * DAY4))
+          t2.laneList(monthKey(Date.now() - (DEFAULTS.days + 31) * DAY2))
         ]);
         net.members = members.map((r) => ({ uid: r.key, name: oneLine(r.value && r.value.name, 60), email: emailOf(r.value && r.value.email), at: Number(r.value && r.value.at) || 0, seen: Number(r.value && r.value.seen) || 0 }));
         net.trucks = vals(trucks, cleanTruck);
@@ -13130,7 +13476,7 @@ details.boardextras > :not(summary) { margin: 12px; }
         { id: "market", label: "Market talk", hint: "What lanes and markets feel like today." },
         { id: "general", label: "General", hint: "Everything else." }
       ];
-      POST_TTL = 14 * DAY4;
+      POST_TTL = 14 * DAY2;
       POLL_MS2 = 3e4;
       DEFAULT_CFG = { mode: "", teamId: "", secret: "", name: "", localUid: "", ttlHours: 24, rescueAfterMin: 90, shareLane: true, lastChannelSeen: {}, lastRescueSeen: 0 };
       net = { ready: false, cfg: { ...DEFAULT_CFG }, status: "off", error: "", lastPoll: 0, trucks: [], tstat: [], rescues: [], tips: [], marks: [], posts: [], members: [], lane: [], listeners: /* @__PURE__ */ new Set() };
@@ -13319,93 +13665,175 @@ details.boardextras > :not(summary) { margin: 12px; }
   });
 
   // js/ui/board/autorescue.js
-  function rescueButton(b, head) {
+  function rescueButton(b, head, opts2 = {}) {
     const r = rescueOf(head);
     const on = r && r.status === "active";
     return h("button", {
       class: "btn rescuebtn" + (on ? " on" : ""),
       type: "button",
       "data-act": "auto-rescue",
-      title: on ? "Auto Rescue is working this load. Click for the timeline." : "Keep working this load until it is covered: match, offer, widen, reprice within your limit, then ask the team.",
-      onclick: () => openRescue(b, head)
+      title: on ? "Auto Rescue is working this load. Click for the timeline." : "Keep working this load until it is covered: match, offer, reshuffle the postings, reprice within your limit, escalate every hour.",
+      onclick: () => openRescue(b, head, opts2)
     }, icon("bolt", 15), on ? "Auto Rescue on" : "Auto Rescue");
   }
-  function rescueStrip(head) {
+  function repostBanner(r, csv3) {
+    if (!r || !r.repost || r.status !== "active") return null;
+    return h(
+      "div",
+      { class: "rs-repost", "data-test": "rescue-repost", role: "status" },
+      h("span", { class: "rs-repost-ic" }, icon("upload", 15)),
+      h("span", { class: "rs-repost-tx" }, h("b", null, "Upload to DAT to put the changes live."), " Auto Rescue " + (r.repost.why || "changed the postings") + " at " + clock(r.repost.at) + ". DAT still shows the old postings until you upload the new file."),
+      csv3 ? h("button", { class: "btn small primary", type: "button", "data-act": "rescue-csv", onclick: () => csv3() }, icon("download", 14), "Download DAT CSV") : null
+    );
+  }
+  function rescueStrip(head, opts2 = {}) {
     const r = rescueOf(head);
     const ms = matchesForLoad(state.matches, head.id);
     const q4 = ms.filter((m) => QUALIFIED.includes(m.tier));
     if (!r && !q4.length) return null;
     const now = Date.now();
     const on = r && r.status === "active";
-    const sum = r && on ? rescueSummary(r, now) : null;
-    return h(
+    const sum = r && on ? rescueSummary(r, now, state.settings) : null;
+    const strip2 = h(
       "div",
       { class: "rescuestrip" + (on ? " on" : ""), "data-test": "rescue-strip" },
-      r ? h("div", { class: "rs-steps", "aria-label": "Auto Rescue progress" }, STAGES.map((s, i) => h("span", { class: "rs-dot" + (r.fired[s.id] ? " done" : "") + (sum && sum.index === i ? " now" : ""), title: s.label + " \u2013 " + s.blurb }))) : null,
+      r ? h("div", { class: "rs-steps", "aria-label": "Auto Rescue progress" }, ALL_STAGES.map((s, i) => h("span", { class: "rs-dot" + (s.id === "cycle" ? r.cycles ? " done" : "" : r.fired[s.id] ? " done" : "") + (sum && sum.index === i ? " now" : ""), title: s.label + " \u2013 " + s.blurb }))) : null,
       h(
         "span",
         { class: "rs-text" },
-        r ? on ? (r.auto ? "Auto Rescue (started for you): " : "Auto Rescue: ") + sum.text : r.status === "covered" ? "Auto Rescue: covered" : "Auto Rescue " + r.status : null,
+        r ? on ? (r.auto ? "Auto Rescue (started for you): " : "Auto Rescue" + (paceOf(r) === 2 ? " (Fast)" : "") + ": ") + sum.text : r.status === "covered" ? "Auto Rescue: covered" : "Auto Rescue " + r.status : null,
+        on && sum.reshuffles ? h("span", { class: "rs-tag", title: "Times Auto Rescue has reshuffled the DAT posting cities" }, icon("refresh", 11), sum.reshuffles + " reshuffle" + (sum.reshuffles === 1 ? "" : "s")) : null,
         q4.length ? h("b", { class: "rs-match" }, (r ? " \xB7 " : "") + q4.length + " qualified truck" + (q4.length === 1 ? "" : "s") + " matched") : null
       ),
-      r || q4.length ? h("button", { class: "btn small", type: "button", onclick: () => openRescueFor(head) }, r ? "Details" : "See matches") : null
+      r || q4.length ? h("button", { class: "btn small", type: "button", onclick: () => openRescueFor(head, opts2) }, r ? "Details" : "See matches") : null
     );
+    const banner2 = repostBanner(r, opts2.csv);
+    return banner2 ? h("div", { class: "rescuewrap" }, strip2, banner2) : strip2;
   }
   function stageRow(s, r, now) {
-    const done = r && r.fired[s.id];
-    const cur = r && stageAt(minutesIn(r, now)).id === s.id && r.status === "active";
-    const when = r ? done ? "Done " + clock(done) : "At " + dur(s.at) : "At " + dur(s.at);
+    const isCycle = s.id === "cycle";
+    const done = r && (isCycle ? r.lastCycleAt : r.fired[s.id]);
+    const pace = r ? paceOf(r) : 1;
+    const cur = r && r.status === "active" && (isCycle ? stageAt(minutesIn(r, now), pace).id === "team" && STAGES.every((x) => r.fired[x.id]) && minutesIn(r, now) * pace >= CYCLE_STAGE.at : stageAt(minutesIn(r, now), pace).id === s.id && !(STAGES.every((x) => r.fired[x.id]) && minutesIn(r, now) * pace >= CYCLE_STAGE.at));
+    const at = Math.round(s.at / pace * 10) / 10;
+    const when = isCycle ? done ? "Round " + (r.cycles || 0) + " at " + clock(done) : "From " + dur(at) + ", then repeats" : done ? "Done " + clock(done) : "At " + dur(at);
     return h(
       "li",
       { class: "rs-row" + (done ? " done" : "") + (cur ? " now" : "") },
-      h("span", { class: "rs-mark" }, done ? icon("check", 13) : ""),
+      h("span", { class: "rs-mark" }, done ? icon("check", 13) : isCycle ? icon("refresh", 12) : ""),
       h("div", null, h("b", null, s.label), h("small", null, s.blurb)),
       h("span", { class: "rs-when" }, when)
     );
   }
-  function openRescue(b, head) {
+  function whoBlock(head) {
+    const list = actions.rescuePreview(head.id, 7);
+    if (!list.length) return null;
+    return h(
+      "div",
+      { class: "rs-who" },
+      h("b", null, "Who it reaches first"),
+      h("ul", null, list.map((p) => h(
+        "li",
+        null,
+        h("span", { class: "rs-who-star" }, p.primary ? h("span", { class: "pstar inline " + p.primary, title: (p.primary === "backup" ? "Backup" : "Primary") + " carrier" }, icon("star", 9)) : null),
+        h("span", { class: "rs-who-n" }, p.name || p.email || p.phone || "Carrier", h("small", { class: "muted" }, " \xB7 " + (p.why[0] || p.sources.join(", ")))),
+        h("span", { class: "rs-who-c muted small" }, p.sources.includes("truck") || p.sources.includes("team truck") ? "open truck" : p.email ? "e-mail" : "phone")
+      ))),
+      list.some((p) => p.primary) ? null : h("p", { class: "muted small" }, "Tip: carriers you mark as primary for a lane (Carrier Database, star) are always offered the load first.")
+    );
+  }
+  function callRow(head, c, now) {
+    const prior = callState(head).get(c.key);
+    const holder = h("span", { class: "rs-call-out" });
+    const chip2 = (res) => {
+      const lab = (CALL_RESULTS.find((x) => x[0] === res) || [])[1] || res;
+      return h("span", { class: "dir-chip " + (res === "truck" ? "ok" : res === "notruck" ? "bad" : "warn") }, lab);
+    };
+    const sel = h("select", { class: "cell dir-sel", "aria-label": "Log the call with " + (c.name || "this carrier"), "data-act": "log-call" }, h("option", { value: "" }, "Log call\u2026"), CALL_RESULTS.map(([v, l]) => h("option", { value: v }, l)));
+    sel.addEventListener("change", async () => {
+      const v = sel.value;
+      if (!v) return;
+      await actions.logCall(head.id, { key: c.key, name: c.name, phone: c.phone, carrierId: c.carrierId }, v);
+      holder.replaceChildren(chip2(v));
+      toast(v === "truck" ? "Logged. Send them the load details and rate now." : "Logged.", "ok");
+    });
+    if (prior && callCooling(prior, now)) holder.append(chip2(prior.result));
+    else holder.append(sel);
+    return h(
+      "li",
+      { class: "rs-call" },
+      h("span", { class: "rs-who-star" }, c.primary ? h("span", { class: "pstar inline " + c.primary, title: (c.primary === "backup" ? "Backup" : "Primary") + " carrier" }, icon("star", 9)) : null),
+      h("span", { class: "rs-who-n" }, (c.name || "Carrier") + " ", h("a", { class: "xlink", href: "tel:" + String(c.phone).replace(/[^\d+]/g, "") }, c.phone)),
+      holder
+    );
+  }
+  function openRescue(b, head, opts2 = {}) {
     const r = rescueOf(head);
     const now = Date.now();
     const ms = matchesForLoad(state.matches, head.id);
     const target = safeNumeric(head.targetRate) || safeNumeric(head.datRate) || 0;
-    const maxIn = h("input", { class: "cell", inputmode: "decimal", size: 8, placeholder: target ? String(Math.round(target * 1.15)) : "$ max", value: r && r.maxRate ? String(r.maxRate) : "", "aria-label": "Highest rate Auto Rescue may offer" });
+    const suggested = target ? Math.round(target * 1.12 / 25) * 25 : 0;
+    const maxIn = h("input", { class: "cell", inputmode: "decimal", size: 8, placeholder: suggested ? String(suggested) : "$ max", value: r ? r.maxRate ? String(r.maxRate) : "" : suggested ? String(suggested) : "", "aria-label": "Highest rate Auto Rescue may offer" });
     const team = h("input", { type: "checkbox", role: "switch", checked: r ? !!r.includeTeam : state.settings.rescueAskTeam !== false, "aria-label": "Ask the team when nothing works" });
+    let pace = r ? paceOf(r) : 1;
+    const paceBtns = [[1, "Standard", "Steps at 5, 30, 60 and 120 min, then an escalation round every hour"], [2, "Fast", "Every step in half the time: 2.5, 15, 30 and 60 min, then a round every 30 min"]].map(([v, l, t2]) => {
+      const btn = h("button", { type: "button", class: "seg" + (v === pace ? " on" : ""), "aria-pressed": String(v === pace), title: t2, "data-pace": String(v) }, l);
+      btn.addEventListener("click", () => {
+        pace = v;
+        paceBtns.forEach((x) => {
+          const on = x.dataset.pace === String(v);
+          x.classList.toggle("on", on);
+          x.setAttribute("aria-pressed", String(on));
+        });
+      });
+      return btn;
+    });
     const fields = h(
       "div",
       { class: "rs-auth" },
-      h("label", { class: "dfield" }, h("span", null, "Highest rate it may offer"), maxIn, h("small", { class: "muted" }, target ? `Your target is ${money2(target)}. Leave blank to never raise it.` : "Leave blank to never raise the rate.")),
+      h("label", { class: "dfield" }, h("span", null, "Highest rate it may offer"), maxIn, h("small", { class: "muted" }, target ? `Your target is ${money2(target)}. ${r ? "" : suggested ? "Filled in at about 12% above it. " : ""}Clear the box to never raise it.` : "Leave blank to never raise the rate.")),
+      h("div", { class: "dfield" }, h("span", null, "Pace"), h("div", { class: "dir-seg", role: "group", "aria-label": "Pace" }, paceBtns)),
       h("label", { class: "tgl" }, team, h("span", null, "Ask the team for help if there is still no cover after 2 hours"))
     );
+    const who = whoBlock(head);
+    const calls = r && r.calls && r.calls.length ? r.calls.slice(0, 8) : [];
     const body = h(
       "div",
       { class: "rs-win" },
-      h("p", { class: "muted" }, "Auto Rescue keeps working this load until it is covered. Each step changes the approach based on what has happened, and no carrier gets a pile of similar offers (a cap per carrier and per load). Everything it makes is a draft. These are proposed intervals, not guaranteed response times, and it works while Freight Signal is open (it catches up when you return)."),
-      h("ol", { class: "rs-list" }, STAGES.map((s) => stageRow(s, r, now)), h("li", { class: "rs-row" }, h("span", { class: "rs-mark" }, icon("refresh", 13)), h("div", null, h("b", null, "Always re-checking"), h("small", null, "A new truck, quote, availability update or reply triggers another matching cycle straight away")), h("span", { class: "rs-when" }, "Ongoing"))),
+      repostBanner(r, opts2.csv),
+      h("p", { class: "muted" }, "Auto Rescue keeps working this load until it is covered. It reaches your primary carriers first, reshuffles the nine DAT postings to new cities and nearby states when nothing is moving, steps the rate up within the limit you set, and keeps escalating every hour. No carrier gets a pile of similar offers. Everything it makes is a draft. These are proposed intervals, not guaranteed response times, and it works while Freight Signal is open (it catches up when you return)."),
+      h("ol", { class: "rs-list" }, ALL_STAGES.map((s) => stageRow(s, r, now)), h("li", { class: "rs-row" }, h("span", { class: "rs-mark" }, icon("refresh", 13)), h("div", null, h("b", null, "Always re-checking"), h("small", null, "A new truck, quote, availability update or reply triggers another matching cycle straight away")), h("span", { class: "rs-when" }, "Ongoing"))),
       fields,
+      who,
+      calls.length ? h("div", { class: "rs-matches" }, h("b", null, "Worth a call"), h("ul", { class: "rs-calls" }, calls.map((c) => callRow(head, c, now)))) : null,
       ms.length ? h(
         "div",
         { class: "rs-matches" },
         h("b", null, `${ms.length} truck match${ms.length === 1 ? "" : "es"} so far`),
         h("ul", null, ms.slice(0, 6).map((m) => h("li", null, h("span", { class: "dir-chip " + (m.tier === "hot" ? "ok" : "") }, m.tier), " ", (m.carrierName || m.email || "Carrier") + (m.origin ? " \xB7 " + m.origin : ""), m.deadhead ? h("small", { class: "muted" }, ` \xB7 ${Math.round(m.deadhead)} mi to pickup`) : null)))
       ) : null,
-      r && r.calls && r.calls.length ? h("div", { class: "rs-matches" }, h("b", null, "Worth a call"), h("ul", null, r.calls.slice(0, 6).map((c) => h("li", null, (c.name || "Carrier") + " ", h("a", { class: "xlink", href: "tel:" + String(c.phone).replace(/[^\d+]/g, "") }, c.phone))))) : null,
       r && r.log.length ? h("div", { class: "rs-log" }, h("b", null, "What it has done"), h("ul", null, [...r.log].reverse().slice(0, 14).map((e) => h("li", null, h("time", null, clock(e.at)), h("span", null, e.text)))), r.drafts ? h("p", { class: "muted small" }, `${r.drafts} draft${r.drafts === 1 ? "" : "s"} created (see Drafts).`) : null) : null
     );
     const active = r && r.status === "active";
     const acts = [{ label: "Close" }];
     if (!r || r.status !== "active") acts.push({ label: r ? "Start again" : "Start Auto Rescue", kind: "primary", onClick: async () => {
-      await actions.startAutoRescue(head.id, { maxRate: maxIn.value, includeTeam: team.checked });
+      await actions.startAutoRescue(head.id, { maxRate: maxIn.value, includeTeam: team.checked, pace });
       toast("Auto Rescue started. It will keep working this load.", "ok");
       rerender();
     } });
     if (active) {
       acts.push({ label: "Run next step now", onClick: async () => {
-        const n = await actions.tickAutoRescue({ force: nextDue(r, now) });
+        const n = await actions.tickAutoRescue({ force: nextDue(r), only: r.id });
         toast(n ? "Ran a step. Check the log." : "Nothing more to do right now.", "ok");
         rerender();
       } });
-      acts.push({ label: "Save limit", onClick: async () => {
-        await actions.updateAutoRescue(head.id, { maxRate: Math.max(0, Math.round(safeNumeric(maxIn.value))), includeTeam: team.checked });
+      acts.push({ label: "Reshuffle postings now", onClick: async () => {
+        const res = await actions.rescueReshuffleNow(head.id);
+        toast(res.ok ? "Postings reshuffled. Download the DAT CSV and upload it." : "Could not reshuffle: " + res.error, res.ok ? "ok" : "err", 7e3);
+        rerender();
+      } });
+      acts.push({ label: "Save settings", onClick: async () => {
+        await actions.updateAutoRescue(head.id, { maxRate: Math.max(0, Math.round(safeNumeric(maxIn.value))), includeTeam: team.checked, pace });
         toast("Saved.", "ok");
         rerender();
       } });
@@ -13428,10 +13856,10 @@ details.boardextras > :not(summary) { margin: 12px; }
       init_util();
       rerender = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
       clock = (t2) => new Date(t2).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-      dur = (m) => m < 90 ? m + " min" : Math.round(m / 6) / 10 + " h";
+      dur = (m) => m < 90 ? Math.round(m * 10) / 10 + " min" : Math.round(m / 6) / 10 + " h";
       rescueOf = (head) => state.autoRescues.find((r) => r.id === head.id) || null;
-      openRescueFor = (head) => openRescue({ head, members: state.postings.filter((p) => (p.groupId || p.id) === (head.groupId || head.id)) }, head);
-      nextDue = (r, now) => (STAGES.find((s) => !r.fired[s.id]) || STAGES[1]).id;
+      openRescueFor = (head, opts2 = {}) => openRescue({ head, members: state.postings.filter((p) => (p.groupId || p.id) === (head.groupId || head.id)) }, head, opts2);
+      nextDue = (r) => (STAGES.find((s) => !r.fired[s.id]) || CYCLE_STAGE).id;
     }
   });
 
@@ -14072,7 +14500,7 @@ details.boardextras > :not(summary) { margin: 12px; }
     const contacted = new Set(state.outreach.filter((o) => ids.has(o.postingId)).map((o) => String(o.email || "").toLowerCase()));
     for (const d of state.drafts) if (ids.has(d.postingId) && d.to) contacted.add(String(d.to).toLowerCase());
     const depth = state.carriers.length ? carrierDepth(head, ctx2) : 0;
-    const unusedDepth = state.carriers.length ? rankCarriers(head, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, exclude: contacted }).filter((r) => "ABCD".includes(r.tier)).length : 0;
+    const unusedDepth = state.carriers.length ? rankCarriers(head, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments, exclude: contacted }).filter((r) => "ABCD".includes(r.tier)).length : 0;
     return { depth, unusedDepth, wave: outreachCount(head, state.settings, state.zip), now: ctx2.now };
   }
   var boardCtx;
@@ -15340,22 +15768,48 @@ ${d.body}`) }, "Copy"),
     modal({ title: `Carrier outreach: ${res.created ?? (res.drafts || []).length} draft(s)`, body, wide: true, actions: [{ label: "Close", kind: "primary" }] });
   }
   function callListModal(box) {
-    const list = callList(box.head, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries }, 12);
-    const body = list.length ? h("div", { class: "tablewrap" }, h(
+    const head = box.head;
+    const now = Date.now();
+    const list = callList(head, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments }, 14);
+    const done = callState(head);
+    const cooling = (r) => !!callCooling(done.get(callKeyOf(r.carrier)), now);
+    const rows = [...list.filter((r) => !cooling(r)), ...list.filter(cooling)];
+    const chip2 = (res) => {
+      const lab = (CALL_RESULTS.find((x) => x[0] === res) || [])[1] || res;
+      return h("span", { class: "dir-chip " + (res === "truck" ? "ok" : res === "notruck" ? "bad" : "warn") }, lab);
+    };
+    const outcome2 = (r) => {
+      const key = callKeyOf(r.carrier);
+      const prior = done.get(key);
+      const cell = h("span", { class: "rs-call-out" });
+      const sel = h("select", { class: "cell dir-sel", "aria-label": "Log the call with " + (r.carrier.carrierName || "this carrier"), "data-act": "log-call" }, h("option", { value: "" }, "Log call\u2026"), CALL_RESULTS.map(([v, l]) => h("option", { value: v }, l)));
+      sel.addEventListener("change", async () => {
+        const v = sel.value;
+        if (!v) return;
+        await actions.logCall(head.id, { key, name: r.carrier.carrierName, phone: r.carrier.phone, carrierId: r.carrier.id }, v);
+        cell.replaceChildren(chip2(v));
+        toast(v === "truck" ? "Logged. Send them the load details and rate now." : "Logged.", "ok");
+      });
+      if (prior && callCooling(prior, now)) cell.append(chip2(prior.result));
+      else cell.append(sel);
+      return cell;
+    };
+    const body = rows.length ? h("div", { class: "tablewrap" }, h(
       "table",
       { class: "lanetable" },
-      h("thead", null, h("tr", null, ["Carrier", "Phone", "Why", ""].map((x) => h("th", null, x)))),
-      h("tbody", null, list.map((r) => h(
+      h("thead", null, h("tr", null, ["Carrier", "Phone", "Why", "How did it go?", ""].map((x) => h("th", null, x)))),
+      h("tbody", null, rows.map((r) => h(
         "tr",
-        null,
-        h("td", null, h("b", null, r.carrier.carrierName || r.carrier.email || "(unnamed)")),
-        h("td", { class: "mono" }, r.carrier.phone),
+        { class: cooling(r) ? "dim" : "" },
+        h("td", null, r.primary ? h("span", { class: "pstar inline " + r.primary, title: (r.primary === "backup" ? "Backup" : "Primary") + " carrier for this lane" }, icon("star", 9)) : null, h("b", null, r.carrier.carrierName || r.carrier.email || "(unnamed)")),
+        h("td", { class: "mono" }, h("a", { class: "xlink", href: "tel:" + String(r.carrier.phone).replace(/[^\d+]/g, "") }, r.carrier.phone)),
         h("td", { class: "muted small" }, `${r.tierLabel}: ${r.reasons.join("; ")}`),
+        h("td", null, outcome2(r)),
         h("td", null, h("button", { class: "btn small", type: "button", onclick: () => copyText(r.carrier.phone, "Phone number copied.") }, "Copy"))
       )))
     )) : h("p", { class: "muted" }, "No carrier in the database that fits this lane has a phone number. Add phone numbers in the Carrier Database, or call the carriers that replied (Inquiry Log).");
     modal({ title: `Call list: ${box.title}`, body, wide: true, actions: [{ label: "Close", kind: "primary" }] });
-    if (list.length) toast(`${list.length} carriers with phone numbers, best match first.`, "info");
+    if (list.length) toast(`${list.length} carriers with phone numbers, ${list.some((r) => r.primary) ? "primary carriers first, then " : ""}best match first.`, "info");
     return list.length;
   }
   var init_outreachview = __esm({
@@ -15364,6 +15818,8 @@ ${d.body}`) }, "Copy"),
       init_state();
       init_draftcard();
       init_ranking();
+      init_icons();
+      init_autorescue();
     }
   });
 
@@ -16989,7 +17445,7 @@ Download anyway?`, "Download anyway");
       h("button", { class: "btn", type: "button", "data-act": "copy-lane-details", title: "Copy the original load details (the pasted load text)", onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon("copy", 15), "Copy details"),
       single ? h("button", { class: "btn", type: "button", "data-act": "build-matrix", title: "Build the 9-posting matrix", onclick: () => matrixFlow(head) }, "Build 3\xD73 matrix") : null,
       coverTools(b, head),
-      rescueButton(b, head),
+      rescueButton(b, head, { csv: () => downloadDat(single ? "one" : "group", b.members, "Load") }),
       menu("More actions for this load", [
         { label: "View / edit load details and reply note", act: "edit-lane-details", run: () => editDetails(b) },
         !single ? { label: "Reshuffle postings (new nearby cities)", act: "reshuffle", run: async () => {
@@ -16997,6 +17453,12 @@ Download anyway?`, "Download anyway");
           const res = await actions.reshuffleMatrix(head.id);
           if (!res.ok) return toast(res.error, "err", 7e3);
           toast("Postings reshuffled. Download the DAT CSV again and re-upload it.", "ok", 7e3);
+        } } : null,
+        !single ? { label: "Reshuffle wider (more reach, nearby states)", act: "reshuffle-wide", run: async () => {
+          if (!await confirmDialog("Reshuffle wider", "Like Reshuffle, but the new postings reach about 60% further and try to include a market across the state line, so carriers who search by state or from a bigger metro see the load too. Cities already tried are skipped. The Original posting, target rate and any DAT rates stay.", "Reshuffle wider")) return;
+          const res = await actions.reshuffleMatrix(head.id, { reach: 1.6, crossState: true });
+          if (!res.ok) return toast(res.error, "err", 7e3);
+          toast("Postings reshuffled wider. Download the DAT CSV again and re-upload it.", "ok", 7e3);
         } } : null,
         { label: "Save to Spare Load Details", act: "save-spare", run: async () => {
           await actions.saveSpareFromGroup(head.id);
@@ -17010,7 +17472,7 @@ Download anyway?`, "Download anyway");
       { class: "lanebox p-" + (head.priority || "Low"), ...attrs },
       header,
       h("div", { class: "lanebasics" }, details, suggestStrip(b, r, rate3)),
-      rescueStrip(head),
+      rescueStrip(head, { csv: () => downloadDat(single ? "one" : "group", b.members, "Load") }),
       planStrip(head),
       coverageStrip(b, head),
       teamStrip(b, head),
@@ -17591,6 +18053,239 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     }
   });
 
+  // js/core/search.js
+  function norm3(s) {
+    return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  }
+  function editDistance(a, b, max = 2) {
+    if (a === b) return 0;
+    const la = a.length, lb = b.length;
+    if (Math.abs(la - lb) > max) return max + 1;
+    let prev2 = null, prev = Array.from({ length: lb + 1 }, (_, j) => j);
+    for (let i = 1; i <= la; i++) {
+      const cur = [i];
+      let rowMin = i;
+      for (let j = 1; j <= lb; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur[j] = v;
+        if (v < rowMin) rowMin = v;
+      }
+      if (rowMin > max) return max + 1;
+      prev2 = prev;
+      prev = cur;
+    }
+    return prev[lb];
+  }
+  function parseQuery(raw, fieldAliases = {}) {
+    const src = String(raw ?? "").trim();
+    const terms = [];
+    if (!src) return { raw: src, terms };
+    const re = /(?:([a-z]+):)?(?:"([^"]+)"|(\S+))/gi;
+    let m;
+    while (m = re.exec(src)) {
+      let field2 = "";
+      let body = m[2] !== void 0 ? m[2] : m[3];
+      const phrase = m[2] !== void 0;
+      if (m[1] && fieldAliases[m[1].toLowerCase()]) field2 = fieldAliases[m[1].toLowerCase()];
+      else if (m[1]) body = m[1] + ":" + body;
+      const text2 = norm3(body);
+      if (!text2) continue;
+      const parts = phrase ? [text2] : text2.split(" ");
+      for (const p of parts) terms.push({ text: p, digits: digitsOf(body), filler: !phrase && !field2 && FILLER2.has(p), field: field2, phrase });
+    }
+    if (terms.length && terms.every((t2) => t2.filler)) terms.forEach((t2) => {
+      t2.filler = false;
+    });
+    return { raw: src, terms };
+  }
+  function scoreWord(term, field2, words) {
+    const t2 = term.text;
+    if (!t2) return 0;
+    const long = t2.length;
+    let best = 0;
+    if (field2.kind === "code") return words.includes(t2) ? 1 : 0;
+    if (field2.kind === "digits") {
+      const d = term.digits;
+      if (d.length < (field2.minDigits || 3)) return 0;
+      const all = field2.digits || "";
+      if (!all) return 0;
+      if (all === d || all.endsWith(d) && d.length >= 7) return 1;
+      if (all.startsWith(d)) return 0.85;
+      if (all.includes(d)) return 0.6;
+      return 0;
+    }
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (w === t2) {
+        best = Math.max(best, i === 0 ? 1 : 0.95);
+        continue;
+      }
+      if (long >= 1 && w.startsWith(t2)) {
+        if (long >= 2 || field2.kind === "name") best = Math.max(best, (i === 0 ? 0.88 : 0.8) * Math.min(1, 0.7 + long * 0.1));
+        continue;
+      }
+      if (long >= 3 && w.includes(t2)) {
+        best = Math.max(best, 0.5);
+        continue;
+      }
+      if (long >= 4 && w.length >= 4) {
+        const max = long >= 8 ? 2 : 1;
+        const d = Math.min(editDistance(t2, w, max), editDistance(t2, w.slice(0, Math.min(w.length, long + 1)), max));
+        if (d <= max) best = Math.max(best, d === 1 ? 0.42 : 0.34);
+      }
+    }
+    return best;
+  }
+  function indexOf(rec2, spec) {
+    const vals2 = spec.fields.map((f) => {
+      const v = f.get(rec2);
+      return Array.isArray(v) ? v.join(" ; ") : String(v ?? "");
+    });
+    const sig = vals2.join("");
+    const hit = CACHE.get(rec2);
+    const id = spec.cacheId || spec;
+    if (hit && hit.id === id && hit.sig === sig) return hit.idx;
+    const idx = spec.fields.map((f, i) => {
+      const raw = vals2[i];
+      const n = norm3(raw);
+      return { text: n, words: n ? n.split(" ") : [], digits: f.kind === "digits" ? digitsOf(raw) : "" };
+    });
+    CACHE.set(rec2, { id, sig, idx });
+    return idx;
+  }
+  function searchRecords(records, query2, spec) {
+    const q4 = typeof query2 === "string" ? parseQuery(query2, spec.aliases || {}) : query2;
+    if (!q4.terms.length) return { results: records.map((record) => ({ record, score: 0, matched: [], all: true })), partial: false, terms: [] };
+    const scored = [];
+    const nonFiller = q4.terms.filter((t2) => !t2.filler).length;
+    for (const record of records) {
+      const idx = indexOf(record, spec);
+      let total = 0, hits = 0, reqHits = 0;
+      const matched = /* @__PURE__ */ new Set();
+      for (const term of q4.terms) {
+        let best = 0, bestField = "", extra = 0;
+        for (let i = 0; i < spec.fields.length; i++) {
+          const f = spec.fields[i];
+          if (term.field && f.aliases && !f.aliases.includes(term.field) && f.id !== term.field) continue;
+          if (term.field && !f.aliases && f.id !== term.field) continue;
+          let s;
+          if (term.phrase) s = idx[i].text.includes(term.text) ? idx[i].text.startsWith(term.text) ? 1 : 0.8 : 0;
+          else s = scoreWord(term, { ...f, digits: idx[i].digits }, idx[i].words);
+          const w = s * f.weight;
+          if (w > best) {
+            if (best) extra += best * 0.08;
+            best = w;
+            bestField = f.id;
+          } else if (w > 0) extra += w * 0.08;
+        }
+        if (best > 0) {
+          hits++;
+          if (!(term.filler && nonFiller)) reqHits++;
+          matched.add(bestField);
+          total += (term.filler && nonFiller ? 0.3 : 1) * (best + Math.min(extra, best * 0.25));
+        }
+      }
+      if (!hits) continue;
+      const whole = norm3(q4.raw);
+      if (whole && q4.terms.length > 1 && !q4.terms.some((t2) => t2.field)) {
+        const nm2 = spec.fields.find((f) => f.kind === "name");
+        if (nm2) {
+          const t2 = idx[spec.fields.indexOf(nm2)].text;
+          if (t2.includes(whole)) total += nm2.weight * (t2.startsWith(whole) ? 1.2 : 0.8);
+        }
+      }
+      const bonus = spec.boost ? Math.max(0, Math.min(spec.boostMax || 6, Number(spec.boost(record)) || 0)) : 0;
+      scored.push({ record, score: total + bonus * 0.1, matched: [...matched], all: nonFiller ? reqHits === nonFiller : hits === q4.terms.length, hits });
+    }
+    const full = scored.filter((r) => r.all);
+    const use = full.length ? full : scored.sort((a, b) => b.hits - a.hits || b.score - a.score);
+    const name = spec.fields.find((f) => f.kind === "name");
+    const nameOf2 = (r) => name ? String(name.get(r.record) || "") : "";
+    use.sort((a, b) => b.score - a.score || nameOf2(a).localeCompare(nameOf2(b), void 0, { sensitivity: "base" }));
+    return { results: use, partial: !full.length && use.length > 0, terms: q4.terms };
+  }
+  function highlightParts(text2, terms) {
+    const s = String(text2 ?? "");
+    if (!s || !terms || !terms.length) return [{ text: s, hit: false }];
+    const low = s.toLowerCase();
+    if (low.length !== s.length || s.normalize("NFD").length !== s.length) return [{ text: s, hit: false }];
+    const marks = new Array(s.length).fill(false);
+    for (const t2 of terms) {
+      const w = t2.text;
+      if (!w) continue;
+      let from = 0;
+      let at;
+      while ((at = low.indexOf(w, from)) !== -1) {
+        const wordStart = at === 0 || !/[a-z0-9]/.test(low[at - 1]);
+        if (wordStart || w.length >= 3) for (let i = at; i < at + w.length; i++) marks[i] = true;
+        from = at + Math.max(1, w.length);
+      }
+    }
+    const out = [];
+    let cur = "";
+    let curHit = false;
+    for (let i = 0; i < s.length; i++) {
+      if (i && marks[i] !== curHit) {
+        out.push({ text: cur, hit: curHit });
+        cur = "";
+      }
+      curHit = marks[i];
+      cur += s[i];
+    }
+    if (cur) out.push({ text: cur, hit: curHit });
+    return out;
+  }
+  function carrierSpec(extra = () => ({}), boostFn = null) {
+    return {
+      cacheId: "carrier",
+      aliases: { name: "name", carrier: "name", mc: "mc", dot: "mc", phone: "phone", tel: "phone", email: "email", mail: "email", city: "city", st: "state", state: "state", equip: "equip", equipment: "equip", notes: "notes", note: "notes", lane: "lane", primary: "primary" },
+      fields: [
+        { id: "name", kind: "name", weight: 10, aliases: ["name"], get: (c) => c.carrierName },
+        { id: "mc", kind: "digits", weight: 9, minDigits: 3, aliases: ["mc"], get: (c) => c.mc },
+        { id: "phone", kind: "digits", weight: 7, minDigits: 3, aliases: ["phone"], get: (c) => [c.phone, c.dispatchPhone, c.driverPhone].filter(Boolean).join(" ") },
+        { id: "email", kind: "email", weight: 6, aliases: ["email"], get: (c) => [c.email, ...Array.isArray(c.altEmails) ? c.altEmails : []].filter(Boolean).join(" ") },
+        { id: "city", kind: "text", weight: 4, aliases: ["city", "lane"], get: (c) => [c.originCity, c.destCity].filter(Boolean).join(" ") },
+        { id: "state", kind: "code", weight: 3.5, aliases: ["state", "lane"], get: (c) => [c.originState, c.destState].filter(Boolean).join(" ") },
+        { id: "equip", kind: "text", weight: 4, aliases: ["equip"], get: (c) => c.equipment },
+        { id: "primary", kind: "text", weight: 5, aliases: ["primary", "lane"], get: (c) => extra(c).primaryText || "" },
+        { id: "contact", kind: "text", weight: 3, get: (c) => c.driverName },
+        { id: "lanes", kind: "text", weight: 2.5, aliases: ["lane"], get: lanesText },
+        { id: "notes", kind: "text", weight: 2, aliases: ["notes"], get: (c) => [c.notes, c.preferredPickupDates, c.status].filter(Boolean).join(" ") }
+      ],
+      boost: boostFn || ((c) => (Number(c.coverCount) > 0 ? Math.min(3, Number(c.coverCount) / 2) : 0) + (extra(c).primaryText ? 3 : 0))
+    };
+  }
+  function customerSpec() {
+    return {
+      cacheId: "customer",
+      aliases: { name: "name", company: "name", contact: "contact", phone: "phone", tel: "phone", email: "email", mail: "email", city: "city", st: "state", state: "state", equip: "equip", equipment: "equip", notes: "notes", note: "notes", lane: "lane", industry: "industry" },
+      fields: [
+        { id: "name", kind: "name", weight: 10, aliases: ["name"], get: (c) => c.company },
+        { id: "contact", kind: "text", weight: 8, aliases: ["contact"], get: (c) => c.contactName },
+        { id: "phone", kind: "digits", weight: 7, minDigits: 3, aliases: ["phone"], get: (c) => c.phone },
+        { id: "email", kind: "email", weight: 6, aliases: ["email"], get: (c) => c.email },
+        { id: "city", kind: "text", weight: 4, aliases: ["city", "lane"], get: (c) => c.city },
+        { id: "state", kind: "code", weight: 3.5, aliases: ["state", "lane"], get: (c) => c.state },
+        { id: "title", kind: "text", weight: 3, get: (c) => c.title },
+        { id: "industry", kind: "text", weight: 3.5, aliases: ["industry"], get: (c) => [c.industry, c.equipment].filter(Boolean).join(" ") },
+        { id: "lanes", kind: "text", weight: 2.5, aliases: ["lane"], get: (c) => c.lanes },
+        { id: "notes", kind: "text", weight: 2, aliases: ["notes"], get: (c) => [c.notes, c.status].filter(Boolean).join(" ") }
+      ],
+      boost: () => 0
+    };
+  }
+  var FILLER2, digitsOf, CACHE, lanesText;
+  var init_search = __esm({
+    "js/core/search.js"() {
+      FILLER2 = /* @__PURE__ */ new Set(["inc", "llc", "ltd", "co", "corp", "corporation", "company", "the", "and", "of", "transport", "transportation", "transports", "trucking", "truck", "trucks", "logistics", "freight", "express", "lines", "line", "carrier", "carriers", "services", "service", "group", "enterprises", "solutions", "systems", "intl", "international", "brokerage", "shipping", "hauling", "haul", "llp", "lp", "dba"]);
+      digitsOf = (s) => String(s ?? "").replace(/\D+/g, "");
+      CACHE = /* @__PURE__ */ new WeakMap();
+      lanesText = (c) => Array.isArray(c.ranLanes) ? c.ranLanes.map((l) => [l.originCity, l.originState, l.destCity, l.destState].filter(Boolean).join(" ")).join(" ; ") : "";
+    }
+  });
+
   // js/ui/directory.js
   function relDate(iso, now = Date.now()) {
     const t2 = Date.parse(iso);
@@ -17630,12 +18325,51 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     return h("div", { class: "dir-seg", role: "group", "aria-label": label2 }, options.map(([v, l, n]) => h("button", { type: "button", class: "seg" + (v === value ? " on" : ""), "aria-pressed": String(v === value), "data-view": v, onclick: () => onChange(v) }, l, n !== void 0 ? h("b", null, n) : null)));
   }
   function searchBox(value, placeholder, onInput, onEnter) {
-    const input2 = h("input", { type: "search", placeholder, value, "data-rerender": "", "aria-label": placeholder });
-    input2.addEventListener("input", () => onInput(input2.value));
+    const input2 = h("input", { type: "search", placeholder, value, "data-rerender": "", "data-fk": "dir:search", autocomplete: "off", spellcheck: "false", "aria-label": placeholder });
+    let timer4 = 0, composing = false;
+    const fire = () => {
+      clearTimeout(timer4);
+      onEnter();
+    };
+    input2.addEventListener("compositionstart", () => {
+      composing = true;
+    });
+    input2.addEventListener("compositionend", () => {
+      composing = false;
+      onInput(input2.value);
+      timer4 = setTimeout(fire, 120);
+    });
+    input2.addEventListener("input", () => {
+      onInput(input2.value);
+      if (composing) return;
+      clearTimeout(timer4);
+      timer4 = setTimeout(fire, 130);
+    });
     input2.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") onEnter();
+      if (e.key === "Enter") fire();
+      else if (e.key === "Escape" && input2.value) {
+        e.preventDefault();
+        input2.value = "";
+        onInput("");
+        fire();
+      }
     });
     return h("label", { class: "dir-search" }, icon("search", 16), input2);
+  }
+  function marked(text2, terms) {
+    const parts = highlightParts(text2, terms);
+    if (parts.length === 1 && !parts[0].hit) return parts[0].text;
+    return parts.map((p) => p.hit ? h("mark", { class: "hl" }, p.text) : p.text);
+  }
+  function primaryBadge(info, { size = 11 } = {}) {
+    if (!info) return null;
+    const lanes = info.lanes.slice(0, 3).join("; ") + (info.lanes.length > 3 ? " and " + (info.lanes.length - 3) + " more" : "");
+    const label2 = (info.level === "backup" ? "Backup carrier for " : "Primary carrier for ") + lanes;
+    return h("span", { class: "pstar " + info.level, title: label2, role: "img", "aria-label": label2, "data-primary": info.level }, icon("star", size));
+  }
+  function avatarWithStar(name, info, opts2) {
+    const a = avatar(name, opts2);
+    return info ? h("span", { class: "dir-avwrap" }, a, primaryBadge(info)) : a;
   }
   function moreMenu(label2, items, { iconName = "more", cls = "" } = {}) {
     const d = h("details", { class: "dir-menu " + cls });
@@ -17725,6 +18459,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     "js/ui/directory.js"() {
       init_dom();
       init_icons();
+      init_search();
       DAY5 = 864e5;
       shortDate2 = (iso) => {
         const t2 = new Date(iso);
@@ -18214,17 +18949,18 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
   __export(carriers_exports, {
     render: () => render8
   });
-  function toolbar(all, rows) {
+  function toolbar(all, rows, found) {
     const cs = state.carriers;
     const count3 = (k) => cs.filter(VIEWS[k]).length;
     return [
       h(
         "div",
         { class: "dir-bar" },
-        searchBox(q, "Search name, MC, e-mail, city, equipment\u2026", (v) => {
+        searchBox(q, "Search name, MC, phone, e-mail, city, equipment\u2026", (v) => {
+          if (v !== q) relevance = true;
           q = v;
         }, rerender4),
-        segmented([["all", "All", count3("all")], ["active", "Active", count3("active")], ["reach", "Ready to contact", count3("reach")], ["never", "Never contacted", count3("never")], ["proven", "Has covered", count3("proven")]], view2, (v) => {
+        segmented([["all", "All", count3("all")], ["primary", h("span", { class: "seglabel" }, h("span", { class: "pstar inline" }, icon("star", 9)), "Primary"), count3("primary")], ["active", "Active", count3("active")], ["reach", "Ready to contact", count3("reach")], ["never", "Never contacted", count3("never")], ["proven", "Has covered", count3("proven")]], view2, (v) => {
           view2 = v;
           rerender4();
         }, "Quick views"),
@@ -18263,7 +18999,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
           rerender4();
         }, "status"),
         h("span", { class: "lbl" }, "Group by"),
-        filterSelect("No grouping", [["equipment", "Equipment"], ["originState", "Home state"], ["status", "Status"]], groupKey, (v) => {
+        filterSelect("No grouping", [["primary", "Primary carriers"], ["equipment", "Equipment"], ["originState", "Home state"], ["status", "Status"]], groupKey, (v) => {
           groupKey = v;
           rerender4();
         }, "group"),
@@ -18276,7 +19012,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
           rerender4();
         } }, "Clear filters") : null
       ),
-      h("div", { class: "dir-count" }, h("span", null, `${rows.length} of ${all.length}`), (() => {
+      h("div", { class: "dir-count" }, h("span", null, `${rows.length} of ${all.length}`), searchHint(found), (() => {
         const top = topCarriersByCovers(state.coverLog, 3).map((t2) => {
           const c = cs.find((x) => String(x.email || "").toLowerCase() === t2.email);
           return `${c && c.carrierName || t2.email} (${t2.covers})`;
@@ -18285,15 +19021,25 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       })())
     ];
   }
-  function row2(c) {
+  function searchHint(found) {
+    if (!q.trim()) return null;
+    if (found.partial) return h("span", { class: "dir-hint warn" }, "No carrier matches every word. Showing the closest matches.");
+    if (!found.terms.length) return null;
+    return h("span", { class: "dir-hint" }, relevance && !sorter.state ? [h("b", null, "Best match first."), " Click a column header to sort instead."] : relevance ? [h("b", null, "Best match first.")] : h("button", { class: "linkbtn", type: "button", onclick: () => {
+      relevance = true;
+      rerender4();
+    } }, "Sort by best match"));
+  }
+  function row2(c, terms = []) {
     const { o, d } = laneText3(c);
     const mc = String(c.mc || "").trim();
+    const star = stars.get(c.id);
     const cells = [
       h("td", { class: "c-name" }, h(
         "div",
         { class: "dir-id" },
-        avatar(c.carrierName || c.email),
-        h("div", { class: "t" }, h("b", { title: c.carrierName }, c.carrierName || "(no name)"), h("small", null, mc ? fmcsaUrl(mc) ? h("a", { class: "xlink", href: fmcsaUrl(mc), target: "_blank", rel: "noopener", title: "Look up on FMCSA SAFER" }, "MC " + mc.replace(/^mc[\s#:-]*/i, "")) : "MC " + mc : "No MC on file"))
+        avatarWithStar(c.carrierName || c.email, star),
+        h("div", { class: "t" }, h("b", { title: c.carrierName }, marked(c.carrierName || "(no name)", terms)), h("small", null, mc ? fmcsaUrl(mc) ? h("a", { class: "xlink", href: fmcsaUrl(mc), target: "_blank", rel: "noopener", title: "Look up on FMCSA SAFER" }, "MC " + mc.replace(/^mc[\s#:-]*/i, "")) : "MC " + mc : "No MC on file"))
       )),
       h("td", null, contactStack(c, { telHref, mailHref })),
       h("td", { class: "c-lane" }, o || d ? h("span", { class: "dir-lane" }, o || "Anywhere", icon("chevright", 12), d || "Anywhere") : h("span", { class: "dir-none" }, "No lane on file")),
@@ -18309,7 +19055,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       ))
     ];
     const detail = detailCard({
-      fields: [["Verified by e-mail", c.verified === "email" ? "Booked " + (c.bookedCount || 1) + " load" + (Number(c.bookedCount) === 1 ? "" : "s") + (c.lastBookedAt ? ", last " + relDate(c.lastBookedAt) : "") + (c.lastBookedRate ? " at $" + Number(c.lastBookedRate).toLocaleString("en-US") : "") + " (" + c.historyConfidence + "% evidence)" : ""], ["Dispatch phone (from e-mail)", c.dispatchPhone], ["Last driver", [c.driverName, c.driverPhone].filter(Boolean).join(" ")], ["Lanes it ran", Array.isArray(c.ranLanes) ? c.ranLanes.map((l) => l.originCity + ", " + l.originState + " to " + l.destCity + ", " + l.destState + (l.count > 1 ? " x" + l.count : "")).join("; ") : ""], ["Also e-mails from", Array.isArray(c.altEmails) ? c.altEmails.join(", ") : ""], ["Primary for", state.assignments.filter((a) => a.carrierId === c.id).map(describeAssignment).join("; ")], ["Preferred pickup", c.preferredPickupDates], ["Usual rate", c.rate], ["Last covered", c.lastCovered ? relDate(c.lastCovered) + " (" + c.lastCovered + ")" : ""], ["Response rate", c.responseRate], ["Covers", c.coverCount], ["All equipment", eqTokens(c).join(", ")]],
+      fields: [["Verified by e-mail", c.verified === "email" ? "Booked " + (c.bookedCount || 1) + " load" + (Number(c.bookedCount) === 1 ? "" : "s") + (c.lastBookedAt ? ", last " + relDate(c.lastBookedAt) : "") + (c.lastBookedRate ? " at $" + Number(c.lastBookedRate).toLocaleString("en-US") : "") + " (" + c.historyConfidence + "% evidence)" : ""], ["Dispatch phone (from e-mail)", c.dispatchPhone], ["Last driver", [c.driverName, c.driverPhone].filter(Boolean).join(" ")], ["Lanes it ran", Array.isArray(c.ranLanes) ? c.ranLanes.map((l) => l.originCity + ", " + l.originState + " to " + l.destCity + ", " + l.destState + (l.count > 1 ? " x" + l.count : "")).join("; ") : ""], ["Also e-mails from", Array.isArray(c.altEmails) ? c.altEmails.join(", ") : ""], ["Primary for", star ? h("span", null, h("span", { class: "pstar inline " + star.level }, icon("star", 9)), (star.level === "backup" ? "Backup: " : "Primary: ") + star.lanes.join("; ")) : "", true], ["Last call", c.lastCallResult ? c.lastCallResult + (c.lastCallAt ? ", " + relDate(c.lastCallAt) : "") : ""], ["Preferred pickup", c.preferredPickupDates], ["Usual rate", c.rate], ["Last covered", c.lastCovered ? relDate(c.lastCovered) + " (" + c.lastCovered + ")" : ""], ["Response rate", c.responseRate], ["Covers", c.coverCount], ["All equipment", eqTokens(c).join(", ")]],
       notes: c.notes,
       actions: [
         joined() ? h("button", { class: "btn small", type: "button", "data-act": "share-truck-row", title: "Share this carrier's truck with the team", onclick: () => openPublish({ carrierName: c.carrierName, mc: c.mc, email: c.email, phone: c.phone, oCity: c.originCity, oState: c.originState, dCity: c.destCity, dState: c.destState, destOpen: !(c.destCity || c.destState), equip: /reef/i.test(c.equipment || "") ? "R" : /flat/i.test(c.equipment || "") ? "F" : "V" }) }, icon("truck", 14), "Share with team") : null,
@@ -18323,16 +19069,20 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     return { id: c.id, cells, detail };
   }
   function render8() {
-    const rows = sorter.sort(state.carriers.filter(passes).filter((c) => !q || CARRIER_KEYS.some((k) => String(c[k] ?? "").toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
+    stars = primaryMap(state.assignments, state.carriers);
+    const base = state.carriers.filter(passes);
+    const found = q.trim() ? searchRecords(base, q, SPEC) : { results: [], partial: false, terms: [] };
+    const terms = q.trim() ? parseQuery(q, SPEC.aliases).terms : [];
+    const rows = q.trim() ? relevance ? found.results.map((r) => r.record) : sorter.sort(found.results.map((r) => r.record), (c, k) => c[k]) : sorter.sort(base, (c, k) => c[k]);
     const COLS2 = [["carrierName", "Carrier"], ["email", "Contact"], ["originState", "Lane"], ["equipment", "Equipment"], ["lastContacted", "Last contacted"], ["coverCount", "Covers"], ["status", "Status"]];
     const body = [];
-    const gf = GROUPS[groupKey];
+    const gf = q.trim() && relevance ? null : GROUPS[groupKey];
     if (gf && rows.length) {
       for (const [name, list] of groupBy(rows, gf)) {
         body.push(groupRow(name, list.length, 8));
-        body.push(...expandRows(list.map(row2), open2, 8));
+        body.push(...expandRows(list.map((c) => row2(c, terms)), open2, 8));
       }
-    } else body.push(...expandRows(rows.map(row2), open2, 8));
+    } else body.push(...expandRows(rows.map((c) => row2(c, terms)), open2, 8));
     return h(
       "div",
       null,
@@ -18343,12 +19093,12 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         text: "Import the carriers you already work with (an Excel or CSV list), or add one by hand. You can also approve a sender in the Inquiry Log and they land here.",
         actions: [h("button", { class: "btn primary", type: "button", onclick: () => edit(null) }, "Add carrier"), h("button", { class: "btn", type: "button", onclick: importDialog }, "Import from Excel / CSV")]
       }) : statTilesFor(),
-      !state.carriers.length ? null : toolbar(state.carriers, rows),
+      !state.carriers.length ? null : toolbar(state.carriers, rows, found),
       !state.carriers.length ? null : h("div", { class: "dirwrap tablewrap" }, h(
         "table",
         { class: "carrier dirtable" },
         h("thead", null, h("tr", null, COLS2.map(([k, l]) => sorter.th(k, l)), h("th", null, ""))),
-        h("tbody", null, rows.length ? body : h("tr", null, h("td", { colspan: 8, class: "muted" }, "No carriers match. Clear the filters or search for something else.")))
+        h("tbody", null, rows.length ? body : h("tr", null, h("td", { colspan: 8, class: "muted" }, q.trim() ? 'No carrier matches "' + q.trim() + '". Try fewer words, part of the name, an MC or phone number, or clear the filters.' : "No carriers match. Clear the filters or search for something else.")))
       ))
     );
   }
@@ -18417,7 +19167,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       } }]
     });
   }
-  var q, view2, groupKey, F, open2, rerender4, sorter, eqTokens, uniq2, statusOf, days, VIEWS, passes, filtersOn, laneText3, GROUPS, csv;
+  var q, view2, groupKey, F, open2, rerender4, relevance, sorter, stars, SPEC, eqTokens, uniq2, statusOf, days, VIEWS, passes, filtersOn, laneText3, GROUPS, csv;
   var init_carriers = __esm({
     "js/ui/pages/carriers.js"() {
       init_dom();
@@ -18434,6 +19184,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       init_tablesort2();
       init_resources();
       init_directory();
+      init_search();
       init_trucks2();
       init_net();
       init_history2();
@@ -18445,7 +19196,13 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       F = { equip: "", state: "", status: "" };
       open2 = /* @__PURE__ */ new Set();
       rerender4 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
-      sorter = createTableSort(rerender4);
+      relevance = true;
+      sorter = createTableSort(() => {
+        relevance = false;
+        rerender4();
+      });
+      stars = /* @__PURE__ */ new Map();
+      SPEC = carrierSpec((c) => ({ primaryText: (stars.get(c.id) || {}).text || "" }));
       eqTokens = (c) => String(c.equipment ?? "").split(/[,/;|]+/).map((x) => x.trim()).filter(Boolean);
       uniq2 = (list) => [...new Set(list)].sort((a, b) => a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" }));
       statusOf = (c) => String(c.status || "Active").trim();
@@ -18458,7 +19215,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         active: (c) => statusOf(c).toLowerCase() !== "inactive",
         reach: (c) => String(c.email || "").trim() && days(c) >= 7,
         never: (c) => days(c) === Infinity,
-        proven: (c) => Number(c.coverCount) > 0
+        proven: (c) => Number(c.coverCount) > 0,
+        primary: (c) => stars.has(c.id)
       };
       passes = (c) => {
         if (!VIEWS[view2](c)) return false;
@@ -18472,7 +19230,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         const o = [c.originCity, c.originState].filter(Boolean).join(", "), d = [c.destCity, c.destState].filter(Boolean).join(", ");
         return { o, d };
       };
-      GROUPS = { "": null, equipment: (c) => eqTokens(c)[0] || "No equipment listed", originState: (c) => String(c.originState || "").trim().toUpperCase() || "No home state", status: statusOf };
+      GROUPS = { "": null, primary: (c) => stars.has(c.id) ? stars.get(c.id).level === "backup" ? "Backup carriers" : "Primary carriers" : "Other carriers", equipment: (c) => eqTokens(c)[0] || "No equipment listed", originState: (c) => String(c.originState || "").trim().toUpperCase() || "No home state", status: statusOf };
       csv = () => toDelimited([CARRIER_HEADERS, ...state.carriers.map((c) => CARRIER_KEYS.map((k) => c[k] ?? ""))], ",");
     }
   });
@@ -18489,14 +19247,14 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     const touched = cs.filter((c) => age(c) < 30).length, stale = cs.filter((c) => age(c) >= 90).length;
     return statTiles([[cs.length, "Contacts"], [companies, "Companies"], [touched, "Contacted in 30 days"], [stale, "Not contacted in 90+ days", stale ? "act" : ""]]);
   }
-  function row3(c) {
+  function row3(c, terms = []) {
     const place2 = [c.city, c.state].filter(Boolean).join(", ");
     const cells = [
       h("td", { class: "c-name" }, h(
         "div",
         { class: "dir-id" },
         avatar(c.company || nameOf(c), { square: true }),
-        h("div", { class: "t" }, h("b", { title: c.company }, c.company || nameOf(c)), h("small", null, c.company ? c.contactName || c.title || "" : c.title || ""))
+        h("div", { class: "t" }, h("b", { title: c.company }, marked(c.company || nameOf(c), terms)), h("small", null, marked(c.company ? c.contactName || c.title || "" : c.title || "", terms)))
       )),
       h("td", null, contactStack(c, { telHref, mailHref })),
       h("td", null, place2 || h("span", { class: "dir-none" }, "\u2014")),
@@ -18554,18 +19312,21 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     });
   }
   function render9() {
-    const rows = sorter2.sort(state.customers.filter(passes2).filter((c) => !q2 || CUSTOMER_KEYS.some((k) => String(c[k] ?? "").toLowerCase().includes(q2.toLowerCase()))), (c, k) => c[k]);
+    const base = state.customers.filter(passes2);
+    const found = q2.trim() ? searchRecords(base, q2, SPEC2) : { results: [], partial: false, terms: [] };
+    const terms = q2.trim() ? parseQuery(q2, SPEC2.aliases).terms : [];
+    const rows = q2.trim() ? relevance2 ? found.results.map((r) => r.record) : sorter2.sort(found.results.map((r) => r.record), (c, k) => c[k]) : sorter2.sort(base, (c, k) => c[k]);
     const cs = state.customers;
     const count3 = (k) => cs.filter(VIEWS2[k]).length;
     const COLS2 = [["company", "Company"], ["email", "Contact"], ["state", "Location"], ["lastContacted", "Last contacted"], ["status", "Status"]];
     const body = [];
-    const gf = GROUPS2[groupKey2];
+    const gf = q2.trim() && relevance2 ? null : GROUPS2[groupKey2];
     if (gf && rows.length) {
       for (const [name, list] of groupBy(rows, gf)) {
         body.push(groupRow(name, list.length, 6));
-        body.push(...expandRows(list.map(row3), open3, 6));
+        body.push(...expandRows(list.map((c) => row3(c, terms)), open3, 6));
       }
-    } else body.push(...expandRows(rows.map(row3), open3, 6));
+    } else body.push(...expandRows(rows.map((c) => row3(c, terms)), open3, 6));
     const on = Object.values(F2).some(Boolean) || view3 !== "all" || q2;
     return h(
       "div",
@@ -18581,7 +19342,8 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
         h(
           "div",
           { class: "dir-bar" },
-          searchBox(q2, "Search company, contact, e-mail, city\u2026", (v) => {
+          searchBox(q2, "Search company, contact, phone, e-mail, city\u2026", (v) => {
+            if (v !== q2) relevance2 = true;
             q2 = v;
           }, rerender5),
           segmented([["all", "All", count3("all")], ["active", "Active", count3("active")], ["recent", "Contacted lately", count3("recent")], ["stale", "Gone quiet", count3("stale")]], view3, (v) => {
@@ -18620,17 +19382,20 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
             rerender5();
           } }, "Clear filters") : null
         ),
-        h("div", { class: "dir-count" }, h("span", null, `${rows.length} of ${cs.length}`)),
+        h("div", { class: "dir-count" }, h("span", null, `${rows.length} of ${cs.length}`), q2.trim() && found.partial ? h("span", { class: "dir-hint warn" }, "No customer matches every word. Showing the closest matches.") : q2.trim() && found.terms.length ? h("span", { class: "dir-hint" }, relevance2 && !sorter2.state ? [h("b", null, "Best match first."), " Click a column header to sort instead."] : relevance2 ? [h("b", null, "Best match first.")] : h("button", { class: "linkbtn", type: "button", onclick: () => {
+          relevance2 = true;
+          rerender5();
+        } }, "Sort by best match")) : null),
         h("div", { class: "dirwrap tablewrap" }, h(
           "table",
           { class: "carrier dirtable" },
           h("thead", null, h("tr", null, COLS2.map(([k, l]) => sorter2.th(k, l)), h("th", null, ""))),
-          h("tbody", null, rows.length ? body : h("tr", null, h("td", { colspan: 6, class: "muted" }, "No customers match. Clear the filters or search for something else.")))
+          h("tbody", null, rows.length ? body : h("tr", null, h("td", { colspan: 6, class: "muted" }, q2.trim() ? 'No customer matches "' + q2.trim() + '". Try fewer words, part of the company or contact name, or clear the filters.' : "No customers match. Clear the filters or search for something else.")))
         ))
       ]
     );
   }
-  var q2, rerender5, sorter2, view3, groupKey2, F2, open3, csv2, statusOf2, age, VIEWS2, uniq3, passes2, GROUPS2, nameOf;
+  var q2, rerender5, relevance2, sorter2, SPEC2, view3, groupKey2, F2, open3, csv2, statusOf2, age, VIEWS2, uniq3, passes2, GROUPS2, nameOf;
   var init_customers = __esm({
     "js/ui/pages/customers.js"() {
       init_dom();
@@ -18644,9 +19409,15 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       init_resources();
       init_icons();
       init_directory();
+      init_search();
       q2 = "";
       rerender5 = () => Promise.resolve().then(() => (init_main(), main_exports)).then((m) => m.render());
-      sorter2 = createTableSort(rerender5);
+      relevance2 = true;
+      sorter2 = createTableSort(() => {
+        relevance2 = false;
+        rerender5();
+      });
+      SPEC2 = customerSpec();
       view3 = "all";
       groupKey2 = "company";
       F2 = { state: "", status: "" };
@@ -22336,13 +23107,13 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       return null;
     }
   }
-  var norm3, ns, STOP2, tok, stem, money4, money22, plural, pct2, ago2, startOfDay3, weekStartMon;
+  var norm4, ns, STOP2, tok, stem, money4, money22, plural, pct2, ago2, startOfDay3, weekStartMon;
   var init_owentext = __esm({
     "js/core/owentext.js"() {
-      norm3 = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9$ ]+/g, " ").replace(/\s+/g, " ").trim();
+      norm4 = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9$ ]+/g, " ").replace(/\s+/g, " ").trim();
       ns = (s) => String(s || "").toLowerCase().replace(/['’`]/g, "").replace(/[^a-z0-9$%.\/ -]+/g, " ").replace(/(^|\s)[.\-\/]+(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
       STOP2 = new Set("a an the to of in on for is are do does did how can i me my we you it this that what where when why with and or at be get want need find make use".split(" "));
-      tok = (s) => norm3(s).split(" ").filter((w) => w && !STOP2.has(w));
+      tok = (s) => norm4(s).split(" ").filter((w) => w && !STOP2.has(w));
       stem = (w) => w.replace(/(ing|ed|es|s)$/, "");
       money4 = (n) => Number.isFinite(Number(n)) ? "$" + Math.round(Number(n)).toLocaleString("en-US") : "\u2013";
       money22 = (n) => "$" + (Math.round(Number(n) * 100) / 100).toFixed(2);
@@ -23117,7 +23888,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
 
   // js/core/owen.js
   function score(q4, qt, k) {
-    const kn = norm3(k);
+    const kn = norm4(k);
     if (!kn) return 0;
     if (q4.includes(kn)) return kn.includes(" ") ? 3 + kn.split(" ").length : 3;
     const kt = kn.split(" ").filter((w) => !STOP2.has(w));
@@ -23126,7 +23897,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     return hit === kt.length ? 2 : 0;
   }
   function stuckAnswer(q4, loads) {
-    const named = loads.find((l) => l.keys && l.keys.some((x) => x && q4.includes(norm3(x))));
+    const named = loads.find((l) => l.keys && l.keys.some((x) => x && q4.includes(norm4(x))));
     const pick2 = named || [...loads].sort((a, b) => (b.stuckScore || 0) - (a.stuckScore || 0))[0];
     if (pick2) {
       const a = loadAdvice(pick2);
@@ -23135,7 +23906,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     return { topic: "stuck", mood: "think", text: "When a load will not cover: check the rate against what has covered on that lane, post more of the matrix, ask carriers who have run it, and turn on Auto Rescue so it keeps working while you handle other loads. Add a load and I can get specific.", links: [{ label: "Open Load Board", route: "board" }] };
   }
   function answer(question, ctx2 = {}) {
-    const q4 = norm3(question);
+    const q4 = norm4(question);
     const qt = tok(question);
     if (!q4) return { topic: "empty", mood: "relax", text: "Ask me anything about Freight Signal, or tell me which load is stuck." };
     const loads = ctx2.loads || [];
@@ -23144,7 +23915,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
     const sq = ns(question);
     const small = smalltalk(sq, data, ctx2.rand);
     if (small) return small;
-    if (GENERIC_STUCK.some((w) => q4.includes(norm3(w)))) return stuckAnswer(q4, loads);
+    if (GENERIC_STUCK.some((w) => q4.includes(norm4(w)))) return stuckAnswer(q4, loads);
     const calc = calculator(question);
     if (calc) return calc;
     const dd = dataAnswer(sq, data, mem2);
@@ -23164,7 +23935,7 @@ Nothing is sent. The drafts appear for you to review.`, "Create drafts");
       }
     }
     if (best && bs >= 2) return { topic: best.id, mood: "smart", text: best.text, steps: best.steps, links: best.links };
-    for (const s of SOCIAL) if (s.k.some((k) => q4 === norm3(k) || q4.startsWith(norm3(k) + " "))) return { topic: "social", text: s.text };
+    for (const s of SOCIAL) if (s.k.some((k) => q4 === norm4(k) || q4.startsWith(norm4(k) + " "))) return { topic: "social", text: s.text };
     if (/\b(weather|stock|news|score|recipe|politic|election|sports|movie|bitcoin|crypto)\b/.test(q4)) return { topic: "offtopic", mood: "relax", text: 'That one is outside my lane. I can help with Freight Signal, your loads, carriers, rates and covering freight, and I am happy to chat. Try "give me a summary" or "what should I work on first?".', follow: ["Give me a summary", "What should I work on first?"] };
     return { topic: "unknown", mood: "think", text: "I am not sure what you mean yet. I can look up a load, a carrier, a lane or a rate, analyse your week, explain a freight term, or point you to any page. Try one of these:", follow: ["Give me a summary", "What did my last cover pay?", "Any trucks available?", "What is deadhead?"], links: [{ label: "User Manual", route: "manual" }] };
   }

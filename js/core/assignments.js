@@ -79,3 +79,37 @@ export function assignmentDraft(load, a, { signature = '', rate = '' } = {}) {
 export function recordOutcome(a, { won = false, at = new Date().toISOString() } = {}) {
   return { ...a, hits: (a.hits || 0) + 1, wins: (a.wins || 0) + (won ? 1 : 0), lastOfferedAt: at, lastWonAt: won ? at : a.lastWonAt || '' };
 }
+
+// ------------------------------------------------------------------------------------------------ who is primary (v21)
+const digitsOnly = (v) => String(v ?? '').replace(/\D/g, '');
+const mailOf = (v) => String(v ?? '').trim().toLowerCase();
+
+/**
+ * Which carriers are primary (or backup) for something: Map(carrier id -> { level: 'primary'|'backup', lanes:[text], count, wins, text }).
+ * A carrier is found through the assignment's carrier id, then MC, then e-mail, so a carrier that was re-imported still shows its star.
+ * `text` is searchable ("primary Greenville, SC to Atlanta, GA") so typing "primary" in the Carrier Database lists them.
+ */
+export function primaryMap(assignments = [], carriers = []) {
+  const byId = new Map(carriers.map(c => [c.id, c]));
+  const byMc = new Map(); const byMail = new Map();
+  for (const c of carriers) { const d = digitsOnly(c.mc); if (d && !byMc.has(d)) byMc.set(d, c); const e = mailOf(c.email); if (e && !byMail.has(e)) byMail.set(e, c); }
+  const out = new Map();
+  for (const a of assignments) {
+    if (!a || a.active === false) continue;
+    const c = (a.carrierId && byId.get(a.carrierId)) || (digitsOnly(a.mc) && byMc.get(digitsOnly(a.mc))) || (mailOf(a.email) && byMail.get(mailOf(a.email))) || null;
+    if (!c) continue;
+    const e = out.get(c.id) || { level: 'backup', lanes: [], count: 0, wins: 0, text: '' };
+    const level = a.priority === 'backup' ? 'backup' : 'primary';
+    if (level === 'primary') e.level = 'primary';
+    e.lanes.push(describeAssignment(a)); e.count++; e.wins += Number(a.wins) || 0;
+    out.set(c.id, e);
+  }
+  for (const e of out.values()) e.text = e.level + ' ' + e.lanes.join(' ; ');
+  return out;
+}
+
+/** The score a primary / backup carrier adds when it fits the load's lane: the assignment fit (0-100) turned into a boost. */
+export function primaryBoost(fitScore, priority) {
+  const f = Math.max(0, Math.min(100, Number(fitScore) || 0));
+  return priority === 'backup' ? Math.round(f * 0.35) : Math.round(f * 0.6);
+}

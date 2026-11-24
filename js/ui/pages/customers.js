@@ -8,11 +8,14 @@ import { storedWhere } from '../../store/cloud.js';
 import { createTableSort } from '../tablesort.js';
 import { telHref, mailHref } from '../../core/resources.js';
 import { icon } from '../icons.js';
-import { avatar, statusPill, whenCell, segmented, searchBox, moreMenu, filterSelect, expandRows, groupRow, groupBy, detailCard, contactStack, DAY, relDate } from '../directory.js';
+import { avatar, marked, statusPill, whenCell, segmented, searchBox, moreMenu, filterSelect, expandRows, groupRow, groupBy, detailCard, contactStack, DAY, relDate } from '../directory.js';
+import { searchRecords, parseQuery, customerSpec } from '../../core/search.js';
 
 let q = '';
 const rerender = () => import('../../main.js').then(m => m.render());
-const sorter = createTableSort(rerender);   // click a header: A-Z, Z-A, random
+let relevance = true;                                                    // with a search typed, best match first until a column header is clicked
+const sorter = createTableSort(() => { relevance = false; rerender(); });   // click a header: A-Z, Z-A, random
+const SPEC = customerSpec();
 let view = 'all', groupKey = 'company';
 const F = { state: '', status: '' };
 const open = new Set();
@@ -33,11 +36,11 @@ function overview() {
   return statTiles([[cs.length, 'Contacts'], [companies, 'Companies'], [touched, 'Contacted in 30 days'], [stale, 'Not contacted in 90+ days', stale ? 'act' : '']]);
 }
 
-function row(c) {
+function row(c, terms = []) {
   const place = [c.city, c.state].filter(Boolean).join(', ');
   const cells = [
     h('td', { class: 'c-name' }, h('div', { class: 'dir-id' }, avatar(c.company || nameOf(c), { square: true }),
-      h('div', { class: 't' }, h('b', { title: c.company }, c.company || nameOf(c)), h('small', null, c.company ? (c.contactName || c.title || '') : (c.title || ''))))),
+      h('div', { class: 't' }, h('b', { title: c.company }, marked(c.company || nameOf(c), terms)), h('small', null, marked(c.company ? (c.contactName || c.title || '') : (c.title || ''), terms))))),
     h('td', null, contactStack(c, { telHref, mailHref })),
     h('td', null, place || h('span', { class: 'dir-none' }, '—')),
     h('td', null, whenCell(c.lastContacted)),
@@ -80,19 +83,22 @@ function importDialog() {
 }
 
 export function render() {
-  const rows = sorter.sort(state.customers.filter(passes).filter(c => !q || CUSTOMER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
+  const base = state.customers.filter(passes);
+  const found = q.trim() ? searchRecords(base, q, SPEC) : { results: [], partial: false, terms: [] };
+  const terms = q.trim() ? parseQuery(q, SPEC.aliases).terms : [];
+  const rows = q.trim() ? (relevance ? found.results.map(r => r.record) : sorter.sort(found.results.map(r => r.record), (c, k) => c[k])) : sorter.sort(base, (c, k) => c[k]);
   const cs = state.customers; const count = (k) => cs.filter(VIEWS[k]).length;
   const COLS = [['company', 'Company'], ['email', 'Contact'], ['state', 'Location'], ['lastContacted', 'Last contacted'], ['status', 'Status']];
-  const body = []; const gf = GROUPS[groupKey];
-  if (gf && rows.length) { for (const [name, list] of groupBy(rows, gf)) { body.push(groupRow(name, list.length, 6)); body.push(...expandRows(list.map(row), open, 6)); } }
-  else body.push(...expandRows(rows.map(row), open, 6));
+  const body = []; const gf = q.trim() && relevance ? null : GROUPS[groupKey];   // grouping sorts by name, so it waits while results are ranked by best match
+  if (gf && rows.length) { for (const [name, list] of groupBy(rows, gf)) { body.push(groupRow(name, list.length, 6)); body.push(...expandRows(list.map(c => row(c, terms)), open, 6)); } }
+  else body.push(...expandRows(rows.map(c => row(c, terms)), open, 6));
   const on = Object.values(F).some(Boolean) || view !== 'all' || q;
   return h('div', null,
     pageHead({ icon: 'customers', title: 'Customer Database', sub: 'Shippers and customer contacts, grouped by company. Click a row to open it. ' + storedWhere() }),
     !cs.length ? emptyState({ icon: 'customers', title: 'No customers yet', text: 'Import your shipper contact list from Excel or CSV, or add a customer by hand.',
       actions: [h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add customer'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import from Excel / CSV')] }) : overview(),
     !cs.length ? null : [
-      h('div', { class: 'dir-bar' }, searchBox(q, 'Search company, contact, e-mail, city…', (v) => { q = v; }, rerender),
+      h('div', { class: 'dir-bar' }, searchBox(q, 'Search company, contact, phone, e-mail, city…', (v) => { if (v !== q) relevance = true; q = v; }, rerender),
         segmented([['all', 'All', count('all')], ['active', 'Active', count('active')], ['recent', 'Contacted lately', count('recent')], ['stale', 'Gone quiet', count('stale')]], view, (v) => { view = v; rerender(); }, 'Quick views'),
         h('span', { class: 'grow' }),
         h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, icon('plus', 15), 'Add customer'),
@@ -104,9 +110,9 @@ export function render() {
         h('span', { class: 'lbl' }, 'Group by'),
         filterSelect('No grouping', [['company', 'Company'], ['state', 'State'], ['status', 'Status']], groupKey, (v) => { groupKey = v; rerender(); }, 'group'),
         on ? h('button', { class: 'btn small', type: 'button', onclick: () => { F.state = F.status = ''; view = 'all'; q = ''; rerender(); } }, 'Clear filters') : null),
-      h('div', { class: 'dir-count' }, h('span', null, `${rows.length} of ${cs.length}`)),
+      h('div', { class: 'dir-count' }, h('span', null, `${rows.length} of ${cs.length}`), q.trim() && found.partial ? h('span', { class: 'dir-hint warn' }, 'No customer matches every word. Showing the closest matches.') : q.trim() && found.terms.length ? h('span', { class: 'dir-hint' }, relevance && !sorter.state ? [h('b', null, 'Best match first.'), ' Click a column header to sort instead.'] : relevance ? [h('b', null, 'Best match first.')] : h('button', { class: 'linkbtn', type: 'button', onclick: () => { relevance = true; rerender(); } }, 'Sort by best match')) : null),
       h('div', { class: 'dirwrap tablewrap' }, h('table', { class: 'carrier dirtable' },
         h('thead', null, h('tr', null, COLS.map(([k, l]) => sorter.th(k, l)), h('th', null, ''))),
-        h('tbody', null, rows.length ? body : h('tr', null, h('td', { colspan: 6, class: 'muted' }, 'No customers match. Clear the filters or search for something else.'))))),
+        h('tbody', null, rows.length ? body : h('tr', null, h('td', { colspan: 6, class: 'muted' }, q.trim() ? 'No customer matches "' + q.trim() + '". Try fewer words, part of the company or contact name, or clear the filters.' : 'No customers match. Clear the filters or search for something else.'))))),
     ]);
 }

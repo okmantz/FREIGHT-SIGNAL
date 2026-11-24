@@ -394,7 +394,7 @@ function groupBox(r, collapsed, toggle) {
     h('button', { class: 'btn', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted load text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 15), 'Copy details'),
     single ? h('button', { class: 'btn', type: 'button', 'data-act': 'build-matrix', title: 'Build the 9-posting matrix', onclick: () => matrixFlow(head) }, 'Build 3\u00d73 matrix') : null,
     coverTools(b, head),
-    rescueButton(b, head),
+    rescueButton(b, head, { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
     menu('More actions for this load', [
       { label: 'View / edit load details and reply note', act: 'edit-lane-details', run: () => editDetails(b) },
       !single ? { label: 'Reshuffle postings (new nearby cities)', act: 'reshuffle', run: async () => {
@@ -402,13 +402,18 @@ function groupBox(r, collapsed, toggle) {
         const res = await actions.reshuffleMatrix(head.id);
         if (!res.ok) return toast(res.error, 'err', 7000);
         toast('Postings reshuffled. Download the DAT CSV again and re-upload it.', 'ok', 7000); } } : null,
+      !single ? { label: 'Reshuffle wider (more reach, nearby states)', act: 'reshuffle-wide', run: async () => {
+        if (!(await confirmDialog('Reshuffle wider', 'Like Reshuffle, but the new postings reach about 60% further and try to include a market across the state line, so carriers who search by state or from a bigger metro see the load too. Cities already tried are skipped. The Original posting, target rate and any DAT rates stay.', 'Reshuffle wider'))) return;
+        const res = await actions.reshuffleMatrix(head.id, { reach: 1.6, crossState: true });
+        if (!res.ok) return toast(res.error, 'err', 7000);
+        toast('Postings reshuffled wider. Download the DAT CSV again and re-upload it.', 'ok', 7000); } } : null,
       { label: 'Save to Spare Load Details', act: 'save-spare', run: async () => { await actions.saveSpareFromGroup(head.id); toast('Saved to Spare Load Details.', 'ok'); } },
       { label: single ? 'Delete this load' : 'Delete all postings', act: 'del-group', danger: true, run: () => deleteMany(ids, single ? 'this posting' : `all ${ids.length} postings in ${b.title}`) }]));
 
   return h('section', { class: 'lanebox p-' + (head.priority || 'Low'), ...attrs },
     header,
     h('div', { class: 'lanebasics' }, details, suggestStrip(b, r, rate)),
-    rescueStrip(head),
+    rescueStrip(head, { csv: () => downloadDat(single ? 'one' : 'group', b.members, 'Load') }),
     planStrip(head),
     coverageStrip(b, head),
     teamStrip(b, head),

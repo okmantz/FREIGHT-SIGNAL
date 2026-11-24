@@ -15,6 +15,6 @@ export function adviceExtra(box, ctx) {
   const contacted = new Set(state.outreach.filter(o => ids.has(o.postingId)).map(o => String(o.email || '').toLowerCase()));
   for (const d of state.drafts) if (ids.has(d.postingId) && d.to) contacted.add(String(d.to).toLowerCase());
   const depth = state.carriers.length ? carrierDepth(head, ctx) : 0;
-  const unusedDepth = state.carriers.length ? rankCarriers(head, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, exclude: contacted }).filter(r => 'ABCD'.includes(r.tier)).length : 0;
+  const unusedDepth = state.carriers.length ? rankCarriers(head, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments, exclude: contacted }).filter(r => 'ABCD'.includes(r.tier)).length : 0;
   return { depth, unusedDepth, wave: outreachCount(head, state.settings, state.zip), now: ctx.now };
 }

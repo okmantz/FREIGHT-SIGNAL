@@ -12,8 +12,10 @@ import { templatesOf, fillTemplate } from './ladder.js';
 import { classifyLane } from './lanes.js';
 import { DEFAULT_SETTINGS } from './defaults.js';
 import { equipWords } from './equipment.js';
+import { matchAssignments, primaryBoost } from './assignments.js';
 
 const DAY = 86400000;
+const describeLane = (a) => { const side = (c, s) => (c ? c + (s ? ', ' + s : '') : s ? 'anywhere in ' + s : 'anywhere'); return side(a.originCity, a.originState) + ' to ' + side(a.destCity, a.destState); };
 
 function dist(zip, aCity, aState, bCity, bState) {
   if (!zip || !zip.size) return null;
@@ -69,6 +71,9 @@ export function rankCarriers(post, carriers, ctx = {}) {
     const same = normalizeText(q.originState) === normalizeText(post.originState);
     if (same) inqBy.set(em, (inqBy.get(em) || 0) + (String(q.stage || '').toUpperCase() === 'RATE_RESPONSE_SENT' || safeNumeric(q.lastCarrierRate) > 0 ? 2 : 1));
   }
+  // v21: a carrier you made primary (or backup) for a lane like this one goes to the top: you set it up because they take this freight first
+  const star = new Map();
+  if (ctx.assignments && ctx.assignments.length) for (const a of matchAssignments(post, ctx.assignments, carriers, { zipMap: ctx.zip })) if (a.carrier) { const old = star.get(a.carrier.id); const b = primaryBoost(a.fit, a.priority); if (!old || b > old.boost) star.set(a.carrier.id, { boost: b, level: a.priority === 'backup' ? 'backup' : 'primary', lane: describeLane(a) }); }
   const out = [];
   for (const c of carriers) {
     const email = safeString(c.email).toLowerCase();
@@ -76,9 +81,12 @@ export function rankCarriers(post, carriers, ctx = {}) {
     if (safeString(c.status).toLowerCase() === 'inactive') continue;
     if (email && isBlockedExcel(email, settings.outreachBlocklist)) continue;
     if (ctx.exclude && email && ctx.exclude.has(email)) continue;
-    const fit = laneFit(post, c, ctx.zip, radius);
+    let fit = laneFit(post, c, ctx.zip, radius);
+    const st = star.get(c.id);
+    if (!fit && st) fit = { tier: 'P', tierLabel: st.level === 'backup' ? 'Backup carrier' : 'Primary carrier', geo: 30, why: 'you set them as ' + st.level + ' for ' + st.lane };   // a primary is offered even when the lane text on its row is thin
     if (!fit) continue;
     let score = fit.geo; const reasons = [fit.why];
+    if (st) { score += st.boost; reasons.unshift(st.level === 'backup' ? 'backup carrier for this lane' : 'primary carrier for this lane'); }
     const cov = coversBy.get(email) || 0, near = nearBy.get(email) || 0;
     if (cov) { score += Math.min(60, cov * 30); reasons.push(`covered this lane ${cov}x`); }
     if (near) { score += Math.min(30, near * 15); reasons.push(`covered a nearby lane ${near}x`); }
@@ -92,7 +100,7 @@ export function rankCarriers(post, carriers, ctx = {}) {
     if (Number.isFinite(ct)) { const age = now - ct; if (age < DAY) { score -= 25; reasons.push('contacted in the last 24 h'); } else if (age < 3 * DAY) { score -= 10; reasons.push('contacted in the last 3 days'); } }
     const eq = safeString(c.equipment).toLowerCase();
     if (eq) { const words = equipWords(post.equip); if (words.some(w => new RegExp('\\b' + w + '\\b').test(eq))) { score += 6; } else { score -= 20; reasons.push('equipment may not match'); } }
-    out.push({ carrier: c, score: Math.round(score * 10) / 10, tier: fit.tier, tierLabel: fit.tierLabel, reasons });
+    out.push({ carrier: c, score: Math.round(score * 10) / 10, tier: fit.tier, tierLabel: fit.tierLabel, reasons, primary: st ? st.level : '' });
   }
   return out.sort((a, b) => b.score - a.score || String(a.carrier.carrierName).localeCompare(String(b.carrier.carrierName)));
 }

@@ -22,7 +22,7 @@ import { parseTruckText, parseTruckList, makeTruck, mergeTrucks, isActive } from
 import { suggestRate } from '../core/raterec.js';
 import { duplicateRows, mergePatches } from '../core/prospects.js';
 import { reconcileMatches, openLoads } from '../core/matching.js';
-import { newRescue, dueStages, planStage, signatureOf, keyOfEmail, minutesIn } from '../core/autorescue.js';
+import { newRescue, dueStages, planStage, signatureOf, keyOfEmail, minutesIn, callKeyOf, CALL_RESULTS, gatherProspects, repliesOn } from '../core/autorescue.js';
 import { activeTrucks } from '../core/truckbook.js';
 import { headsOf, findBackhaulLoads } from '../core/corridor.js';
 import { cleanAssignment, matchAssignments, recordOutcome } from '../core/assignments.js';
@@ -149,19 +149,55 @@ async function learnFromEmail(res, mail, now) {
 }
 
 
-/** Run one Auto Rescue stage: plan it (pure), then apply it: drafts, contact ledger, rate change, team request. Returns 1 when something happened. */
+/** Everything the Auto Rescue engine needs to know right now: carriers, primaries, my trucks and the team's, the logs, and the load's posting ids. */
+function buildRescueCtx(head, r, now) {
+  const team = (() => { try { return state.hooks.teamTrucks ? state.hooks.teamTrucks() : []; } catch { return []; } })();
+  const mine = activeTrucks(state.trucks, now); const trucks = [...mine, ...activeTrucks(team, now).filter(t => !mine.some(m => m.key && m.key === t.key))];
+  const gids = (head.groupId ? groupMembers(state.postings, head.groupId) : [head]).map(m => m.id);
+  return { carriers: state.carriers, assignments: state.assignments, trucks, coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, rescues: state.autoRescues, drafts: state.drafts, settings: state.settings, zipMap: state.zip, groupIds: gids, pastIds: (r && r.pastIds) || [], now };
+}
+
+/** Reshuffle the DAT postings of a load for Auto Rescue: new nearby cities (wider each round, with a market across the state line when there is a good one). */
+async function reshuffleForRescue(head, dec) {
+  const members = head.groupId ? groupMembers(state.postings, head.groupId) : [head];
+  let plan;
+  if (members.length > 1) plan = await actions.rebuildMatrix(head.id, { reach: dec.reach, crossState: dec.crossState });
+  else {                                                   // no 3x3 yet: build one. Nine postings reach far more carriers than one.
+    const copy = JSON.parse(JSON.stringify(head));
+    plan = planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, reach: dec.reach, crossState: dec.crossState });
+    if (plan.ok) { head.originCity = copy.originCity; head.originState = copy.originState; head.originZip = copy.originZip; head.destState = copy.destState; await actions.createMatrix(head.id, plan); }
+  }
+  if (!plan || !plan.ok) return { ok: false, error: (plan && plan.error) || 'could not plan new cities' };
+  const list = (arr) => arr.slice(1).map(l => l.city + ', ' + l.state).join(' and ');
+  return { ok: true, built: members.length < 2, text: (members.length < 2 ? 'Built the 9-posting matrix' : 'Reshuffled the DAT postings') + ' (round ' + dec.level + (dec.reach > 1 ? ', reaching ' + Math.round((dec.reach - 1) * 100) + '% further' : '') + '): pickups from ' + list(plan.origins) + '; deliveries to ' + list(plan.dests) + '.' };
+}
+
+/** Run one Auto Rescue stage: plan it (pure), then apply it: reshuffled postings, rate step, drafts, contact ledger, call list, team request. Returns 1 when something happened. */
 async function runRescueStage(r, head, stage, ctx, reason) {
   const now = ctx.now; const planStageId = stage === 'rematch' ? 'wave1' : stage;
   const plan = planStage(planStageId, r, head, ctx);
-  const label = { match: 'Instant match', wave1: 'First wave', expand: 'Widened search', commercial: 'Rate check', team: 'Team rescue', rematch: 'New activity' }[stage] || stage;
+  const label = { match: 'Instant match', wave1: 'First wave', expand: 'Widened search', commercial: 'Rate check', team: 'Team rescue', rematch: 'New activity', cycle: 'Escalation round ' + ((r.cycles || 0) + 1) }[stage] || stage;
   let text = plan.note; let acted = false;
-  if (plan.raise && plan.raise.raise) {
-    const ids = groupMembers(state.postings, head.groupId || '__none__').map(m => m.id); const members = ids.length ? ids : [head.id];
-    r.offerRate = plan.raise.rate; r.raised = (r.raised || 0) + 1;
-    for (const m of state.postings.filter(x => members.includes(x.id))) { m.targetRate = String(plan.raise.rate); m.targetSource = 'user'; }
-    head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'rescue-rate', at: new Date(now).toISOString(), detail: 'Auto Rescue raised the target to $' + plan.raise.rate }].slice(-40);
-    await savePostings(); text += ' Target raised to $' + plan.raise.rate + ' (re-upload the DAT CSV to repost at the new rate).'; acted = true;
+  const membersNow = () => (head.groupId ? groupMembers(state.postings, head.groupId) : [head]);
+  // 1. reshuffle first, so the rate step and everything after land on the new postings
+  if (plan.reshuffle) {
+    r.pastIds = [...new Set([...(r.pastIds || []), ...membersNow().map(m => m.id)])].slice(-80);
+    const res = await reshuffleForRescue(head, plan.reshuffle);
+    r.lastReshuffleAt = now;
+    if (res.ok) { r.reshuffles = plan.reshuffle.level; r.repliesAtReshuffle = plan.reshuffle.replies; r.repost = { at: now, why: res.built ? 'matrix built' : 'postings reshuffled' }; text += ' ' + res.text + ' Download the DAT CSV and upload it so the new postings go live.'; acted = true; }
+    else { r.reshuffles = (r.reshuffles || 0) + 1; text += ' (Postings not reshuffled: ' + res.error + ')'; }
   }
+  // 2. rate step. Postings that carry their own DAT rate move by the same dollars, so every posting keeps its place relative to the others.
+  if (plan.raise && plan.raise.raise) {
+    const members = membersNow(); const delta = plan.raise.rate - (plan.raise.from || 0);
+    r.offerRate = plan.raise.rate; r.raised = (r.raised || 0) + 1;
+    let moved = 0;
+    for (const m of members) { m.targetRate = String(plan.raise.rate); m.targetSource = 'user'; const d = Number(cleanRate(m.datRate)); if (d > 0 && delta) { m.datRate = String(Math.max(1, Math.round(d + delta))); moved++; } }
+    head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'rescue-rate', at: new Date(now).toISOString(), detail: 'Auto Rescue raised the target to $' + plan.raise.rate }].slice(-40);
+    await savePostings(); r.repost = { at: now, why: r.repost ? r.repost.why + ' and rate raised' : 'rate raised' };
+    text += ' Target raised to $' + plan.raise.rate + (moved ? ' (' + moved + ' posting' + (moved === 1 ? '' : 's') + ' with their own DAT rate moved by the same $' + Math.abs(delta) + ')' : '') + '. Upload the DAT CSV to repost at the new rate.'; acted = true;
+  } else if (plan.reshuffle && r.repost) await savePostings();
+  // 3. offers (drafts only: nothing is ever sent for you)
   if (plan.drafts.length) {
     const stamped = plan.drafts.map(d => ({ id: uid(), createdAt: new Date(now).toISOString(), postingId: head.id, rescueId: r.id, kind: 'Auto Rescue', to: d.to, subject: d.subject, body: d.body, carrierId: d.carrierId, tier: d.tier, score: d.score, why: d.why }));
     state.drafts.unshift(...stamped);
@@ -179,7 +215,12 @@ async function runRescueStage(r, head, stage, ctx, reason) {
     if (state.settings.draftsToOutlook && state.hooks.sendToOutlook) await actions.sendDraftsToOutlook(stamped.map(d => d.id));
     acted = true;
   }
-  if (plan.calls.length) { const known = new Set((r.calls || []).map(c => c.key)); for (const c of plan.calls) if (!known.has(c.key)) { (r.calls = r.calls || []).push({ ...c, at: now }); acted = true; } text += ' To call: ' + plan.calls.slice(0, 3).map(c => (c.name || 'carrier') + ' ' + c.phone).join('; ') + '.'; }
+  // 4. the phone list: refreshed every step, primary and backup carriers first
+  if (plan.calls.length) {
+    const before = new Map((r.calls || []).map(c => [c.key, c])); const fresh = plan.calls.filter(c => !before.has(c.key));
+    r.calls = plan.calls.map(c => ({ ...c, at: (before.get(c.key) || {}).at || now }));
+    if (fresh.length) { acted = true; text += ' To call: ' + fresh.slice(0, 3).map(c => (c.name || 'carrier') + (c.primary ? ' (' + c.primary + ')' : '') + ' ' + c.phone).join('; ') + '.'; }
+  }
   if (plan.askTeam && state.hooks.askTeam && !r.askedTeam) {
     try { const res = await state.hooks.askTeam(groupMembers(state.postings, head.groupId || '__none__').length ? groupMembers(state.postings, head.groupId) : [head], { note: 'Auto Rescue: no cover yet after ' + Math.round(minutesIn(r, now) / 60 * 10) / 10 + ' h.' }); r.askedTeam = true; text += res && res.ok === false ? ' (Team request failed: ' + res.error + ')' : ' Team request sent.'; acted = true; } catch (e) { text += ' (Team request failed.)'; }
   }
@@ -311,6 +352,9 @@ export const actions = {
       const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
       const head = members.find(m => m.variant === 'Original') || members[0];
       head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'posted', at, detail }].slice(-40);
+      // v21: the whole load was downloaded, so the "upload a fresh DAT file" reminder from an Auto Rescue reshuffle or rate step is done
+      const rs = state.autoRescues.find(x => x.id === head.id);
+      if (rs && rs.repost && members.every(m => set.has(m.id))) { rs.repost = null; rs.log.push({ at: Date.now(), stage: 'repost', text: 'DAT file downloaded. Upload it in DAT\'s bulk posting tool to put the new postings live.' }); await guard(() => db.put('autorescues', rs)); }
     }
     await savePostings(); emit(); return seen.size;
   },
@@ -541,8 +585,9 @@ export const actions = {
   },
   /** Delete the alternates and rebuild the 3x3 with different cities (the first picks are excluded). Returns the new plan or an error. */
   /** Reshuffle: the same as rebuilding, named for the board button. */
-  async reshuffleMatrix(id) { return actions.rebuildMatrix(id); },
-  async rebuildMatrix(id) {
+  async reshuffleMatrix(id, opts = {}) { return actions.rebuildMatrix(id, opts); },
+  /** opts.reach (1 = normal, 1.6 = wider) and opts.crossState (include a market across the state line) are used by "Reshuffle wider" and Auto Rescue. */
+  async rebuildMatrix(id, opts = {}) {
     const p = state.postings.find(x => x.id === id); if (!p) return { ok: false, error: 'Posting not found.' };
     const members = p.groupId ? groupMembers(state.postings, p.groupId) : [p];
     const head = members.find(m => m.variant === 'Original') || members[0];
@@ -554,7 +599,7 @@ export const actions = {
     const ownRates = new Map(members.filter(m => m.variant !== 'Original' && Number(cleanRate(m.datRate)) > 0).map(m => [m.variant, m.datRate]));
     const ids = new Set(members.filter(m => m.variant !== 'Original').map(m => m.id));
     const copy = JSON.parse(JSON.stringify(head));
-    const run = (exclude) => planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, exclude });
+    const run = (exclude) => planMatrix({ source: copy, zipMap: state.zip, inquiries: state.inquiries, coverLog: state.coverLog, settings: state.settings, exclude, reach: Number(opts.reach) > 1 ? Number(opts.reach) : 1, crossState: !!opts.crossState });
     let plan = run([...new Set([...current, ...tried])]);
     let recycled = false;
     if (!plan.ok) { plan = run(current); recycled = true; }
@@ -567,7 +612,7 @@ export const actions = {
     if (h2) h2.triedCities = recycled ? current : [...new Set([...tried, ...current])].slice(-120);
     // keep each posting's own DAT rate by grid position (A-A stays on the Original; nearby pairings keep theirs)
     for (const m of state.postings) { if (m.groupId && m.groupId === h2?.groupId && m.variant !== 'Original' && ownRates.has(m.variant)) m.datRate = ownRates.get(m.variant); }
-    if (h2) h2.ops = [...oldOps, { type: 'recities', at: new Date().toISOString(), detail: plan.origins.slice(1).concat(plan.dests.slice(1)).map(l => l.city).join(', ') }].slice(-40);
+    if (h2) h2.ops = [...oldOps, { type: 'recities', at: new Date().toISOString(), detail: plan.origins.slice(1).concat(plan.dests.slice(1)).map(l => l.city + ', ' + l.state).join(' | ') }].slice(-40);
     await savePostings(); emit();
     return { ...plan, rows };
   },
@@ -625,7 +670,7 @@ export const actions = {
   /** Ranked outreach for one load. opts.wave2 = skip every carrier already contacted about this load (a fresh round). */
   async runOutreach(id, opts = {}) {
     const p = state.postings.find(x => x.id === id); if (!p) return null;
-    const ctx = { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries };
+    const ctx = { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments };
     let res;
     const contacted = new Set(state.outreach.filter(o => o.postingId === p.id).map(o => String(o.email || '').toLowerCase()).filter(Boolean));
     if (state.settings.outreachButtonMode === 'outlook') {
@@ -657,7 +702,7 @@ export const actions = {
   },
   /** Outlook-engine scan over all eligible loads (Active + Carrier Outreach = Yes), ranked by lane fit within the carrier radius. */
   async runOutlookScan() {
-    const scan = planRankedScan(state.postings, state.carriers, state.outreach, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries });
+    const scan = planRankedScan(state.postings, state.carriers, state.outreach, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments });
     const stamped = scan.drafts.map(d => ({ id: uid(), createdAt: new Date().toISOString(), kind: 'Carrier outreach (scan)', ...d }));
     state.drafts.unshift(...stamped); state.outreach.push(...scan.logEntries);
     for (const [pid] of scan.countUpdates) {
@@ -700,7 +745,7 @@ export const actions = {
     const asked = new Set(state.outreach.filter(o => o.postingId === p.id).map(o => String(o.email || '').toLowerCase()).filter(Boolean));
     const cutoff = Date.now() - 86400000;
     for (const c of state.carriers) { const t = Date.parse(c.lastContacted); if (Number.isFinite(t) && t > cutoff) asked.add(String(c.email || '').toLowerCase()); }
-    const ranked = rankCarriers(p, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, exclude: asked });
+    const ranked = rankCarriers(p, state.carriers, { zip: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, assignments: state.assignments, exclude: asked });
     const seen = new Set(); const ids = [];
     for (const r of ranked) { const em = String(r.carrier.email || '').toLowerCase(); if (!em || seen.has(em)) continue; seen.add(em); ids.push(r.carrier.id); if (ids.length >= n) break; }
     if (!ids.length) return { drafts: [], created: 0, detail: 'No carrier in the database fits this lane (or all of them were asked in the last 24 hours). Add carriers, or widen the carrier radius in System.' };
@@ -844,7 +889,7 @@ export const actions = {
   async startAutoRescue(headId, opts = {}) {
     const head = state.postings.find(p => p.id === headId); if (!head) return null;
     const ex = actions.autoRescueFor(headId); if (ex && ex.status === 'active') return ex;
-    const r = newRescue(head, { now: Date.now(), maxRate: opts.maxRate, includeTeam: opts.includeTeam, auto: !!opts.auto });
+    const r = newRescue(head, { now: Date.now(), maxRate: opts.maxRate, includeTeam: opts.includeTeam, auto: !!opts.auto, pace: opts.pace, cycleMinutes: Number(state.settings.rescueCycleMinutes) || 0 });
     state.autoRescues = state.autoRescues.filter(x => x.id !== headId); state.autoRescues.push(r);
     await guard(() => db.put('autorescues', r)); emit();
     await actions.tickAutoRescue({ reason: 'start' });
@@ -860,9 +905,38 @@ export const actions = {
     await guard(() => db.put('autorescues', r)); emit();
   },
   async resumeAutoRescue(id) { const r = actions.autoRescueFor(id); if (!r) return; r.status = 'active'; delete r.endedAt; r.log.push({ at: Date.now(), stage: 'start', text: 'Resumed.' }); await guard(() => db.put('autorescues', r)); emit(); await actions.tickAutoRescue({ reason: 'resume' }); },
+  /** Log a phone call on a load: who, and how it went. Feeds the call list, Auto Rescue (it leaves out "no truck" and does not re-dial a no-answer for 3 h) and the carrier's detail card. */
+  async logCall(loadId, who, result) {
+    const p = state.postings.find(x => x.id === loadId); if (!p) return null;
+    const head = (p.groupId ? groupMembers(state.postings, p.groupId) : [p]).find(m => m.variant === 'Original') || p;
+    const key = callKeyOf(who); const label = (CALL_RESULTS.find(x => x[0] === result) || [])[1]; if (!key || !label) return null;
+    const at = Date.now();
+    head.calls = [...(Array.isArray(head.calls) ? head.calls : []), { key, name: String(who.name || ''), phone: String(who.phone || ''), result, at }].slice(-80);
+    head.ops = [...(Array.isArray(head.ops) ? head.ops : []), { type: 'call', at: new Date(at).toISOString(), detail: (who.name || 'Carrier') + ': ' + label }].slice(-40);
+    await savePostings();
+    const c = (who.carrierId && state.carriers.find(x => x.id === who.carrierId)) || state.carriers.find(x => callKeyOf(x) === key);
+    if (c) { c.lastCallAt = new Date(at).toISOString(); c.lastCallResult = label; await guard(() => db.put('carriers', c)); state.carrierRev++; }
+    emit(); return { key, result, at };
+  },
+  /** Who Auto Rescue would reach right now for this load (pure read): primary and backup carriers first. For the Auto Rescue window. */
+  rescuePreview(headId, limit = 8) {
+    const head = state.postings.find(p => p.id === headId); if (!head) return [];
+    const now = Date.now(); const r = actions.autoRescueFor(headId) || newRescue(head, { now });
+    return gatherProspects(head, buildRescueCtx(head, r, now), { wide: false }).slice(0, limit);
+  },
+  /** "Reshuffle now" in the Auto Rescue window: the same reshuffle the engine does, on demand, and it counts as one of the engine's rounds. */
+  async rescueReshuffleNow(headId) {
+    const head = state.postings.find(p => p.id === headId); if (!head) return { ok: false, error: 'Load not found.' };
+    const r = actions.autoRescueFor(headId) || null; const level = (r ? r.reshuffles || 0 : 0) + 1;
+    const dec = { level, reach: Math.round(Math.min(2.4, 1 + (level - 1) * 0.3 + 0.3) * 100) / 100, crossState: true, replies: r ? repliesOn(head, r, buildRescueCtx(head, r, Date.now())) : 0 };
+    if (r) r.pastIds = [...new Set([...(r.pastIds || []), ...((head.groupId ? groupMembers(state.postings, head.groupId) : [head]).map(m => m.id))])].slice(-80);
+    const res = await reshuffleForRescue(head, dec);
+    if (r && res.ok) { r.reshuffles = level; r.lastReshuffleAt = Date.now(); r.repliesAtReshuffle = dec.replies; r.repost = { at: Date.now(), why: res.built ? 'matrix built' : 'postings reshuffled' }; r.log.push({ at: Date.now(), stage: 'reshuffle', label: 'Reshuffle', text: res.text + ' Download the DAT CSV and upload it so the new postings go live.' }); await guard(() => db.put('autorescues', r)); }
+    emit(); return res;
+  },
   async deleteAutoRescue(id) { state.autoRescues = state.autoRescues.filter(r => r.id !== id); await guard(() => db.del('autorescues', id)); emit(); },
   /** Do whatever is due: run each rescue you started, and re-run a cycle when something new appears. Never starts a rescue by itself. */
-  async tickAutoRescue({ now = Date.now(), reason = 'tick', force = null } = {}) {
+  async tickAutoRescue({ now = Date.now(), reason = 'tick', force = null, only = '' } = {}) {
     if (actions._rescueBusy) return 0; actions._rescueBusy = true; let did = 0;
     try {
       const heads = headsOf(state.postings);
@@ -870,20 +944,20 @@ export const actions = {
       //    Rescues that an older version started automatically are ended here once (and stay ended) so nothing runs that you did not start.
       for (const r of state.autoRescues.filter(x => x.auto && x.status === 'active')) await actions.stopAutoRescue(r.id, 'stopped', 'Ended: Auto Rescue now only runs when you start it yourself. Press Auto Rescue on the load and click Start to run it.');
       // 2. run the active rescues (only ones you started)
-      for (const r of state.autoRescues.filter(x => x.status === 'active')) {
+      for (const r of state.autoRescues.filter(x => x.status === 'active' && (!only || x.id === only))) {
         const head = heads.find(p => p.id === r.headId);
         if (!head || head.status === 'Covered') { await actions.stopAutoRescue(r.id, head ? 'covered' : 'stopped', head ? 'The load was covered.' : 'The load left the board.'); continue; }
         if (minutesIn(r, now) > (Number(state.settings.rescueMaxHours) > 0 ? Number(state.settings.rescueMaxHours) : 72) * 60) { await actions.stopAutoRescue(r.id, 'stopped', 'Stopped after 72 hours. Restart it if the load is still open.'); continue; }
-        const team = (() => { try { return state.hooks.teamTrucks ? state.hooks.teamTrucks() : []; } catch { return []; } })();
-        const mine = activeTrucks(state.trucks, now); const trucks = [...mine, ...activeTrucks(team, now).filter(t => !mine.some(m => m.key && m.key === t.key))];
-        const ctx = { carriers: state.carriers, trucks, coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, rescues: state.autoRescues, drafts: state.drafts, settings: state.settings, zipMap: state.zip, now };
-        let due = force ? [force] : dueStages(r, now);
+        let due = force ? [force] : dueStages(r, now, state.settings);
         // catching up after the app was closed: run the first stage and the latest one, not every wave in between
         if (due.length > 2) due = [due[0], due[due.length - 1]];
-        for (const stage of due) { did += await runRescueStage(r, head, stage, ctx, reason); r.fired[stage] = now; }
+        for (const stage of due) {
+          did += await runRescueStage(r, head, stage, buildRescueCtx(head, r, now), reason); r.fired[stage] = now;
+          if (stage === 'cycle') { r.cycles = (r.cycles || 0) + 1; r.lastCycleAt = now; }
+        }
         // 3. something new (a truck, a quote, a reply) triggers another matching cycle straight away
-        const sig = signatureOf(head, ctx);
-        if (r.sig && sig !== r.sig && !due.length) did += await runRescueStage(r, head, 'rematch', ctx, reason);
+        const sig = signatureOf(head, buildRescueCtx(head, r, now));
+        if (r.sig && sig !== r.sig && !due.length) did += await runRescueStage(r, head, 'rematch', buildRescueCtx(head, r, now), reason);
         r.sig = sig; r.lastEvalAt = now;
         await guard(() => db.put('autorescues', r));
       }

@@ -4,6 +4,7 @@
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
+import { highlightParts } from '../core/search.js';
 
 export const DAY = 86400000;
 const pad = (n) => String(n).padStart(2, '0');
@@ -48,12 +49,45 @@ export function segmented(options, value, onChange, label = 'View') {
     h('button', { type: 'button', class: 'seg' + (v === value ? ' on' : ''), 'aria-pressed': String(v === value), 'data-view': v, onclick: () => onChange(v) }, l, n !== undefined ? h('b', null, n) : null)));
 }
 
-/** A search box with a magnifier. */
+/**
+ * A search box with a magnifier. It filters as you type (a short pause after the last key, never while an IME is composing),
+ * Enter filters at once, Escape clears. The page redraws itself, so the box carries data-fk and keeps focus and the caret.
+ */
 export function searchBox(value, placeholder, onInput, onEnter) {
-  const input = h('input', { type: 'search', placeholder, value, 'data-rerender': '', 'aria-label': placeholder });
-  input.addEventListener('input', () => onInput(input.value));
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') onEnter(); });
+  const input = h('input', { type: 'search', placeholder, value, 'data-rerender': '', 'data-fk': 'dir:search', autocomplete: 'off', spellcheck: 'false', 'aria-label': placeholder });
+  let timer = 0, composing = false;
+  const fire = () => { clearTimeout(timer); onEnter(); };
+  input.addEventListener('compositionstart', () => { composing = true; });
+  input.addEventListener('compositionend', () => { composing = false; onInput(input.value); timer = setTimeout(fire, 120); });
+  input.addEventListener('input', () => { onInput(input.value); if (composing) return; clearTimeout(timer); timer = setTimeout(fire, 130); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') fire();
+    else if (e.key === 'Escape' && input.value) { e.preventDefault(); input.value = ''; onInput(''); fire(); }
+  });
   return h('label', { class: 'dir-search' }, icon('search', 16), input);
+}
+
+/** Text with the parts that matched the search marked. terms = the parsed query's terms. */
+export function marked(text, terms) {
+  const parts = highlightParts(text, terms);
+  if (parts.length === 1 && !parts[0].hit) return parts[0].text;
+  return parts.map(p => (p.hit ? h('mark', { class: 'hl' }, p.text) : p.text));
+}
+
+/**
+ * The gold star that marks a primary carrier (a backup carrier gets a quieter outlined one). info = { level, lanes[] } from primaryMap().
+ * Sits on the corner of the avatar so the name line stays clean; hover shows which lanes the carrier is first for.
+ */
+export function primaryBadge(info, { size = 11 } = {}) {
+  if (!info) return null;
+  const lanes = info.lanes.slice(0, 3).join('; ') + (info.lanes.length > 3 ? ' and ' + (info.lanes.length - 3) + ' more' : '');
+  const label = (info.level === 'backup' ? 'Backup carrier for ' : 'Primary carrier for ') + lanes;
+  return h('span', { class: 'pstar ' + info.level, title: label, role: 'img', 'aria-label': label, 'data-primary': info.level }, icon('star', size));
+}
+/** The initials avatar with the primary star pinned to its corner (plain avatar when the carrier is not primary). */
+export function avatarWithStar(name, info, opts) {
+  const a = avatar(name, opts);
+  return info ? h('span', { class: 'dir-avwrap' }, a, primaryBadge(info)) : a;
 }
 
 /** "More" menu: a button that opens a short list of actions. items = [[label, iconName, onClick, {disabled, danger, title}]] */

@@ -126,6 +126,19 @@ export function selectAlternates(zm, args) {
   const minSep = Math.max(4, ideal * 0.8);
   const first = ranked[0];
   let second = ranked.slice(1).find(c => calculateDistanceMiles(first.lat, first.lng, c.lat, c.lng) >= minSep) || ranked[1];
+  // v21 (Auto Rescue / "Reshuffle wider"): carriers search by state as well as by city, so when both alternates sit in the load's own state, swap the
+  // second for the best market across the state line, as long as it is a real freight market (score at least 40% of the best pick) and not a near copy of the first.
+  if (args.crossState) {
+    const home = String(args.centerState || '').trim().toUpperCase();
+    const sameHome = (c) => String(c.state || '').trim().toUpperCase() === home;
+    if (home && sameHome(first) && sameHome(second)) {
+      const alt = ranked.find(c => !sameHome(c) && c.score >= ranked[0].score * 0.4 && calculateDistanceMiles(first.lat, first.lng, c.lat, c.lng) >= minSep);
+      if (alt) second = alt;
+    } else if (home && !sameHome(first) && !sameHome(second)) {
+      const alt = ranked.find(c => sameHome(c) && c.score >= ranked[0].score * 0.4 && c.key !== first.key);
+      if (alt) second = alt;                                          // both picks left the state: keep one at home so the original market stays covered
+    }
+  }
   return { picks: [first, second], ring, pinned: false, ranked };
 }
 
@@ -143,13 +156,19 @@ export function rankCandidates(zm, caches, centerZip, originalCity, originalStat
 /** Pins are stored per market: "san leandro|ca" -> [{city,state},{city,state}] */
 export const pinKey = (city, state) => mktKey(city, state);
 
+/** v21: a wider strategy for a harder load: alternates may sit further out (altMax x reach, the sweet spot moves out about 70% as fast) and smaller markets still count. */
+export function widenStrategy(st, reach = 1) {
+  if (!(reach > 1)) return st;
+  return { ...st, altMax: Math.round(st.altMax * reach), altIdeal: Math.round(st.altIdeal * (1 + (reach - 1) * 0.7)), minPop: reach >= 1.7 ? Math.round(st.minPop * 0.8) : st.minPop };
+}
+
 /**
  * Plan the matrix without changing anything.
  * Returns { ok:true, origins:[3], dests:[3], lane:{cls,miles}, quality:{weird,reasons[]}, ... } or { ok:false, error }
  * `quality.weird` is what decides whether the auto-build asks you first ("Auto-build 3x3" in System -> Matrix).
  */
 /** exclude: array of "city|st" market keys that must not be picked (used by "try different cities" so the rebuild moves on). */
-export function planMatrix({ source, zipMap, inquiries, coverLog = [], settings = DEFAULT_SETTINGS, exclude = [], now = new Date() }) {
+export function planMatrix({ source, zipMap, inquiries, coverLog = [], settings = DEFAULT_SETTINGS, exclude = [], now = new Date(), reach = 1, crossState = false }) {
   if (!zipMap || !zipMap.size) return { ok: false, error: 'ZIP Map sheet is missing.' };
   const warnings = [];
   const rec = reconcileManualLane(source, zipMap);
@@ -164,11 +183,12 @@ export function planMatrix({ source, zipMap, inquiries, coverLog = [], settings 
   const caches = buildInquiryCaches(inquiries, { weighted: settings.adaptiveMatrix !== false, now: now instanceof Date ? now.getTime() : Date.now() });
   const attr = attributionFromLog(coverLog);
   const lane = classifyLane({ ...source, originZip: o0.zip, destZip: d0.zip }, zipMap, settings);
+  if (reach > 1) lane.strategy = widenStrategy(lane.strategy, reach);
   const pins = exclude.length ? {} : (settings.matrixPins || {});
   const ex = exclude.length ? new Set(exclude) : null;
-  const oSel = selectAlternates(zipMap, { centerCity: o0.city, centerState: o0.state, centerZip: o0.zip, otherCity: d0.city, otherState: d0.state, selectingOrigin: true, strategy: lane.strategy, attr, caches, exclude: ex, pins: pins[pinKey(o0.city, o0.state)] });
+  const oSel = selectAlternates(zipMap, { centerCity: o0.city, centerState: o0.state, centerZip: o0.zip, otherCity: d0.city, otherState: d0.state, selectingOrigin: true, strategy: lane.strategy, attr, caches, exclude: ex, crossState, pins: pins[pinKey(o0.city, o0.state)] });
   if (!oSel) return { ok: false, error: 'Could not find two distinct origin alternatives anywhere in ZIP Map.' };
-  const dSel = selectAlternates(zipMap, { centerCity: d0.city, centerState: d0.state, centerZip: d0.zip, otherCity: o0.city, otherState: o0.state, selectingOrigin: false, strategy: lane.strategy, attr, caches, exclude: ex, pins: pins[pinKey(d0.city, d0.state)] });
+  const dSel = selectAlternates(zipMap, { centerCity: d0.city, centerState: d0.state, centerZip: d0.zip, otherCity: o0.city, otherState: o0.state, selectingOrigin: false, strategy: lane.strategy, attr, caches, exclude: ex, crossState, pins: pins[pinKey(d0.city, d0.state)] });
   if (!dSel) return { ok: false, error: 'Could not find two distinct destination alternatives anywhere in ZIP Map.' };
   const toLoc = (a) => ({ city: a.city, state: a.state, zip: a.zip, miles: a.miles });
   const reasons = [];

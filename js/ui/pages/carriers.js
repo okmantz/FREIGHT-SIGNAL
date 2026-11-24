@@ -11,19 +11,23 @@ import { tableToRecords } from '../importer.js';
 import { storedWhere } from '../../store/cloud.js';
 import { createTableSort } from '../tablesort.js';
 import { telHref, mailHref, fmcsaUrl } from '../../core/resources.js';
-import { avatar, chips, statusPill, whenCell, segmented, searchBox, moreMenu, filterSelect, expandRows, groupRow, groupBy, detailCard, contactStack, countLine, DAY, relDate } from '../directory.js';
+import { avatar, avatarWithStar, primaryBadge, marked, chips, statusPill, whenCell, segmented, searchBox, moreMenu, filterSelect, expandRows, groupRow, groupBy, detailCard, contactStack, countLine, DAY, relDate } from '../directory.js';
+import { searchRecords, parseQuery, carrierSpec } from '../../core/search.js';
 import { openPublish } from './trucks.js';
 import * as net from '../../store/net.js';
 import { openHistoryImport } from '../history.js';
 import { assignDialog, assignmentsDialog } from '../assign.js';
-import { describeAssignment } from '../../core/assignments.js';
+import { describeAssignment, primaryMap } from '../../core/assignments.js';
 
 let q = '';
 let view = 'all', groupKey = '';
 const F = { equip: '', state: '', status: '' };
 const open = new Set();
 const rerender = () => import('../../main.js').then(m => m.render());
-const sorter = createTableSort(rerender);   // click a header: A-Z, Z-A, random
+let relevance = true;                                                    // with a search typed, best match first until a column header is clicked
+const sorter = createTableSort(() => { relevance = false; rerender(); });   // click a header: A-Z, Z-A, random
+let stars = new Map();                                                   // carrier id -> { level, lanes[], text } for the primary star (refreshed every render)
+const SPEC = carrierSpec((c) => ({ primaryText: (stars.get(c.id) || {}).text || '' }));
 
 const eqTokens = (c) => String(c.equipment ?? '').split(/[,/;|]+/).map(x => x.trim()).filter(Boolean);
 const uniq = (list) => [...new Set(list)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -35,6 +39,7 @@ const VIEWS = {
   reach: (c) => String(c.email || '').trim() && days(c) >= 7,
   never: (c) => days(c) === Infinity,
   proven: (c) => Number(c.coverCount) > 0,
+  primary: (c) => stars.has(c.id),
 };
 const passes = (c) => {
   if (!VIEWS[view](c)) return false;
@@ -48,15 +53,15 @@ const laneText = (c) => {
   const o = [c.originCity, c.originState].filter(Boolean).join(', '), d = [c.destCity, c.destState].filter(Boolean).join(', ');
   return { o, d };
 };
-const GROUPS = { '': null, equipment: (c) => eqTokens(c)[0] || 'No equipment listed', originState: (c) => String(c.originState || '').trim().toUpperCase() || 'No home state', status: statusOf };
+const GROUPS = { '': null, primary: (c) => (stars.has(c.id) ? (stars.get(c.id).level === 'backup' ? 'Backup carriers' : 'Primary carriers') : 'Other carriers'), equipment: (c) => eqTokens(c)[0] || 'No equipment listed', originState: (c) => String(c.originState || '').trim().toUpperCase() || 'No home state', status: statusOf };
 
-function toolbar(all, rows) {
+function toolbar(all, rows, found) {
   const cs = state.carriers;
   const count = (k) => cs.filter(VIEWS[k]).length;
   return [
     h('div', { class: 'dir-bar' },
-      searchBox(q, 'Search name, MC, e-mail, city, equipment…', (v) => { q = v; }, rerender),
-      segmented([['all', 'All', count('all')], ['active', 'Active', count('active')], ['reach', 'Ready to contact', count('reach')], ['never', 'Never contacted', count('never')], ['proven', 'Has covered', count('proven')]], view, (v) => { view = v; rerender(); }, 'Quick views'),
+      searchBox(q, 'Search name, MC, phone, e-mail, city, equipment…', (v) => { if (v !== q) relevance = true; q = v; }, rerender),
+      segmented([['all', 'All', count('all')], ['primary', h('span', { class: 'seglabel' }, h('span', { class: 'pstar inline' }, icon('star', 9)), 'Primary'), count('primary')], ['active', 'Active', count('active')], ['reach', 'Ready to contact', count('reach')], ['never', 'Never contacted', count('never')], ['proven', 'Has covered', count('proven')]], view, (v) => { view = v; rerender(); }, 'Quick views'),
       h('span', { class: 'grow' }),
       h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, icon('plus', 15), 'Add carrier'),
       h('button', { class: 'btn', type: 'button', 'data-act': 'import-history', title: 'Read the last 30 or 90 days of Outlook mail and add only the carriers that really booked a load with you', onclick: openHistoryImport }, icon('mail', 15), 'IMPORT HISTORICAL EMAILS'),
@@ -77,17 +82,24 @@ function toolbar(all, rows) {
       filterSelect('Any home state', uniq(cs.map(c => String(c.originState ?? '').trim().toUpperCase()).filter(Boolean)).map(x => [x]), F.state, (v) => { F.state = v; rerender(); }, 'state'),
       filterSelect('Any status', uniq(cs.map(statusOf)).map(x => [x]), F.status, (v) => { F.status = v; rerender(); }, 'status'),
       h('span', { class: 'lbl' }, 'Group by'),
-      filterSelect('No grouping', [['equipment', 'Equipment'], ['originState', 'Home state'], ['status', 'Status']], groupKey, (v) => { groupKey = v; rerender(); }, 'group'),
+      filterSelect('No grouping', [['primary', 'Primary carriers'], ['equipment', 'Equipment'], ['originState', 'Home state'], ['status', 'Status']], groupKey, (v) => { groupKey = v; rerender(); }, 'group'),
       filtersOn() ? h('button', { class: 'btn small', type: 'button', onclick: () => { Object.keys(F).forEach(k => { F[k] = ''; }); view = 'all'; q = ''; rerender(); } }, 'Clear filters') : null),
-    h('div', { class: 'dir-count' }, h('span', null, `${rows.length} of ${all.length}`), (() => { const top = topCarriersByCovers(state.coverLog, 3).map(t => { const c = cs.find(x => String(x.email || '').toLowerCase() === t.email); return `${(c && c.carrierName) || t.email} (${t.covers})`; }); return top.length ? h('span', { class: 'topline' }, icon('trendup', 14), ' Top in your Cover Log: ' + top.join(', ')) : null; })()),
+    h('div', { class: 'dir-count' }, h('span', null, `${rows.length} of ${all.length}`), searchHint(found), (() => { const top = topCarriersByCovers(state.coverLog, 3).map(t => { const c = cs.find(x => String(x.email || '').toLowerCase() === t.email); return `${(c && c.carrierName) || t.email} (${t.covers})`; }); return top.length ? h('span', { class: 'topline' }, icon('trendup', 14), ' Top in your Cover Log: ' + top.join(', ')) : null; })()),
   ];
 }
 
-function row(c) {
-  const { o, d } = laneText(c); const mc = String(c.mc || '').trim();
+function searchHint(found) {
+  if (!q.trim()) return null;
+  if (found.partial) return h('span', { class: 'dir-hint warn' }, 'No carrier matches every word. Showing the closest matches.');
+  if (!found.terms.length) return null;
+  return h('span', { class: 'dir-hint' }, relevance && !sorter.state ? [h('b', null, 'Best match first.'), ' Click a column header to sort instead.'] : relevance ? [h('b', null, 'Best match first.')] : h('button', { class: 'linkbtn', type: 'button', onclick: () => { relevance = true; rerender(); } }, 'Sort by best match'));
+}
+
+function row(c, terms = []) {
+  const { o, d } = laneText(c); const mc = String(c.mc || '').trim(); const star = stars.get(c.id);
   const cells = [
-    h('td', { class: 'c-name' }, h('div', { class: 'dir-id' }, avatar(c.carrierName || c.email),
-      h('div', { class: 't' }, h('b', { title: c.carrierName }, c.carrierName || '(no name)'), h('small', null, mc ? (fmcsaUrl(mc) ? h('a', { class: 'xlink', href: fmcsaUrl(mc), target: '_blank', rel: 'noopener', title: 'Look up on FMCSA SAFER' }, 'MC ' + mc.replace(/^mc[\s#:-]*/i, '')) : 'MC ' + mc) : 'No MC on file')))),
+    h('td', { class: 'c-name' }, h('div', { class: 'dir-id' }, avatarWithStar(c.carrierName || c.email, star),
+      h('div', { class: 't' }, h('b', { title: c.carrierName }, marked(c.carrierName || '(no name)', terms)), h('small', null, mc ? (fmcsaUrl(mc) ? h('a', { class: 'xlink', href: fmcsaUrl(mc), target: '_blank', rel: 'noopener', title: 'Look up on FMCSA SAFER' }, 'MC ' + mc.replace(/^mc[\s#:-]*/i, '')) : 'MC ' + mc) : 'No MC on file')))),
     h('td', null, contactStack(c, { telHref, mailHref })),
     h('td', { class: 'c-lane' }, o || d ? h('span', { class: 'dir-lane' }, o || 'Anywhere', icon('chevright', 12), d || 'Anywhere') : h('span', { class: 'dir-none' }, 'No lane on file')),
     h('td', null, chips(eqTokens(c), 2)),
@@ -99,7 +111,7 @@ function row(c) {
       h('button', { class: 'btn small', type: 'button', 'aria-label': 'Edit carrier', title: 'Edit', onclick: () => edit(c) }, icon('edit', 14)))),
   ];
   const detail = detailCard({
-    fields: [['Verified by e-mail', c.verified === 'email' ? 'Booked ' + (c.bookedCount || 1) + ' load' + (Number(c.bookedCount) === 1 ? '' : 's') + (c.lastBookedAt ? ', last ' + relDate(c.lastBookedAt) : '') + (c.lastBookedRate ? ' at $' + Number(c.lastBookedRate).toLocaleString('en-US') : '') + ' (' + c.historyConfidence + '% evidence)' : ''], ['Dispatch phone (from e-mail)', c.dispatchPhone], ['Last driver', [c.driverName, c.driverPhone].filter(Boolean).join(' ')], ['Lanes it ran', Array.isArray(c.ranLanes) ? c.ranLanes.map(l => (l.originCity + ', ' + l.originState + ' to ' + l.destCity + ', ' + l.destState) + (l.count > 1 ? ' x' + l.count : '')).join('; ') : ''], ['Also e-mails from', Array.isArray(c.altEmails) ? c.altEmails.join(', ') : ''], ['Primary for', state.assignments.filter(a => a.carrierId === c.id).map(describeAssignment).join('; ')], ['Preferred pickup', c.preferredPickupDates], ['Usual rate', c.rate], ['Last covered', c.lastCovered ? relDate(c.lastCovered) + ' (' + c.lastCovered + ')' : ''], ['Response rate', c.responseRate], ['Covers', c.coverCount], ['All equipment', eqTokens(c).join(', ')]],
+    fields: [['Verified by e-mail', c.verified === 'email' ? 'Booked ' + (c.bookedCount || 1) + ' load' + (Number(c.bookedCount) === 1 ? '' : 's') + (c.lastBookedAt ? ', last ' + relDate(c.lastBookedAt) : '') + (c.lastBookedRate ? ' at $' + Number(c.lastBookedRate).toLocaleString('en-US') : '') + ' (' + c.historyConfidence + '% evidence)' : ''], ['Dispatch phone (from e-mail)', c.dispatchPhone], ['Last driver', [c.driverName, c.driverPhone].filter(Boolean).join(' ')], ['Lanes it ran', Array.isArray(c.ranLanes) ? c.ranLanes.map(l => (l.originCity + ', ' + l.originState + ' to ' + l.destCity + ', ' + l.destState) + (l.count > 1 ? ' x' + l.count : '')).join('; ') : ''], ['Also e-mails from', Array.isArray(c.altEmails) ? c.altEmails.join(', ') : ''], ['Primary for', star ? h('span', null, h('span', { class: 'pstar inline ' + star.level }, icon('star', 9)), (star.level === 'backup' ? 'Backup: ' : 'Primary: ') + star.lanes.join('; ')) : '', true], ['Last call', c.lastCallResult ? c.lastCallResult + (c.lastCallAt ? ', ' + relDate(c.lastCallAt) : '') : ''], ['Preferred pickup', c.preferredPickupDates], ['Usual rate', c.rate], ['Last covered', c.lastCovered ? relDate(c.lastCovered) + ' (' + c.lastCovered + ')' : ''], ['Response rate', c.responseRate], ['Covers', c.coverCount], ['All equipment', eqTokens(c).join(', ')]],
     notes: c.notes,
     actions: [
       net.joined() ? h('button', { class: 'btn small', type: 'button', 'data-act': 'share-truck-row', title: "Share this carrier's truck with the team", onclick: () => openPublish({ carrierName: c.carrierName, mc: c.mc, email: c.email, phone: c.phone, oCity: c.originCity, oState: c.originState, dCity: c.destCity, dState: c.destState, destOpen: !(c.destCity || c.destState), equip: /reef/i.test(c.equipment || '') ? 'R' : /flat/i.test(c.equipment || '') ? 'F' : 'V' }) }, icon('truck', 14), 'Share with team') : null,
@@ -111,20 +123,25 @@ function row(c) {
 }
 
 export function render() {
-  const rows = sorter.sort(state.carriers.filter(passes).filter(c => !q || CARRIER_KEYS.some(k => String(c[k] ?? '').toLowerCase().includes(q.toLowerCase()))), (c, k) => c[k]);
+  stars = primaryMap(state.assignments, state.carriers);
+  const base = state.carriers.filter(passes);
+  const found = q.trim() ? searchRecords(base, q, SPEC) : { results: [], partial: false, terms: [] };
+  const terms = q.trim() ? parseQuery(q, SPEC.aliases).terms : [];
+  // Typing a search ranks by best match. A column header you click afterwards takes over (and "Sort by best match" brings the ranking back).
+  const rows = q.trim() ? (relevance ? found.results.map(r => r.record) : sorter.sort(found.results.map(r => r.record), (c, k) => c[k])) : sorter.sort(base, (c, k) => c[k]);
   const COLS = [['carrierName', 'Carrier'], ['email', 'Contact'], ['originState', 'Lane'], ['equipment', 'Equipment'], ['lastContacted', 'Last contacted'], ['coverCount', 'Covers'], ['status', 'Status']];
   const body = [];
-  const gf = GROUPS[groupKey];
-  if (gf && rows.length) { for (const [name, list] of groupBy(rows, gf)) { body.push(groupRow(name, list.length, 8)); body.push(...expandRows(list.map(row), open, 8)); } }
-  else body.push(...expandRows(rows.map(row), open, 8));
+  const gf = q.trim() && relevance ? null : GROUPS[groupKey];   // grouping sorts by name, so it waits while results are ranked by best match
+  if (gf && rows.length) { for (const [name, list] of groupBy(rows, gf)) { body.push(groupRow(name, list.length, 8)); body.push(...expandRows(list.map(c => row(c, terms)), open, 8)); } }
+  else body.push(...expandRows(rows.map(c => row(c, terms)), open, 8));
   return h('div', null,
     pageHead({ icon: 'carriers', title: 'Carrier Database', sub: 'Everyone you cover with. Search, pick a quick view, then click a row to open all its details. ' + storedWhere() }),
     !state.carriers.length ? emptyState({ icon: 'carriers', title: 'No carriers yet', text: 'Import the carriers you already work with (an Excel or CSV list), or add one by hand. You can also approve a sender in the Inquiry Log and they land here.',
       actions: [h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, 'Add carrier'), h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'Import from Excel / CSV')] }) : statTilesFor(),
-    !state.carriers.length ? null : toolbar(state.carriers, rows),
+    !state.carriers.length ? null : toolbar(state.carriers, rows, found),
     !state.carriers.length ? null : h('div', { class: 'dirwrap tablewrap' }, h('table', { class: 'carrier dirtable' },
       h('thead', null, h('tr', null, COLS.map(([k, l]) => sorter.th(k, l)), h('th', null, ''))),
-      h('tbody', null, rows.length ? body : h('tr', null, h('td', { colspan: 8, class: 'muted' }, 'No carriers match. Clear the filters or search for something else.'))))));
+      h('tbody', null, rows.length ? body : h('tr', null, h('td', { colspan: 8, class: 'muted' }, q.trim() ? 'No carrier matches "' + q.trim() + '". Try fewer words, part of the name, an MC or phone number, or clear the filters.' : 'No carriers match. Clear the filters or search for something else.'))))));
 }
 
 function statTilesFor() {
