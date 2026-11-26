@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { realZipMap } from './helpers.js';
-import { suggestRate, autoTarget, raiseHistory } from '../../js/core/raterec.js';
+import { suggestRate, autoTarget, raiseHistory, ruleOfThumbRate } from '../../js/core/raterec.js';
 import { consolidateCarriers, duplicateRows, mergePatches, callSheet, identityOf } from '../../js/core/prospects.js';
 import { blankPosting } from '../../js/core/model.js';
 import { DEFAULT_SETTINGS } from '../../js/core/defaults.js';
@@ -24,6 +24,21 @@ test('suggestRate: a fresh typed DAT average is used, an old one counts for less
 test('suggestRate: no data -> low-confidence per-mile fallback that says so; no ZIPs and no data -> nothing', () => {
   const f = suggestRate(load(), { zipMap: zip, now: NOW }); assert.equal(f.confidence, 'low'); assert.ok(f.rate > 800 && f.rate < 2200); assert.ok(f.basis.some(b => /per-mile table/.test(b)));
   assert.equal(suggestRate(load(), { zipMap: null, now: NOW }).confidence, 'none');
+});
+test('rule of thumb: miles x $2 plus a little (700 miles is about $1,600)', () => {
+  assert.equal(ruleOfThumbRate(700, 'V'), 1600);
+  assert.equal(ruleOfThumbRate(1000, 'V'), 2200);
+  assert.equal(ruleOfThumbRate(300, 'V'), 800);
+  assert.equal(ruleOfThumbRate(50, 'V'), 450);                    // never under the $450 floor
+  assert.equal(ruleOfThumbRate(0, 'V'), 0); assert.equal(ruleOfThumbRate(null, 'V'), 0);
+  assert.ok(ruleOfThumbRate(700, 'R') > 1600 && ruleOfThumbRate(700, 'R') < 2000);   // reefer a little more
+});
+test('suggestRate with no history uses the rule of thumb, and a TQL Miles line is trusted over the estimate', () => {
+  const s = suggestRate(load({ details: 'Pickup: Chicago, IL 60601\nMiles: 700' }), { zipMap: zip, now: NOW });
+  assert.equal(s.confidence, 'low'); assert.ok(s.sources.fallback);
+  assert.ok(s.rate >= 1600 && s.rate <= 1850, String(s.rate));     // 700 mi = $1,600, plus any hard-lane premium
+  const noZip = suggestRate(load({ details: 'Miles: 700' }), { zipMap: null, now: NOW });
+  assert.ok(noZip.rate >= 1600, String(noZip.rate));
 });
 test('suggestRate: hard lanes get a premium unless your own covers already prove the number', () => {
   const hard = load({ originCity: 'Phoenix', originState: 'AZ', destCity: 'Miami', destState: 'FL', datAvg: 3000, datAvgAt: new Date(NOW).toISOString() });

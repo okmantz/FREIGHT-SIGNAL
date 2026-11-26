@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-Ry2R8uvwAwakKhRADbGqhu2sKhSnjGE6leqDxn0fOxo='; style-src 'sha256-pPbGX7uPBXmTGWuQ+SCkdZXNm7pWFDzgduQIK0/gPX4='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-3OYSgUDYSU66AAPoWQUmqjzOUKE61uY2XIfLIf1R7rE=' 'sha256-izKA6n2M55iPErdZbuOeOJ3rhN9x9hezp5cYw8l0WfE=' 'sha256-t2V3xfu05+JZEeSe48GZnFJVf9bXsAT4L1nNQhBRQDM='; style-src 'sha256-pPbGX7uPBXmTGWuQ+SCkdZXNm7pWFDzgduQIK0/gPX4='; img-src data: blob:; connect-src https://api.weather.gov https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#060a11">
 <title>FREIGHT SIGNAL by O.K. Mantz</title>
@@ -3375,6 +3375,17 @@ tr.dim td { opacity: .55; }
     const d = zipMap.distanceBetweenZips(oz, dz);
     return d === null ? null : d * ROAD_FACTOR;
   }
+  function statedMiles(details) {
+    const m = /^[ \t]*Miles[ \t]*:[ \t]*(\d[\d,]*(?:\.\d+)?)/im.exec(String(details ?? ""));
+    const n = m ? Number(m[1].replace(/,/g, "")) : 0;
+    return n > 0 && n < 6e3 ? Math.round(n) : 0;
+  }
+  function tripMiles(load, zipMap) {
+    const est2 = laneMiles(load || {}, zipMap);
+    const said = statedMiles(load && load.details);
+    if (said && !(est2 > 0 && (said / est2 > 1.8 || said / est2 < 0.55))) return said;
+    return est2 > 0 ? Math.round(est2) : said || null;
+  }
   function classifyLane(p, zipMap, settings = {}) {
     const miles2 = laneMiles(p, zipMap);
     const cls = classForMiles(miles2, settings);
@@ -6182,6 +6193,12 @@ tr.dim td { opacity: .55; }
   });
 
   // js/core/raterec.js
+  function ruleOfThumbRate(miles2, equip) {
+    const m = Number(miles2);
+    if (!(m > 0)) return 0;
+    const f = EQUIP_FACTOR[equipFamily(equip)] || 1;
+    return roundTo2(Math.max(RULE_MIN, (m * RULE_PER_MILE + RULE_EXTRA) * f), 25);
+  }
   function laneRel(load, other, zipMap, radius = 100) {
     if (same(load, other)) return { kind: "same", w: 3 };
     const lo = zipFor(load.originCity, load.originState, load.originZip, zipMap), ld = zipFor(load.destCity, load.destState, load.destZip, zipMap);
@@ -6237,12 +6254,11 @@ tr.dim td { opacity: .55; }
     }
     let fallback = false;
     if (!pts.length) {
-      if (!(miles2 > 0)) return { rate: 0, low: 0, high: 0, confidence: "none", basis: ["Not enough information: add the ZIP codes, or type the DAT average for this lane."], miles: null, sources: {}, premium: 0 };
-      const base = FALLBACK_RPM[equipFamily(load.equip)] || FALLBACK_RPM.van;
-      const shortBoost = 1 + Math.max(0, (600 - miles2) / 600) * 0.7;
-      pts.push({ rate: Math.max(450, base * shortBoost * miles2), w: 1, tag: "fallback" });
+      const rm = tripMiles(load, zipMap);
+      if (!(rm > 0)) return { rate: 0, low: 0, high: 0, confidence: "none", basis: ["Not enough information: add the ZIP codes, or type the DAT average for this lane."], miles: null, sources: {}, premium: 0 };
+      pts.push({ rate: ruleOfThumbRate(rm, load.equip), w: 1, tag: "fallback" });
       fallback = true;
-      basis.push("A rough per-mile table, because you have no covers, quotes or DAT average for this lane yet");
+      basis.push("A rough per-mile table (about $2 a mile plus a little, " + rm.toLocaleString("en-US") + " mi), because you have no covers, quotes or DAT average for this lane yet");
     }
     const wsum = pts.reduce((s, p) => s + p.w, 0);
     let rate3 = pts.reduce((s, p) => s + p.rate * p.w, 0) / wsum;
@@ -6264,7 +6280,7 @@ tr.dim td { opacity: .55; }
     const m = laneMiles(l, zipMap);
     return m > 0 ? m : safeNumeric(e.miles) || 0;
   }
-  var FALLBACK_RPM, HALF_LIFE_DAYS, recency, zipFor, same;
+  var RULE_PER_MILE, RULE_EXTRA, RULE_MIN, EQUIP_FACTOR, HALF_LIFE_DAYS, recency, zipFor, same;
   var init_raterec = __esm({
     "js/core/raterec.js"() {
       init_lanes();
@@ -6272,7 +6288,10 @@ tr.dim td { opacity: .55; }
       init_util();
       init_netcommon();
       init_corridor();
-      FALLBACK_RPM = { van: 2.05, reefer: 2.45, flatbed: 2.55, other: 2.6 };
+      RULE_PER_MILE = 2;
+      RULE_EXTRA = 200;
+      RULE_MIN = 450;
+      EQUIP_FACTOR = { van: 1, reefer: 1.15, flatbed: 1.15, other: 1.2 };
       HALF_LIFE_DAYS = 45;
       recency = (iso, now) => {
         const t2 = Date.parse(iso);
@@ -14847,7 +14866,7 @@ tr.dim td { opacity: .55; }
     const miles2 = Math.round(laneMiles({ originZip: oz, destZip: dz, originCity: f.originCity, originState: f.originState, destCity: f.destCity, destState: f.destState }, zipMap) || 0);
     const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(f.pickupEarliest ?? "").trim());
     const pick2 = m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2])) : startOfDay2(now);
-    const drop = addDays2(pick2, Math.max(1, Math.ceil(miles2 / MILES_PER_DAY)));
+    const drop = addDays2(pick2, miles2 > 0 && miles2 < SAME_DAY_MILES ? 0 : Math.max(1, Math.ceil(miles2 / MILES_PER_DAY)));
     const w = Number(String(f.weight ?? "").replace(/[^0-9.]/g, "")) || QUICK_DEFAULTS.weight;
     const place2 = (c, s, z) => `${String(c ?? "").trim()}, ${String(s ?? "").trim().toUpperCase()}${z ? " " + z : ""}`;
     return [
@@ -14869,7 +14888,7 @@ tr.dim td { opacity: .55; }
       ` Trailer Size: ${f.length || QUICK_DEFAULTS.length} ft`
     ].join("\n");
   }
-  var QUICK_DEFAULTS, WINDOW, MILES_PER_DAY, US_STATES, NAME_TO_ABBR, ABBRS, SHORT, LONG, titleCase, pad2, fmtDate2, fmtDateShort, startOfDay2, addDays2, strip, SEPARATORS, looksLikeLabelledLoad, commas;
+  var QUICK_DEFAULTS, WINDOW, MILES_PER_DAY, SAME_DAY_MILES, US_STATES, NAME_TO_ABBR, ABBRS, SHORT, LONG, titleCase, pad2, fmtDate2, fmtDateShort, startOfDay2, addDays2, strip, SEPARATORS, looksLikeLabelledLoad, commas;
   var init_quickload = __esm({
     "js/core/quickload.js"() {
       init_util();
@@ -14878,6 +14897,7 @@ tr.dim td { opacity: .55; }
       QUICK_DEFAULTS = { weight: 4e4, equip: "V", length: 53 };
       WINDOW = "FCFS 08:00 to 16:00";
       MILES_PER_DAY = 500;
+      SAME_DAY_MILES = 300;
       US_STATES = {
         AL: "alabama",
         AK: "alaska",
@@ -17277,6 +17297,10 @@ Download anyway?`, "Download anyway");
       ))
     );
   }
+  function tripMilesText(head) {
+    const m = tripMiles(head, state.zip);
+    return m > 0 ? m.toLocaleString("en-US") + " mi" : "";
+  }
   function groupBox(r, collapsed, toggle2) {
     const b = r.box;
     const head = b.head;
@@ -17294,9 +17318,10 @@ Download anyway?`, "Download anyway");
     const toggleBtn = h("button", { class: "collbtn", type: "button", "aria-expanded": String(!collapsed), title: collapsed ? "Expand this load" : "Collapse this load", "data-act": "toggle-box", onclick: toggle2 }, icon(collapsed ? "chevright" : "chevdown", 16));
     const meta = [
       [lbs(head.weight), "weight"],
+      [tripMilesText(head), "route"],
       [equipLabel2(head.equip), "truck"],
       [head.pickupEarliest ? shortDate(head.pickupEarliest) : "", "calendar"]
-    ].filter((x) => x[0]).map(([t2, ic]) => h("span", { class: "meta" }, icon(ic, 14), t2));
+    ].filter((x) => x[0]).map(([t2, ic]) => h("span", { class: "meta", title: ic === "route" ? "Trip miles (the Miles line in the load details, otherwise estimated from the ZIP codes)" : null }, icon(ic, 14), t2));
     const header = h(
       "header",
       { class: "lanehead" },

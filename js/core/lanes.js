@@ -50,6 +50,24 @@ export function laneMiles(p, zipMap) {
   return d === null ? null : d * ROAD_FACTOR;
 }
 
+/** The "Miles:" figure printed in TQL load details (the real road miles), or 0 when there is none. */
+export function statedMiles(details) {
+  const m = /^[ \t]*Miles[ \t]*:[ \t]*(\d[\d,]*(?:\.\d+)?)/im.exec(String(details ?? ''));
+  const n = m ? Number(m[1].replace(/,/g, '')) : 0;
+  return n > 0 && n < 6000 ? Math.round(n) : 0;
+}
+
+/**
+ * Trip miles for display and for pricing: the "Miles:" figure in the pasted load details when there is one, otherwise the ZIP Map estimate.
+ * A stated figure that is far off the ZIP Map estimate (the cities were edited after pasting) is ignored. null when neither is available.
+ */
+export function tripMiles(load, zipMap) {
+  const est = laneMiles(load || {}, zipMap);
+  const said = statedMiles(load && load.details);
+  if (said && !(est > 0 && (said / est > 1.8 || said / est < 0.55))) return said;
+  return est > 0 ? Math.round(est) : (said || null);
+}
+
 /** { cls, miles, label, strategy } for a posting (class 'regional' when the lane cannot be measured). */
 export function classifyLane(p, zipMap, settings = {}) {
   const miles = laneMiles(p, zipMap);

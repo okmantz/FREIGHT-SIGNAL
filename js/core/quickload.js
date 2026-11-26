@@ -12,6 +12,7 @@ import { laneMiles } from './lanes.js';
 export const QUICK_DEFAULTS = { weight: 40000, equip: 'V', length: 53 };
 const WINDOW = 'FCFS 08:00 to 16:00';
 const MILES_PER_DAY = 500;          // one driver: used only to suggest a delivery date
+export const SAME_DAY_MILES = 300;  // a lane shorter than this picks up and delivers the same day
 
 export const US_STATES = {
   AL: 'alabama', AK: 'alaska', AZ: 'arizona', AR: 'arkansas', CA: 'california', CO: 'colorado', CT: 'connecticut', DE: 'delaware',
@@ -206,7 +207,7 @@ const commas = (n) => Number(n).toLocaleString('en-US');
 
 /**
  * The load details, in the layout carriers see. `f` needs the lane (city/state, ZIPs optional: filled from the ZIP Map), pickupEarliest (m/d/yyyy),
- * weight, equip and length. The delivery date is the pickup plus one day per 500 miles (at least one).
+ * weight, equip and length. The delivery date is the pickup day itself under 300 miles, otherwise the pickup plus one day per 500 miles (at least one).
  */
 export function buildStandardLoadDetails(f, zipMap, now = new Date()) {
   const zipOf = (city, st, zip) => normalizeZip(zip) || (zipMap && zipMap.size && city && st ? zipMap.bestZipForCityState(city, st) : '');
@@ -214,7 +215,8 @@ export function buildStandardLoadDetails(f, zipMap, now = new Date()) {
   const miles = Math.round(laneMiles({ originZip: oz, destZip: dz, originCity: f.originCity, originState: f.originState, destCity: f.destCity, destState: f.destState }, zipMap) || 0);
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(f.pickupEarliest ?? '').trim());
   const pick = m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2])) : startOfDay(now);
-  const drop = addDays(pick, Math.max(1, Math.ceil(miles / MILES_PER_DAY)));
+  // Under 300 miles it is a same-day pickup and delivery; otherwise one day per 500 miles (at least one). Unknown miles keep the old next-day default.
+  const drop = addDays(pick, miles > 0 && miles < SAME_DAY_MILES ? 0 : Math.max(1, Math.ceil(miles / MILES_PER_DAY)));
   const w = Number(String(f.weight ?? '').replace(/[^0-9.]/g, '')) || QUICK_DEFAULTS.weight;
   const place = (c, s, z) => `${String(c ?? '').trim()}, ${String(s ?? '').trim().toUpperCase()}${z ? ' ' + z : ''}`;
   return [

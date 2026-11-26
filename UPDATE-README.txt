@@ -1,8 +1,9 @@
-Freight Signal v21 update: paste these files over the repo (same paths, keep the folders), commit, push.
+Freight Signal v22 update: paste these files over the repo (same paths, keep the folders), commit, push.
 
-NEW: Auto Rescue reshuffles cities and nearby states, escalates every round, reaches primary carriers first, logs call outcomes, and shows an "Upload to DAT" banner with a one-click CSV download.
-NEW: gold star on primary carriers (Carriers page, call list, Auto Rescue), plus a Primary view.
-NEW: rebuilt Carrier and Customer search: live, ranked, typo-tolerant. See docs/CHANGELOG-v21.md.
+NEW: trip miles on every load card, between the weight and the equipment.
+NEW: target rate auto-fill uses the rule of thumb (miles x $2 + $200) when you have no history for the lane.
+NEW: typed loads under 300 miles are picked up and delivered the same day.
+See docs/CHANGELOG-v22.md.
 
-Reshuffles and rate changes only change Freight Signal. Re-upload the DAT CSV (the banner prompts you). Nothing is ever sent automatically.
-After deploying, hard-refresh once (Ctrl+Shift+R) so the new service-worker cache (v22) loads.
+dist/freight-signal.html is the rebuilt single-file version; it is only needed if you use that file.
+After deploying, hard-refresh once (Ctrl+Shift+R).

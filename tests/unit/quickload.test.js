@@ -4,6 +4,7 @@ import { parseQuickLoads, parseQuickLine, buildStandardLoadDetails, looksLikeLab
 import { parseTqlLoad } from '../../js/core/parser.js';
 import { originalLoadDetails } from '../../js/core/loaddetails.js';
 import { realZipMap } from './helpers.js';
+import { statedMiles, tripMiles, laneMiles } from '../../js/core/lanes.js';
 
 const zm = realZipMap();
 const NOW = new Date(2026, 10, 21, 8, 17);     // Sat 11/21/2026
@@ -68,8 +69,10 @@ test('standard load details layout', () => {
 });
 
 test('delivery date moves with the miles; reefer and weight carry into the details', () => {
-  const short = buildStandardLoadDetails(lane('atlanta ga to macon ga'), zm, NOW);
-  assert.ok(short.includes('Delivery Date/Time: 11/22/2026'));        // under 500 miles: next day
+  const mid = buildStandardLoadDetails(lane('atlanta ga to memphis tn'), zm, NOW);
+  assert.ok(mid.includes('Delivery Date/Time: 11/22/2026'));          // 300 to 500 miles: next day
+  const long = buildStandardLoadDetails(lane('aiken sc to fletcher ok'), zm, NOW);
+  assert.ok(/Delivery Date\/Time: 11\/2[3-9]\/2026/.test(long));        // over 1,000 miles: two days or more
   const r = buildStandardLoadDetails(lane('aiken sc to fletcher ok reefer 42000 lbs'), zm, NOW);
   assert.ok(r.includes('Weight: 42,000 lbs') && r.includes('Trailer Type: Reefer'));
 });
@@ -83,4 +86,38 @@ test('the details read back through the load parser and are kept as the original
   assert.equal(p.fields.pickupEarliest, '11/25/2026'); assert.equal(p.fields.equip, 'V');
   const o = originalLoadDetails([{ variant: 'Original', details: d }]);
   assert.equal(o.source, 'original'); assert.ok(o.text.startsWith('1 pick - 1 drop') && o.text.includes('Pickup: Aiken, SC'));
+});
+
+test('under 300 miles it is a same-day pickup and delivery', () => {
+  for (const t of ['hayward ca to oakland ca', 'atlanta ga to macon ga', 'chicago il to milwaukee wi']) {
+    const f = lane(t); const d = buildStandardLoadDetails(f, zm, NOW);
+    assert.ok(laneMiles(f, zm) < 300, t);
+    assert.ok(d.includes('Pickup Date/Time: 11/21/2026') && d.includes('Delivery Date/Time: 11/21/2026'), t + '\n' + d);
+  }
+  // the pickup day that was typed is the delivery day too
+  const d = buildStandardLoadDetails(lane('hayward ca to oakland ca 11/25'), zm, NOW);
+  assert.ok(d.includes('Pickup Date/Time: 11/25/2026') && d.includes('Delivery Date/Time: 11/25/2026'));
+  // and it reads back through the load parser with no warnings about the dates
+  assert.equal(parseTqlLoad(d).ok, true);
+});
+
+test('300 miles and over still gets the next-day delivery; unknown miles (no ZIP Map) keep the next-day default', () => {
+  const f = lane('atlanta ga to memphis tn');
+  assert.ok(laneMiles(f, zm) >= 300);
+  assert.ok(buildStandardLoadDetails(f, zm, NOW).includes('Delivery Date/Time: 11/22/2026'));
+  const none = buildStandardLoadDetails({ originCity: 'Hayward', originState: 'CA', destCity: 'Oakland', destState: 'CA', pickupEarliest: '11/21/2026', weight: '40000', equip: 'V', length: 53 }, null, NOW);
+  assert.ok(none.includes('Delivery Date/Time: 11/22/2026'));
+});
+
+test('trip miles: the Miles line from a pasted TQL load wins, otherwise the ZIP Map estimate; a stale figure is ignored', () => {
+  assert.equal(statedMiles('Weight: 40,000 lbs\n Miles: 1,234\n Trailer Type: Van'), 1234);
+  assert.equal(statedMiles('Miles:\nTrailer Type: Van'), 0);
+  assert.equal(statedMiles('no miles here'), 0);
+  const chiAtl = { originCity: 'Chicago', originState: 'IL', destCity: 'Atlanta', destState: 'GA' };
+  const est = tripMiles(chiAtl, zm);
+  assert.ok(est > 550 && est < 850, String(est));
+  assert.equal(tripMiles({ ...chiAtl, details: 'Miles: 716' }, zm), 716);
+  assert.equal(tripMiles({ ...chiAtl, details: 'Miles: 40' }, zm), est);            // lane was edited after pasting: do not trust 40
+  assert.equal(tripMiles({ ...chiAtl, details: 'Miles: 716' }, null), 716);        // no ZIP Map loaded: the stated figure still works
+  assert.equal(tripMiles(chiAtl, null), null);
 });

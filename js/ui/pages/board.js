@@ -31,7 +31,7 @@ import { _view as truckView } from './trucks.js';
 import { openBoardPosting } from '../boardposting.js';
 import { rescueFacts, needsHelp } from '../../core/rescue.js';
 import { laneOf, liftAdvice, liftText } from '../../core/laneintel.js';
-import { laneMiles } from '../../core/lanes.js';
+import { laneMiles, tripMiles } from '../../core/lanes.js';
 import { repriceTotal } from '../../core/netcommon.js';
 
 let filter = '';
@@ -303,6 +303,12 @@ function row(p, rc) {
         { label: 'Delete this posting', act: 'del-one', danger: true, run: () => deleteMany([p.id], 'this posting') }]))));
 }
 
+/** "1,234 mi" for the line under the lane title ('' when the miles cannot be worked out yet). */
+function tripMilesText(head) {
+  const m = tripMiles(head, state.zip);
+  return m > 0 ? m.toLocaleString('en-US') + ' mi' : '';
+}
+
 function groupBox(r, collapsed, toggle) {
   const b = r.box; const head = b.head; const ids = b.members.map(m => m.id);
   const pr = targetForPriority(head.priority, state.settings);
@@ -318,8 +324,8 @@ function groupBox(r, collapsed, toggle) {
 
   const toggleBtn = h('button', { class: 'collbtn', type: 'button', 'aria-expanded': String(!collapsed), title: collapsed ? 'Expand this load' : 'Collapse this load', 'data-act': 'toggle-box', onclick: toggle }, icon(collapsed ? 'chevright' : 'chevdown', 16));
   const meta = [
-    [lbs(head.weight), 'weight'], [equipLabel(head.equip), 'truck'], [head.pickupEarliest ? shortDate(head.pickupEarliest) : '', 'calendar'],
-  ].filter(x => x[0]).map(([t, ic]) => h('span', { class: 'meta' }, icon(ic, 14), t));
+    [lbs(head.weight), 'weight'], [tripMilesText(head), 'route'], [equipLabel(head.equip), 'truck'], [head.pickupEarliest ? shortDate(head.pickupEarliest) : '', 'calendar'],
+  ].filter(x => x[0]).map(([t, ic]) => h('span', { class: 'meta', title: ic === 'route' ? 'Trip miles (the Miles line in the load details, otherwise estimated from the ZIP codes)' : null }, icon(ic, 14), t));
   const header = h('header', { class: 'lanehead' },
     h('div', { class: 'lanetitle' }, toggleBtn,
       h('input', { type: 'checkbox', class: 'bigchk', checked: allSel, 'aria-label': 'Select every posting in this lane', 'data-fk': `${b.key}:chk`, onchange: (e) => { ids.forEach(id => (e.target.checked ? selected.add(id) : selected.delete(id))); rerender(); } }),

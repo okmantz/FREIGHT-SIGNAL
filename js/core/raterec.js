@@ -6,15 +6,28 @@
 // With none of those, it falls back to a rough per-mile table and says so ("low confidence").
 // Pure logic (no DOM, no storage).
 
-import { laneMiles } from './lanes.js';
+import { laneMiles, tripMiles } from './lanes.js';
 import { zipMiles, median, roundTo, stateCode, DAY, HOUR, money } from './netcommon.js';
 import { normalizeZip, normalizeText, safeNumeric } from './util.js';
 import { equipFamily } from './netcommon.js';
 import { laneDifficulty } from './corridor.js';
 
-// Rough all-in dollars per mile for a ~700 mile haul, by equipment family. ONLY a last resort; it is labelled low confidence everywhere it shows.
-const FALLBACK_RPM = { van: 2.05, reefer: 2.45, flatbed: 2.55, other: 2.6 };
+// Rule of thumb for a dry van, used when there is nothing of your own to go on: about $2 a mile plus a little on top
+// (a 700 mile haul usually pays around $1,600). The "little on top" is a flat amount, so short hauls pay more per mile and long hauls a bit less.
+// Other equipment is this number x a modest premium. ONLY a last resort; it is labelled low confidence everywhere it shows.
+export const RULE_PER_MILE = 2;
+export const RULE_EXTRA = 200;
+export const RULE_MIN = 450;
+const EQUIP_FACTOR = { van: 1, reefer: 1.15, flatbed: 1.15, other: 1.2 };
 const HALF_LIFE_DAYS = 45;
+
+/** The rule-of-thumb truck pay for a lane: miles x $2 + $200, x the equipment premium, never under $450, rounded to $25. 0 when the miles are unknown. */
+export function ruleOfThumbRate(miles, equip) {
+  const m = Number(miles);
+  if (!(m > 0)) return 0;
+  const f = EQUIP_FACTOR[equipFamily(equip)] || 1;
+  return roundTo(Math.max(RULE_MIN, (m * RULE_PER_MILE + RULE_EXTRA) * f), 25);
+}
 
 const recency = (iso, now) => { const t = Date.parse(iso); if (!Number.isFinite(t)) return 0.5; const d = Math.max(0, (now - t) / DAY); return Math.max(0.2, Math.pow(0.5, d / HALF_LIFE_DAYS)); };
 const zipFor = (city, st, zip, zipMap) => normalizeZip(zip) || (zipMap && zipMap.size && city && st ? zipMap.bestZipForCityState(city, st) : '');
@@ -71,11 +84,10 @@ export function suggestRate(load, ctx = {}) {
   // 5. last resort
   let fallback = false;
   if (!pts.length) {
-    if (!(miles > 0)) return { rate: 0, low: 0, high: 0, confidence: 'none', basis: ['Not enough information: add the ZIP codes, or type the DAT average for this lane.'], miles: null, sources: {}, premium: 0 };
-    const base = FALLBACK_RPM[equipFamily(load.equip)] || FALLBACK_RPM.van;
-    const shortBoost = 1 + Math.max(0, (600 - miles) / 600) * 0.7;
-    pts.push({ rate: Math.max(450, base * shortBoost * miles), w: 1, tag: 'fallback' }); fallback = true;
-    basis.push('A rough per-mile table, because you have no covers, quotes or DAT average for this lane yet');
+    const rm = tripMiles(load, zipMap);
+    if (!(rm > 0)) return { rate: 0, low: 0, high: 0, confidence: 'none', basis: ['Not enough information: add the ZIP codes, or type the DAT average for this lane.'], miles: null, sources: {}, premium: 0 };
+    pts.push({ rate: ruleOfThumbRate(rm, load.equip), w: 1, tag: 'fallback' }); fallback = true;
+    basis.push('A rough per-mile table (about $2 a mile plus a little, ' + rm.toLocaleString('en-US') + ' mi), because you have no covers, quotes or DAT average for this lane yet');
   }
   const wsum = pts.reduce((s, p) => s + p.w, 0);
   let rate = pts.reduce((s, p) => s + p.rate * p.w, 0) / wsum;
