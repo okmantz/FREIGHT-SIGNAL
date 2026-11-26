@@ -36,6 +36,7 @@ import './ui/install.js';
 import { showCloudGate } from './ui/cloudgate.js';
 import { maybeStartTour } from './ui/tour.js';
 import { celebrate } from './ui/celebrate.js';
+import { initShortcuts, showShortcuts } from './ui/shortcuts.js';
 import { initAppearance, syncFromStore, readMirror, getAppearance, resolvedMode, toggleMode, onAppearance } from './ui/appearance.js';
 
 // group = heading in the sidebar. `icon` = ui/icons.js name.
@@ -104,6 +105,7 @@ function renderNav() {
     nav.appendChild(btn);
     nav.appendChild(body);
   }
+  nav.appendChild(h('button', { class: 'linkbtn kb-link', type: 'button', 'data-act': 'show-shortcuts', title: 'Keyboard shortcuts (press ? anywhere)', onclick: showShortcuts }, 'Keyboard shortcuts  ?'));
   nav.appendChild(h('div', { class: 'side-foot' }, icon('shield', 15), h('span', null, cloud.enabled() ? 'Your workspace is saved to your own private account. No e-mail is ever sent automatically.' : 'All data stays in this browser. Nothing is sent automatically.')));
   renderChrome();
 }
@@ -111,6 +113,8 @@ function renderNav() {
 /** Header pieces that depend on state: cover pace, theme button, profile chip. (v18: the "ZIP Map: N rows" pill is gone; Home and System still warn when the ZIP Map is missing.) */
 export function renderChrome() {
   renderPace();
+  // The browser tab says what needs you, so you see it while working in DAT or Outlook: "(2) Cover Desk · FREIGHT SIGNAL".
+  { const need = exceptionQueue(state.ledger).length; document.title = (need ? `(${need}) ` : '') + (current ? current.label + ' \u00b7 ' : '') + 'FREIGHT SIGNAL by O.K. Mantz'; }
   const light = resolvedMode() === 'light';
   const tb = document.getElementById('themebtn');
   clear(tb); tb.append(icon(light ? 'moon' : 'sun', 16), h('span', null, light ? 'Dark mode' : 'Light mode'));
@@ -164,7 +168,22 @@ view.addEventListener('focusout', (e) => {
 
 const isTextual = (el) => /^(INPUT|TEXTAREA)$/.test(el.tagName) && !/^(checkbox|radio|button|submit|file)$/.test(el.type || '');
 
-export async function render() {
+/**
+ * Draw the current page. Calls that arrive while a draw is running are folded into ONE more draw afterwards (v23), so a burst of
+ * changes (adding ten loads, a cover, a bulk import) redraws once instead of once per change, and two draws can never overlap.
+ * Always returns a promise that settles after the page is up to date.
+ */
+let rendering = null, renderAgain = false;
+export function render() {
+  if (rendering) { renderAgain = true; return rendering; }
+  rendering = (async () => { try { do { renderAgain = false; await renderNow(); } while (renderAgain); } finally { rendering = null; } })();
+  return rendering;
+}
+let renderQueued = false;
+/** Store changes go through here: every change made in the same moment shares one draw. */
+const scheduleRender = () => { if (renderQueued) return; renderQueued = true; queueMicrotask(() => { renderQueued = false; render(); }); };
+
+async function renderNow() {
   const t = tabFromHash();
   const changed = !current || current.id !== t.id;
   current = t;
@@ -185,6 +204,7 @@ export async function render() {
   try { view.appendChild(await t.page.render()); }
   catch (e) { console.error(e); view.appendChild(h('div', { class: 'banner err' }, 'This page failed to render: ' + (e.message || e))); }
   if (!changed) view.scrollTop = scroll;
+  if (t.page.afterRender) { try { t.page.afterRender(changed); } catch (e) { console.error(e); } }
   if (fk) {
     const el = [...view.querySelectorAll('[data-fk]')].find(x => x.getAttribute('data-fk') === fk);
     if (el) { el.focus({ preventScroll: true }); if (sel) { try { el.setSelectionRange(sel[0], sel[1]); } catch { /* number inputs */ } } }
@@ -262,7 +282,8 @@ async function boot() {
   window.addEventListener('hashchange', render);
   net.onNet(() => render());
   document.getElementById('sharetruck')?.addEventListener('click', () => openPublish());
-  subscribe(() => { syncFromStore(state.settings.appearance); render(); });
+  subscribe(() => { syncFromStore(state.settings.appearance); scheduleRender(); });
+  initShortcuts();
   await render();
   // The weekly cover count resets at 12:00 AM Monday (the moment Sunday ends). Re-draw exactly then, even if the app was left open all weekend.
   const rollover = () => { const ms = Math.max(1000, nextWeekStart(new Date()).getTime() - Date.now() + 2000); setTimeout(() => { renderPace(); render(); rollover(); }, Math.min(ms, 2 ** 31 - 1)); };

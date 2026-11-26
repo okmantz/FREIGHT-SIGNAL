@@ -22,8 +22,10 @@ export function coverModal(box, preset = {}) {
   const byEmail = new Map();
   for (const q of quotes) { const e = String(q.senderEmail).toLowerCase(); const prev = byEmail.get(e); const j = judgeQuote(q, { target: safeNumeric(head.targetRate) || safeNumeric(head.datRate), settings: state.settings, ownText: head.details }); const rate = j.ok ? j.rate : 0; if (!prev || rate) byEmail.set(e, { email: e, rate: rate || (prev && prev.rate) || 0 }); }
   const inp = (ph, v = '') => h('input', { placeholder: ph, value: v, 'data-live': '' });
-  const name = inp('Carrier name'), email = inp('Carrier e-mail'), mc = inp('MC / DOT'), phone = inp('Phone');
+  const pc = preset.carrier || {};                                // v23: opened from the Cover Desk with the carrier already known
+  const name = inp('Carrier name', pc.name || ''), email = inp('Carrier e-mail', pc.email || ''), mc = inp('MC / DOT', pc.mc || ''), phone = inp('Phone', pc.phone || '');
   const rate = inp('$ paid / agreed', preset.rate ? String(preset.rate) : '');
+  rate.setAttribute('inputmode', 'decimal');
   const note = inp('Note (optional)');
   const hint = h('small', { class: 'hint' }, '');
   const fill = (c) => { name.value = c.carrierName || name.value; email.value = c.email || ''; mc.value = c.mc || ''; phone.value = c.phone || ''; };
@@ -46,7 +48,7 @@ export function coverModal(box, preset = {}) {
   rate.addEventListener('input', upd); upd();
 
   const body = h('div', null,
-    h('p', { class: 'muted' }, `${box.title} · ${members.length} posting${members.length === 1 ? '' : 's'}. This is recorded in the Cover Log first - then the load leaves the board.`),
+    h('p', { class: 'muted' }, `${box.title} · ${members.length} posting${members.length === 1 ? '' : 's'}. This is recorded in the Cover Log first - then the load leaves the board. Press Enter to log it.`),
     mem ? h('div', { class: 'banner' }, laneMemoryText(mem)) : null,
     field('Which posting covered it?', postingSel, members.length > 1 ? 'Pick the exact origin/destination pairing the carrier booked (A-A is the original).' : null),
     pickers, dl,
@@ -72,7 +74,7 @@ export function coverModal(box, preset = {}) {
       } },
     ],
   });
-  setTimeout(() => (byEmail.size ? rate : name).focus(), 40);
+  setTimeout(() => (byEmail.size || pc.name || pc.email ? rate : name).focus(), 40);   // Enter in any one-line field logs the cover
 }
 
 function askNoCarrier() {

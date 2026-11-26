@@ -19,6 +19,9 @@ import { rescueButton } from '../board/autorescue.js';
 import { placeText, money } from '../../core/netcommon.js';
 import { equipLabel } from '../../core/equipment.js';
 import { sendModeOf, MODE_LABEL } from '../../core/sendpolicy.js';
+import { laneBoxes } from '../../core/model.js';
+import { coverModal } from '../board/cover.js';
+import { telHref } from '../../core/resources.js';
 
 const rerender = () => import('../../main.js').then(m => m.render());
 const sect = (title, sub, ...kids) => h('section', { class: 'panel' }, h('h3', null, title), sub ? h('p', { class: 'muted' }, sub) : null, ...kids);
@@ -68,6 +71,13 @@ function addTrucksDialog() {
     } }] });
 }
 
+/** "Covered": open the Mark covered dialog for this load with the carrier already filled in (v23: no hunting for the load on the board). */
+function coveredBy(load, carrier, rate) {
+  const box = laneBoxes(state.postings).find(b => b.head.id === load.id || b.members.some(m => m.id === load.id));
+  if (!box) return toast('That load is no longer on the board.', 'warn');
+  coverModal(box, { carrier: { name: carrier.carrierName || '', email: carrier.email || '', mc: carrier.mc || '', phone: carrier.phone || '' }, rate });
+}
+
 export function render() {
   const now = Date.now();
   const heads = headsOf(state.postings).filter(p => p.status !== 'Covered' && p.status !== 'Expired');
@@ -90,6 +100,32 @@ export function render() {
     ...lessons.slice(0, 12).map(l => h('div', { class: 'cdesk-item compact' }, h('span', { class: 'said' }, l.text), ' ', h('span', { class: 'pill' }, teachableLabel(l.intent)), ' ', h('span', { class: 'muted small' }, `confirmed ${l.count}×`),
       h('button', { class: 'btn small', type: 'button', 'data-act': 'forget-lesson', onclick: async () => { await actions.forgetLesson(l.sig); rerender(); } }, 'Forget')))));
 
+  // 2. call sheet
+  const histTrucks = [];
+  for (const t of trucks) for (const m of matchLoadsToTruck(t, heads, { zipMap: state.zip, now, carrierHistory: carrierHistoryFromLog(state.coverLog) }).slice(0, 1)) histTrucks.push({ truck: t, load: m.load, score: m.score, reasons: m.reasons });
+  const sheet = callSheet(heads, state.carriers, { zip: state.zip, zipMap: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, now: new Date(now), liveTrucks: histTrucks, limit: 15 });
+  root.append(sect('Call these first', 'One list across every open load. Hard and urgent loads come first, and trucks that reported in today come before database guesses.',
+    ...(sheet.length ? sheet.map(r => { const ph = r.phone || r.carrier.phone || ''; return h('div', { class: 'cv-row' },
+      h('b', null, r.carrier.carrierName || r.carrier.email || 'Carrier'), ' ', ph ? h('a', { href: telHref(ph) || ('tel:' + String(ph).replace(/[^0-9+]/g, '')) }, ph) : null, ' ', r.source === 'truck' ? h('span', { class: 'pill ok' }, 'truck free now') : null,
+      h('div', { class: 'muted small' }, 'for ' + placeText(r.load.originCity, r.load.originState) + ' to ' + placeText(r.load.destCity, r.load.destState) + (r.urgency ? ' (' + r.urgency + ')' : '') + ' \u00b7 ' + r.why.join('; ')),
+      h('div', { class: 'toolbar' },
+        ph ? h('a', { class: 'btn small primary', href: telHref(ph) || ('tel:' + String(ph).replace(/[^0-9+]/g, '')), 'data-act': 'sheet-call' }, 'Call ' + ph) : null,
+        r.carrier.email ? h('a', { class: 'btn small', href: mailtoUrl({ to: r.carrier.email, subject: 'Truck for ' + placeText(r.load.originCity, r.load.originState) + ' to ' + placeText(r.load.destCity, r.load.destState), body: '' }), 'data-act': 'sheet-mail' }, 'E-mail') : null,
+        h('button', { class: 'btn small', type: 'button', 'data-act': 'sheet-covered', title: 'They took it: log the cover with this carrier filled in', onclick: () => coveredBy(r.load, r.carrier) }, 'Covered by them'))); }) : [h('p', { class: 'muted' }, 'Add carriers with phone numbers (or trucks below) and open loads will appear here.')])));
+
+  // 3. trucks
+  root.append(sect('Trucks available now', 'Your Truck Book. A truck reported in the last 4 hours ranks highest; after a day and a half it stops counting.',
+    ...(trucks.length ? [h('div', null, trucks.slice(0, 40).map(t => {
+      const best = matchLoadsToTruck(t, heads, { zipMap: state.zip, now })[0];
+      return h('div', { class: 'cv-row' },
+        h('b', null, t.carrierName || t.email || t.mc || 'Carrier'), ' ', h('span', { class: 'muted' }, equipLabel(t.equip) + ' · ' + placeText(t.oCity, t.oState) + (t.destOpen ? ' → anywhere' : ' → ' + placeText(t.dCity, t.dState)) + ' · ' + freshLabel(t, now)),
+        best ? h('div', { class: 'muted small' }, 'Best load for it: ' + placeText(best.load.originCity, best.load.originState) + ' to ' + placeText(best.load.destCity, best.load.destState)) : null,
+        h('div', { class: 'toolbar' }, t.phone ? h('a', { class: 'btn small primary', href: 'tel:' + String(t.phone).replace(/[^0-9+]/g, '') }, 'Call ' + t.phone) : null,
+          best ? h('button', { class: 'btn small', type: 'button', 'data-act': 'truck-covered', title: 'This truck took its best load: log the cover with the carrier filled in', onclick: () => coveredBy(best.load, { carrierName: t.carrierName, email: t.email, mc: t.mc, phone: t.phone }) }, 'Covered: best load') : null,
+          h('button', { class: 'btn small', type: 'button', onclick: async () => { await actions.setTruckStatus(t.id, 'booked'); rerender(); } }, 'Booked'),
+          h('button', { class: 'btn small', type: 'button', onclick: async () => { await actions.removeTruck(t.id); rerender(); } }, 'Remove')));
+    }))] : [emptyState({ icon: 'truck', title: 'No trucks on file', text: 'Press Add trucks and paste a carrier e-mail or a list.', actions: [h('button', { class: 'btn primary', type: 'button', onclick: addTrucksDialog }, 'Add trucks')] })])));
+
   // 1b. two-way matching: every open load against every available truck (yours and the team's)
   const ms = matchStats(state.matches, heads);
   root.append(sect('Truck matches per load', 'Every new load is checked against every available truck, and every new truck against every open load. The number to watch is how many qualified trucks each load has.',
@@ -99,27 +135,6 @@ export function render() {
         h('b', null, placeText(hd.originCity, hd.originState) + ' to ' + placeText(hd.destCity, hd.destState)), ' ', h('span', { class: 'dir-chip ' + (list.length ? 'ok' : 'warn') }, list.length + ' qualified truck' + (list.length === 1 ? '' : 's')),
         list.length ? h('div', { class: 'muted small' }, list.slice(0, 4).map(m => (m.carrierName || m.email || 'Carrier') + (m.phone ? ' ' + m.phone : '')).join(' · ')) : null,
         h('div', { class: 'toolbar' }, rescueButton({ head: hd, members: [hd] }, hd))); }))] : [emptyState({ icon: 'truck', title: 'No open loads', text: 'Add a load on the Load board and its truck matches appear here.' })])));
-
-  // 2. call sheet
-  const histTrucks = [];
-  for (const t of trucks) for (const m of matchLoadsToTruck(t, heads, { zipMap: state.zip, now, carrierHistory: carrierHistoryFromLog(state.coverLog) }).slice(0, 1)) histTrucks.push({ truck: t, load: m.load, score: m.score, reasons: m.reasons });
-  const sheet = callSheet(heads, state.carriers, { zip: state.zip, zipMap: state.zip, settings: state.settings, coverLog: state.coverLog, inquiries: state.inquiries, outreach: state.outreach, now: new Date(now), liveTrucks: histTrucks, limit: 15 });
-  root.append(sect('Call these first', 'One list across every open load. Hard and urgent loads come first, and trucks that reported in today come before database guesses.',
-    ...(sheet.length ? sheet.map(r => h('div', { class: 'cv-row' },
-      h('b', null, r.carrier.carrierName || r.carrier.email || 'Carrier'), ' ', r.phone || r.carrier.phone ? h('a', { href: 'tel:' + String(r.carrier.phone).replace(/[^0-9+]/g, '') }, r.carrier.phone) : null, ' ', r.source === 'truck' ? h('span', { class: 'pill ok' }, 'truck free now') : null,
-      h('div', { class: 'muted small' }, 'for ' + placeText(r.load.originCity, r.load.originState) + ' to ' + placeText(r.load.destCity, r.load.destState) + (r.urgency ? ' (' + r.urgency + ')' : '') + ' · ' + r.why.join('; ')))) : [h('p', { class: 'muted' }, 'Add carriers with phone numbers (or trucks below) and open loads will appear here.')])));
-
-  // 3. trucks
-  root.append(sect('Trucks available now', 'Your Truck Book. A truck reported in the last 4 hours ranks highest; after a day and a half it stops counting.',
-    ...(trucks.length ? [h('div', null, trucks.slice(0, 40).map(t => {
-      const best = matchLoadsToTruck(t, heads, { zipMap: state.zip, now })[0];
-      return h('div', { class: 'cv-row' },
-        h('b', null, t.carrierName || t.email || t.mc || 'Carrier'), ' ', h('span', { class: 'muted' }, equipLabel(t.equip) + ' · ' + placeText(t.oCity, t.oState) + (t.destOpen ? ' → anywhere' : ' → ' + placeText(t.dCity, t.dState)) + ' · ' + freshLabel(t, now)),
-        best ? h('div', { class: 'muted small' }, 'Best load for it: ' + placeText(best.load.originCity, best.load.originState) + ' to ' + placeText(best.load.destCity, best.load.destState)) : null,
-        h('div', { class: 'toolbar' }, t.phone ? h('a', { class: 'btn small', href: 'tel:' + String(t.phone).replace(/[^0-9+]/g, '') }, 'Call ' + t.phone) : null,
-          h('button', { class: 'btn small', type: 'button', onclick: async () => { await actions.setTruckStatus(t.id, 'booked'); rerender(); } }, 'Booked'),
-          h('button', { class: 'btn small', type: 'button', onclick: async () => { await actions.removeTruck(t.id); rerender(); } }, 'Remove')));
-    }))] : [emptyState({ icon: 'truck', title: 'No trucks on file', text: 'Press Add trucks and paste a carrier e-mail or a list.', actions: [h('button', { class: 'btn primary', type: 'button', onclick: addTrucksDialog }, 'Add trucks')] })])));
 
   // 4. bundling + effectiveness + readiness
   const chains = bundleOpportunities(heads, { zipMap: state.zip, limit: 6 });

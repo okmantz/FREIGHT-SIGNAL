@@ -1,4 +1,4 @@
-import { h, toast, modal, confirmDialog, copyText, openExternal, field, inputEl, selectEl, download } from '../dom.js';
+import { h, toast, modal, confirmDialog, copyText, openExternal, field, inputEl, selectEl, download, wirePopover } from '../dom.js';
 import { coverageStrip } from '../board/coverage.js';
 import { rescueButton, rescueStrip } from '../board/autorescue.js';
 import { planStrip } from '../board/plan.js';
@@ -42,6 +42,7 @@ const optsOpen = new Set();   // load keys whose "More options" panel is open (r
 const selected = new Set();   // ticked posting ids (for Download selected / Delete selected)
 const rerender = () => import('../../main.js').then(m => m.render());
 
+let pendingKey = null;        // a load the Home page asked to open: scrolled to and pulsed once the board is drawn
 const ui = () => state.settings.ui || {};
 const collapsedSet = () => new Set(ui().collapsed || []);
 const saveUi = (patch) => actions.savePrefs({ ui: { ...ui(), ...patch } });
@@ -221,13 +222,14 @@ function equipSelect(b) {
   return sel;
 }
 
-/** A "⋯" dropdown: <details> so it works without any script, closed again after a choice. */
+/** A "⋯" dropdown: <details> so it works without any script, closed again after a choice. v23: wirePopover keeps the list on screen. */
 function menu(label, items, trigger) {
+  const pop = h('div', { class: 'menu-pop' }, items.filter(Boolean).map(it => it.heading ? h('div', { class: 'menu-head' }, it.heading) : h('button', { class: 'menu-item' + (it.danger ? ' danger' : ''), type: 'button', 'data-act': it.act || null, onclick: (e) => { d.removeAttribute('open'); it.run(e); } }, it.label)));
   const d = h('details', { class: 'menu' + (trigger ? ' ' + (trigger.cls || '') : '') },
     trigger ? h('summary', { class: 'btn', 'aria-label': label, title: trigger.title || label, 'data-act': trigger.act || null }, trigger.icon ? icon(trigger.icon, 15) : null, trigger.text, icon('chevdown', 13))
       : h('summary', { class: 'btn small iconbtn', 'aria-label': label, title: label }, icon('more', 16)),
-    h('div', { class: 'menu-pop' }, items.filter(Boolean).map(it => it.heading ? h('div', { class: 'menu-head' }, it.heading) : h('button', { class: 'menu-item' + (it.danger ? ' danger' : ''), type: 'button', 'data-act': it.act || null, onclick: (e) => { d.removeAttribute('open'); it.run(e); } }, it.label))));
-  return d;
+    pop);
+  return wirePopover(d, pop);
 }
 document.addEventListener('click', (e) => { document.querySelectorAll('details.menu[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); }); });
 
@@ -342,6 +344,7 @@ function groupBox(r, collapsed, toggle) {
       h('div', { class: 'lanestatus' },
         // collapsed cards have no action bar, so the copy button lives in the header (it is in the action bar when the card is open)
         collapsed ? h('button', { class: 'btn small', type: 'button', 'data-act': 'copy-lane-details', title: 'Copy the original load details (the pasted load text)', onclick: (e) => copyLoadDetails(b.members, e.currentTarget) }, icon('copy', 14), 'Copy details') : null,
+        collapsed ? h('button', { class: 'btn small', type: 'button', 'data-act': 'mark-covered', title: 'Log which posting and carrier covered it, then remove the load', onclick: () => coverModal(b) }, icon('check', 14), 'Covered') : null,
         h('span', { class: 'badge st-' + st.tone }, icon(st.icon, 14), st.label),
         h('span', { class: 'score ' + r.label.toLowerCase(), title: `Cover-probability score ${r.score}/100 (${r.label}): ${r.reasons.join('; ')}` }, r.score))),
     collapsed ? null : issuesStrip(r));
@@ -588,4 +591,20 @@ export function render() {
       h('button', { class: 'btn small', type: 'button', onclick: () => { selected.clear(); rerender(); } }, 'Clear')) : null,
     rowsView.length ? rowsView.map(r => groupBox(r, collapsed.has(r.box.key), () => { if (collapsed.has(r.box.key)) collapsed.delete(r.box.key); else collapsed.add(r.box.key); setCollapsed(collapsed); })) :
       (state.postings.length ? emptyState({ icon: 'board', title: 'No loads match', text: 'Clear the search or pick another broker tab.' }) : null));
+}
+
+
+/** Open one load on the board (from the Home "Work next" list): unfold it, go to the board, scroll to it. */
+export async function focusLoad(key) {
+  const col = collapsedSet();
+  if (col.has(key)) { col.delete(key); await saveUi({ collapsed: [...col] }); }
+  pendingKey = key;
+  if (location.hash === '#/board') await rerender(); else location.hash = '#/board';
+}
+
+/** Called by main.js after the board is on screen. */
+export function afterRender() {
+  if (!pendingKey) return;
+  const key = pendingKey; pendingKey = null;
+  setTimeout(() => { const el = document.querySelector(`[data-key="${CSS.escape(key)}"]`); if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); el.classList.add('pulse'); setTimeout(() => el.classList.remove('pulse'), 1600); } }, 80);
 }

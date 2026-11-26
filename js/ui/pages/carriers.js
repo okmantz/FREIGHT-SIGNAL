@@ -62,8 +62,8 @@ function toolbar(all, rows, found) {
     h('div', { class: 'dir-bar' },
       searchBox(q, 'Search name, MC, phone, e-mail, city, equipment…', (v) => { if (v !== q) relevance = true; q = v; }, rerender),
       segmented([['all', 'All', count('all')], ['primary', h('span', { class: 'seglabel' }, h('span', { class: 'pstar inline' }, icon('star', 9)), 'Primary'), count('primary')], ['active', 'Active', count('active')], ['reach', 'Ready to contact', count('reach')], ['never', 'Never contacted', count('never')], ['proven', 'Has covered', count('proven')]], view, (v) => { view = v; rerender(); }, 'Quick views'),
-      h('span', { class: 'grow' }),
-      h('button', { class: 'btn primary', type: 'button', onclick: () => edit(null) }, icon('plus', 15), 'Add carrier'),
+      h('div', { class: 'dir-acts' },
+      h('button', { class: 'btn primary', type: 'button', 'data-act': 'add-carrier', onclick: () => edit(null) }, icon('plus', 15), 'Add carrier'),
       h('button', { class: 'btn', type: 'button', 'data-act': 'import-history', title: 'Read the last 30 or 90 days of Outlook mail and add only the carriers that really booked a load with you', onclick: openHistoryImport }, icon('mail', 15), 'IMPORT HISTORICAL EMAILS'),
       h('button', { class: 'btn', type: 'button', disabled: !rows.length, title: 'Draft a truck-availability e-mail to every carrier shown (with an e-mail address). Use the filters first to ask just one group.', onclick: () => truckCheck(rows) }, icon('mail', 15), `Truck check (${rows.filter(c => String(c.email || '').trim()).length})`),
       moreMenu('More', [
@@ -76,7 +76,7 @@ function toolbar(all, rows, found) {
           if (!(await confirmDialog('Clean up duplicates', d.drop.length + ' duplicate row' + (d.drop.length === 1 ? '' : 's') + ' (same carrier, same lane) will be removed. The fullest row of each is kept and fills its blanks from the others.', 'Clean up'))) return;
           const r = await actions.cleanupCarrierDuplicates(); toast(r.removed + ' duplicate row' + (r.removed === 1 ? '' : 's') + ' removed.', 'ok');
         }, { act: 'dedupe', title: 'Remove exact duplicate rows (same carrier and same lane)' }],
-      ])),
+      ]))),
     h('div', { class: 'dir-filters' }, h('span', { class: 'lbl' }, 'Filter'),
       filterSelect('Any equipment', uniq(cs.flatMap(eqTokens)).map(x => [x]), F.equip, (v) => { F.equip = v; rerender(); }, 'equip'),
       filterSelect('Any home state', uniq(cs.map(c => String(c.originState ?? '').trim().toUpperCase()).filter(Boolean)).map(x => [x]), F.state, (v) => { F.state = v; rerender(); }, 'state'),

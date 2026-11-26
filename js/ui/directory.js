@@ -2,7 +2,7 @@
 // One look everywhere: a toolbar with big search + quick views, quiet filters, optional grouping, compact rows that open into a detail card.
 // Builds elements with h() only (no innerHTML, no style attributes), so the strict CSP stays valid.
 
-import { h } from './dom.js';
+import { h, wirePopover } from './dom.js';
 import { icon } from './icons.js';
 import { highlightParts } from '../core/search.js';
 
@@ -90,15 +90,18 @@ export function avatarWithStar(name, info, opts) {
   return info ? h('span', { class: 'dir-avwrap' }, a, primaryBadge(info)) : a;
 }
 
-/** "More" menu: a button that opens a short list of actions. items = [[label, iconName, onClick, {disabled, danger, title}]] */
+/**
+ * "More" menu: a button that opens a short list of actions. items = [[label, iconName, onClick, {disabled, danger, title, act}]]
+ * v23: the list is placed by wirePopover (fixed to the screen, kept inside the window, flips above when there is no room below), so it can
+ * no longer be cut off by the sidebar or the page edge. The old per-render document click listener is gone (one shared listener closes menus).
+ */
 export function moreMenu(label, items, { iconName = 'more', cls = '' } = {}) {
   const d = h('details', { class: 'dir-menu ' + cls });
   const close = () => { d.open = false; };
-  d.append(h('summary', { class: 'btn', 'aria-label': label }, label ? [label, icon('chevdown', 13)] : icon(iconName, 16)),
-    h('div', { class: 'dir-menu-list', role: 'menu' }, items.filter(Boolean).map(([l, ic, fn, o = {}]) =>
-      h('button', { type: 'button', role: 'menuitem', class: 'dir-mi' + (o.danger ? ' danger' : ''), disabled: o.disabled, title: o.title, 'data-act': o.act, onclick: () => { close(); fn(); } }, ic ? icon(ic, 15) : null, l))));
-  document.addEventListener('click', (e) => { if (d.open && !d.contains(e.target)) close(); }, { capture: true });
-  return d;
+  const list = h('div', { class: 'dir-menu-list', role: 'menu' }, items.filter(Boolean).map(([l, ic, fn, o = {}]) =>
+    h('button', { type: 'button', role: 'menuitem', class: 'dir-mi' + (o.danger ? ' danger' : ''), disabled: o.disabled, title: o.title, 'data-act': o.act, onclick: () => { close(); fn(); } }, ic ? icon(ic, 15) : null, l)));
+  d.append(h('summary', { class: 'btn', 'aria-label': label || 'More', 'aria-haspopup': 'menu', title: 'More actions: import, export, copy for Excel and clean-up' }, label ? [label, icon('chevdown', 13)] : icon(iconName, 16)), list);
+  return wirePopover(d, list);
 }
 
 /** Labelled <select> that sits quietly in a filter row. */

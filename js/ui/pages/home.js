@@ -7,9 +7,17 @@ import { TOOLKIT } from '../../core/resources.js';
 import { icon } from '../icons.js';
 import { greeting } from '../chrome.js';
 import { startTour } from '../tour.js';
+import { analyseBoard, rankLoads } from '../../core/worklist.js';
+import { exceptionQueue } from '../../core/ledger.js';
+import { boardCtx } from '../board/ctx.js';
+import { loadStatus } from '../board/status.js';
+import { coverModal } from '../board/cover.js';
+import { focusLoad } from './board.js';
 
 const TILES = [
   ['board', 'board', 'LOAD BOARD', 'Paste TQL loads, set one target rate, download the DAT CSV', 'OPEN BOARD'],
+  ['coverdesk', 'sparkle', 'COVER DESK', 'Who to call first, held carrier e-mails and the trucks that are free', 'OPEN COVER DESK'],
+  ['covers', 'covers', 'COVER LOG', 'Every cover, your weekly pace and what is working', 'OPEN COVER LOG'],
   ['spare', 'spare', 'SPARE LOAD DETAILS', 'Parked loads you can restore later', 'OPEN SPARES'],
   ['carriers', 'carriers', 'CARRIER DATABASE', 'Approved carriers by lane', 'OPEN DATABASE'],
   ['inquiry', 'inquiry', 'INQUIRY LOG', 'Carrier inquiries and performance dashboard', 'OPEN LOG'],
@@ -45,12 +53,37 @@ function startCard() {
       x.done ? h('span', { class: 'sc-ok' }, 'Done') : h('a', { class: 'btn small' + (x.id === nextId ? ' primary' : ''), href: x.href }, x.cta)))));
 }
 
+/**
+ * "Work next" (v23): the loads most worth your time right now, with the two things you do to them all day one click away.
+ * Open scrolls the board to the load; Covered opens the Mark covered dialog. Same ranking as the board's own worklist.
+ */
+function workNext() {
+  const rows = analyseBoard(boardCtx());
+  if (!rows.length) return null;
+  const top = rankLoads(rows).slice(0, 5);
+  const needs = exceptionQueue(state.ledger).length;
+  return h('section', { class: 'panel homework', 'data-test': 'work-next' },
+    h('div', { class: 'hw-head' },
+      h('div', null, h('h3', null, 'Work next'), h('p', { class: 'muted' }, `The ${top.length === 1 ? 'load' : top.length + ' loads'} most worth your time right now, best first. ${rows.length} open on the board.`)),
+      h('a', { class: 'btn' + (needs ? ' primary' : ''), href: '#/coverdesk', 'data-act': 'home-cover-desk', title: 'Who to call first, held carrier e-mails and free trucks' }, icon('sparkle', 15), needs ? `Cover Desk: ${needs} need${needs === 1 ? 's' : ''} you` : 'Open Cover Desk')),
+    h('ol', { class: 'wl hw' }, top.map((r, i) => {
+      const st = loadStatus(r);
+      return h('li', { class: 'wl-' + st.tone, 'data-test': 'work-next-item' },
+        h('span', { class: 'wl-rank' }, i + 1),
+        h('div', { class: 'wl-main' }, h('b', null, r.box.title), h('small', { class: 'muted' }, r.reasons.slice(0, 3).join(' \u00b7 ') || 'nothing notable yet')),
+        h('span', { class: 'badge st-' + st.tone }, icon(st.icon, 12), st.label),
+        h('span', { class: 'score ' + r.label.toLowerCase(), title: 'Cover-probability score (0-100)' }, r.score),
+        h('button', { class: 'btn small', type: 'button', 'data-act': 'hw-open', onclick: () => focusLoad(r.box.key) }, 'Open'),
+        h('button', { class: 'btn small', type: 'button', 'data-act': 'hw-covered', title: 'Log the cover and take it off the board', onclick: () => coverModal(r.box) }, icon('check', 13), 'Covered'));
+    })));
+}
+
 export function render() {
   const m = homeMetrics(state.postings, state.inquiries, state.counters);
   const name = ((state.settings.profile || {}).name || '').trim().split(/\s+/)[0];
   const metric = (ic, k, v, sub) => h('div', { class: 'metric' }, h('div', { class: 'k' }, h('span', { class: 'ico' }, icon(ic, 15)), k), h('div', { class: 'v' }, v), h('small', null, sub));
   return h('div', null,
-    h('div', { class: 'hero' },
+    h('div', { class: 'hero' + (state.postings.length ? ' compact' : '') },
       h('div', { class: 'left' },
         h('div', { class: 'greet' }, icon('sparkle', 14), name ? `${greeting()}, ${name}` : greeting()),
         h('h1', null, 'FREIGHT ', h('b', null, 'SIGNAL')),
@@ -62,6 +95,7 @@ export function render() {
           h('button', { class: 'outline', type: 'button', 'data-act': 'take-tour', onclick: () => startTour() }, 'Take the 60-second tour')),
       ),
       h('div', { class: 'logo-wrap' }, h('img', { class: 'logo', src: 'assets/logo-mark.png', alt: 'Freight Signal' }))),
+    workNext(),
     startCard(),
     h('div', { class: 'metrics m3' },
       metric('activity', 'Active loads', m.activeLoads, 'load groups on the board'),
